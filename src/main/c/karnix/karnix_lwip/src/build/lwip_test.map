@@ -1,0 +1,973 @@
+Archive member included to satisfy reference by file (symbol)
+
+/opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-atoi.o)
+                              build/.//core/netif.o (atoi)
+/opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-ctype_.o)
+                              build/.//core/ipv4/ip4_addr.o (_ctype_)
+/opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-memcmp.o)
+                              build/.//netif/ethernet.o (memcmp)
+/opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-memcpy.o)
+                              build/.//netif/ethernet.o (memcpy)
+/opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-memmove-stub.o)
+                              build/.//core/def.o (memmove)
+/opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-memset.o)
+                              build/.//core/raw.o (memset)
+/opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-strlen.o)
+                              build/.//core/def.o (strlen)
+/opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-strncmp.o)
+                              build/.//core/def.o (strncmp)
+/opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-strtol.o)
+                              /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-atoi.o) (_strtol_r)
+/opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-impure.o)
+                              /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-strtol.o) (_impure_ptr)
+/opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/rv32i/ilp32/libgcc.a(muldi3.o)
+                              build/.//core/ipv4/ip4_addr.o (__mulsi3)
+/opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/rv32i/ilp32/libgcc.a(div.o)
+                              build/.//core/def.o (__divsi3)
+
+Memory Configuration
+
+Name             Origin             Length             Attributes
+RAM              0x0000000080000000 0x0000000000008000 xrw
+*default*        0x0000000000000000 0xffffffffffffffff
+
+Linker script and memory map
+
+LOAD build/lwip_test.o
+LOAD build/crt.o
+LOAD build/.//netif/ethernet.o
+LOAD build/.//core/init.o
+LOAD build/.//core/def.o
+LOAD build/.//core/dns.o
+LOAD build/.//core/inet_chksum.o
+LOAD build/.//core/ip.o
+LOAD build/.//core/mem.o
+LOAD build/.//core/memp.o
+LOAD build/.//core/netif.o
+LOAD build/.//core/pbuf.o
+LOAD build/.//core/raw.o
+LOAD build/.//core/stats.o
+LOAD build/.//core/sys.o
+LOAD build/.//core/altcp.o
+LOAD build/.//core/altcp_alloc.o
+LOAD build/.//core/altcp_tcp.o
+LOAD build/.//core/tcp.o
+LOAD build/.//core/tcp_in.o
+LOAD build/.//core/tcp_out.o
+LOAD build/.//core/timeouts.o
+LOAD build/.//core/udp.o
+LOAD build/.//core/ipv4/autoip.o
+LOAD build/.//core/ipv4/dhcp.o
+LOAD build/.//core/ipv4/etharp.o
+LOAD build/.//core/ipv4/icmp.o
+LOAD build/.//core/ipv4/igmp.o
+LOAD build/.//core/ipv4/ip4_frag.o
+LOAD build/.//core/ipv4/ip4.o
+LOAD build/.//core/ipv4/ip4_addr.o
+LOAD /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libnosys.a
+LOAD /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a
+LOAD /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/rv32i/ilp32/libgcc.a
+                0x0000000000000800                _stack_size = DEFINED (_stack_size)?_stack_size:0x800
+                0x0000000000000000                _heap_size = DEFINED (_heap_size)?_heap_size:0x0
+
+._vector        0x0000000080000000      0x134
+ *crt.o(.start_jump)
+ .start_jump    0x0000000080000000       0x10 build/crt.o
+                0x0000000080000000                crtStart
+ *crt.o(.text)
+ *fill*         0x0000000080000010       0x10 
+ .text          0x0000000080000020      0x114 build/crt.o
+                0x0000000080000020                trap_entry
+
+.data           0x0000000080000134      0x270
+ *(.rdata)
+ *(.rodata .rodata.*)
+ .rodata.str1.4
+                0x0000000080000134       0x2e build/lwip_test.o
+ *fill*         0x0000000080000162        0x2 
+ .rodata        0x0000000080000164       0x1c build/.//core/memp.o
+                0x0000000080000164                memp_pools
+ .rodata.str1.4
+                0x0000000080000180       0x50 build/.//core/memp.o
+ .rodata        0x00000000800001d0       0x10 build/.//core/timeouts.o
+                0x00000000800001d0                lwip_cyclic_timers
+ .rodata._ctype_
+                0x00000000800001e0      0x101 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-ctype_.o)
+                0x00000000800001e0                _ctype_
+ *(.gnu.linkonce.r.*)
+ *(.data .data.*)
+ .data          0x00000000800002e1        0x0 build/lwip_test.o
+ .data          0x00000000800002e1        0x0 build/crt.o
+ .data          0x00000000800002e1        0x0 build/.//netif/ethernet.o
+ .data          0x00000000800002e1        0x0 build/.//core/init.o
+ .data          0x00000000800002e1        0x0 build/.//core/def.o
+ .data          0x00000000800002e1        0x0 build/.//core/dns.o
+ .data          0x00000000800002e1        0x0 build/.//core/inet_chksum.o
+ .data          0x00000000800002e1        0x0 build/.//core/ip.o
+ .data          0x00000000800002e1        0x0 build/.//core/mem.o
+ .data          0x00000000800002e1        0x0 build/.//core/memp.o
+ .data          0x00000000800002e1        0x0 build/.//core/netif.o
+ .data          0x00000000800002e1        0x0 build/.//core/pbuf.o
+ .data          0x00000000800002e1        0x0 build/.//core/raw.o
+ .data          0x00000000800002e1        0x0 build/.//core/stats.o
+ .data          0x00000000800002e1        0x0 build/.//core/sys.o
+ .data          0x00000000800002e1        0x0 build/.//core/altcp.o
+ .data          0x00000000800002e1        0x0 build/.//core/altcp_alloc.o
+ .data          0x00000000800002e1        0x0 build/.//core/altcp_tcp.o
+ .data          0x00000000800002e1        0x0 build/.//core/tcp.o
+ .data          0x00000000800002e1        0x0 build/.//core/tcp_in.o
+ .data          0x00000000800002e1        0x0 build/.//core/tcp_out.o
+ .data          0x00000000800002e1        0x0 build/.//core/timeouts.o
+ .data          0x00000000800002e1        0x0 build/.//core/udp.o
+ .data          0x00000000800002e1        0x0 build/.//core/ipv4/autoip.o
+ .data          0x00000000800002e1        0x0 build/.//core/ipv4/dhcp.o
+ .data          0x00000000800002e1        0x0 build/.//core/ipv4/etharp.o
+ .data          0x00000000800002e1        0x0 build/.//core/ipv4/icmp.o
+ .data          0x00000000800002e1        0x0 build/.//core/ipv4/igmp.o
+ .data          0x00000000800002e1        0x0 build/.//core/ipv4/ip4_frag.o
+ .data          0x00000000800002e1        0x0 build/.//core/ipv4/ip4.o
+ .data          0x00000000800002e1        0x0 build/.//core/ipv4/ip4_addr.o
+ .data          0x00000000800002e1        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-atoi.o)
+ .data          0x00000000800002e1        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-ctype_.o)
+ .data          0x00000000800002e1        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-memcmp.o)
+ .data          0x00000000800002e1        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-memcpy.o)
+ .data          0x00000000800002e1        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-memmove-stub.o)
+ .data          0x00000000800002e1        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-memset.o)
+ .data          0x00000000800002e1        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-strlen.o)
+ .data          0x00000000800002e1        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-strncmp.o)
+ .data          0x00000000800002e1        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-strtol.o)
+ .data          0x00000000800002e1        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-impure.o)
+ *fill*         0x00000000800002e1        0x3 
+ .data.impure_data
+                0x00000000800002e4       0x60 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-impure.o)
+ .data          0x0000000080000344        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/rv32i/ilp32/libgcc.a(muldi3.o)
+ .data          0x0000000080000344        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/rv32i/ilp32/libgcc.a(div.o)
+ *(.gnu.linkonce.d.*)
+                0x0000000080000348                . = ALIGN (0x8)
+ *fill*         0x0000000080000344        0x4 
+                0x0000000080000b48                PROVIDE (__global_pointer$ = (. + 0x800))
+ *(.sdata .sdata.*)
+ .sdata         0x0000000080000348        0x2 build/.//core/udp.o
+ *fill*         0x000000008000034a        0x2 
+ .sdata._impure_ptr
+                0x000000008000034c        0x4 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-impure.o)
+                0x000000008000034c                _impure_ptr
+ *(.gnu.linkonce.s.*)
+                0x0000000080000350                . = ALIGN (0x8)
+ *(.srodata.cst16)
+ *(.srodata.cst8)
+ *(.srodata.cst4)
+ *(.srodata.cst2)
+ *(.srodata .srodata.*)
+ .srodata       0x0000000080000350        0xe build/.//netif/ethernet.o
+                0x0000000080000350                ethzero
+                0x0000000080000358                ethbroadcast
+ *fill*         0x000000008000035e        0x2 
+ .srodata       0x0000000080000360       0x38 build/.//core/memp.o
+                0x0000000080000360                memp_PBUF_POOL
+                0x0000000080000368                memp_PBUF
+                0x0000000080000370                memp_SYS_TIMEOUT
+                0x0000000080000378                memp_FRAG_PBUF
+                0x0000000080000380                memp_REASSDATA
+                0x0000000080000388                memp_UDP_PCB
+                0x0000000080000390                memp_RAW_PCB
+ .srodata       0x0000000080000398        0x4 build/.//core/timeouts.o
+                0x0000000080000398                lwip_num_cyclic_timers
+ .srodata       0x000000008000039c        0x8 build/.//core/ipv4/ip4_addr.o
+                0x000000008000039c                ip_addr_broadcast
+                0x00000000800003a0                ip_addr_any
+
+.bss            0x00000000800003a4      0x1f8
+                0x00000000800003a4                . = ALIGN (0x4)
+                0x00000000800003a4                _bss_start = .
+ *(.sbss*)
+ .sbss          0x00000000800003a4        0x4 build/lwip_test.o
+                0x00000000800003a4                mch_myip_addr
+ .sbss          0x00000000800003a8        0xc build/.//core/netif.o
+                0x00000000800003ac                netif_default
+                0x00000000800003b0                netif_list
+ .sbss          0x00000000800003b4        0x4 build/.//core/raw.o
+ .sbss          0x00000000800003b8        0x8 build/.//core/timeouts.o
+ .sbss          0x00000000800003c0        0x4 build/.//core/udp.o
+                0x00000000800003c0                udp_pcbs
+ .sbss          0x00000000800003c4        0x8 build/.//core/ipv4/ip4_frag.o
+ .sbss          0x00000000800003cc        0x2 build/.//core/ipv4/ip4.o
+ *(.gnu.linkonce.sb.*)
+ *(.bss .bss.*)
+ *fill*         0x00000000800003ce        0x2 
+ .bss           0x00000000800003d0       0x3c build/lwip_test.o
+ .bss           0x000000008000040c        0x0 build/crt.o
+ .bss           0x000000008000040c        0x0 build/.//netif/ethernet.o
+ .bss           0x000000008000040c        0x0 build/.//core/init.o
+ .bss           0x000000008000040c        0x0 build/.//core/def.o
+ .bss           0x000000008000040c        0x0 build/.//core/dns.o
+ .bss           0x000000008000040c        0x0 build/.//core/inet_chksum.o
+ .bss           0x000000008000040c       0x18 build/.//core/ip.o
+                0x000000008000040c                ip_data
+ .bss           0x0000000080000424        0x0 build/.//core/mem.o
+ .bss           0x0000000080000424        0x0 build/.//core/memp.o
+ .bss           0x0000000080000424        0x0 build/.//core/netif.o
+ .bss           0x0000000080000424        0x0 build/.//core/pbuf.o
+ .bss           0x0000000080000424        0x0 build/.//core/raw.o
+ .bss           0x0000000080000424       0x78 build/.//core/stats.o
+                0x0000000080000424                lwip_stats
+ .bss           0x000000008000049c        0x0 build/.//core/sys.o
+ .bss           0x000000008000049c        0x0 build/.//core/altcp.o
+ .bss           0x000000008000049c        0x0 build/.//core/altcp_alloc.o
+ .bss           0x000000008000049c        0x0 build/.//core/altcp_tcp.o
+ .bss           0x000000008000049c        0x0 build/.//core/tcp.o
+ .bss           0x000000008000049c        0x0 build/.//core/tcp_in.o
+ .bss           0x000000008000049c        0x0 build/.//core/tcp_out.o
+ .bss           0x000000008000049c        0x0 build/.//core/timeouts.o
+ .bss           0x000000008000049c        0x0 build/.//core/udp.o
+ .bss           0x000000008000049c        0x0 build/.//core/ipv4/autoip.o
+ .bss           0x000000008000049c        0x0 build/.//core/ipv4/dhcp.o
+ .bss           0x000000008000049c       0xf0 build/.//core/ipv4/etharp.o
+ .bss           0x000000008000058c        0x0 build/.//core/ipv4/icmp.o
+ .bss           0x000000008000058c        0x0 build/.//core/ipv4/igmp.o
+ .bss           0x000000008000058c        0x0 build/.//core/ipv4/ip4_frag.o
+ .bss           0x000000008000058c        0x0 build/.//core/ipv4/ip4.o
+ .bss           0x000000008000058c       0x10 build/.//core/ipv4/ip4_addr.o
+ .bss           0x000000008000059c        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-atoi.o)
+ .bss           0x000000008000059c        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-ctype_.o)
+ .bss           0x000000008000059c        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-memcmp.o)
+ .bss           0x000000008000059c        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-memcpy.o)
+ .bss           0x000000008000059c        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-memmove-stub.o)
+ .bss           0x000000008000059c        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-memset.o)
+ .bss           0x000000008000059c        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-strlen.o)
+ .bss           0x000000008000059c        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-strncmp.o)
+ .bss           0x000000008000059c        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-strtol.o)
+ .bss           0x000000008000059c        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-impure.o)
+ .bss           0x000000008000059c        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/rv32i/ilp32/libgcc.a(muldi3.o)
+ .bss           0x000000008000059c        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/rv32i/ilp32/libgcc.a(div.o)
+ *(.gnu.linkonce.b.*)
+ *(COMMON)
+                0x000000008000059c                . = ALIGN (0x4)
+                0x000000008000059c                _bss_end = .
+
+.rodata
+ *(.rdata)
+ *(.rodata .rodata.*)
+ *(.gnu.linkonce.r.*)
+
+.sdata2._global_impure_ptr
+                0x000000008000059c        0x4
+ .sdata2._global_impure_ptr
+                0x000000008000059c        0x4 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-impure.o)
+                0x000000008000059c                _global_impure_ptr
+
+.noinit         0x00000000800005a0        0x0
+                0x00000000800005a0                . = ALIGN (0x4)
+ *(.noinit .noinit.*)
+                0x00000000800005a0                . = ALIGN (0x4)
+
+.memory         0x00000000800005a0     0x5bc4
+ *(.text)
+ .text          0x00000000800005a0       0xf4 build/lwip_test.o
+                0x00000000800005a0                mchdrv_init
+                0x00000000800005a8                irqCallback
+                0x00000000800005ac                mchdrv_poll
+                0x00000000800005b0                sys_now
+                0x00000000800005b8                sys_arch_protect
+                0x00000000800005bc                sys_arch_unprotect
+                0x00000000800005c0                mch_net_init
+                0x0000000080000670                mch_net_poll
+                0x0000000080000674                mch_net_aton
+ .text          0x0000000080000694      0x22c build/.//netif/ethernet.o
+                0x0000000080000694                ethernet_input
+                0x00000000800007f4                ethernet_output
+ .text          0x00000000800008c0       0x28 build/.//core/init.o
+                0x00000000800008c0                lwip_init
+ .text          0x00000000800008e8      0x270 build/.//core/def.o
+                0x00000000800008e8                lwip_htons
+                0x0000000080000900                lwip_htonl
+                0x0000000080000934                lwip_strnstr
+                0x00000000800009c4                lwip_stricmp
+                0x0000000080000a08                lwip_strnicmp
+                0x0000000080000a5c                lwip_itoa
+ .text          0x0000000080000b58        0x0 build/.//core/dns.o
+ .text          0x0000000080000b58      0x468 build/.//core/inet_chksum.o
+                0x0000000080000b58                lwip_standard_chksum
+                0x0000000080000bf8                inet_chksum_pseudo
+                0x0000000080000d48                ip_chksum_pseudo
+                0x0000000080000d4c                inet_chksum_pseudo_partial
+                0x0000000080000ed8                ip_chksum_pseudo_partial
+                0x0000000080000edc                inet_chksum
+                0x0000000080000f00                inet_chksum_pbuf
+ .text          0x0000000080000fc0        0x0 build/.//core/ip.o
+ .text          0x0000000080000fc0       0x44 build/.//core/mem.o
+                0x0000000080000fc0                mem_init
+                0x0000000080000fc4                mem_trim
+                0x0000000080000fc8                malloc
+                0x0000000080000ffc                free
+                0x0000000080001000                calloc
+ .text          0x0000000080001004       0xf0 build/.//core/memp.o
+                0x000000008000103c                memp_init_pool
+                0x0000000080001040                memp_init
+                0x0000000080001044                memp_malloc_pool
+                0x0000000080001054                memp_malloc
+                0x0000000080001080                memp_free_pool
+                0x00000000800010b8                memp_free
+ .text          0x00000000800010f4      0x658 build/.//core/netif.o
+                0x00000000800011c4                netif_init
+                0x00000000800011c8                netif_input
+                0x00000000800011dc                netif_set_ipaddr
+                0x0000000080001208                netif_set_netmask
+                0x0000000080001228                netif_set_gw
+                0x0000000080001248                netif_set_addr
+                0x00000000800012f8                netif_add
+                0x0000000080001400                netif_add_noaddr
+                0x000000008000141c                netif_set_default
+                0x0000000080001424                netif_set_up
+                0x0000000080001484                netif_set_down
+                0x00000000800014e8                netif_remove
+                0x0000000080001588                netif_set_status_callback
+                0x0000000080001594                netif_set_link_up
+                0x00000000800015f4                netif_set_link_down
+                0x000000008000161c                netif_set_link_callback
+                0x0000000080001628                netif_get_by_index
+                0x0000000080001658                netif_index_to_name
+                0x00000000800016b0                netif_find
+                0x000000008000171c                netif_name_to_index
+ .text          0x000000008000174c      0xde4 build/.//core/pbuf.o
+                0x0000000080001808                pbuf_alloc_reference
+                0x0000000080001864                pbuf_alloced_custom
+                0x00000000800018b8                pbuf_add_header
+                0x00000000800018c0                pbuf_add_header_force
+                0x00000000800018c8                pbuf_remove_header
+                0x0000000080001928                pbuf_header
+                0x000000008000193c                pbuf_header_force
+                0x0000000080001950                pbuf_free
+                0x0000000080001a24                pbuf_alloc
+                0x0000000080001be0                pbuf_realloc
+                0x0000000080001c90                pbuf_free_header
+                0x0000000080001d00                pbuf_clen
+                0x0000000080001d24                pbuf_ref
+                0x0000000080001d5c                pbuf_cat
+                0x0000000080001d94                pbuf_chain
+                0x0000000080001dbc                pbuf_dechain
+                0x0000000080001e10                pbuf_copy
+                0x0000000080001f20                pbuf_copy_partial
+                0x0000000080001ff8                pbuf_get_contiguous
+                0x0000000080002078                pbuf_skip
+                0x000000008000207c                pbuf_take
+                0x000000008000211c                pbuf_take_at
+                0x00000000800021d4                pbuf_clone
+                0x000000008000221c                pbuf_coalesce
+                0x0000000080002278                pbuf_try_get_at
+                0x00000000800022bc                pbuf_get_at
+                0x00000000800022e0                pbuf_put_at
+                0x0000000080002324                pbuf_memcmp
+                0x0000000080002400                pbuf_memfind
+                0x000000008000249c                pbuf_strstr
+ .text          0x0000000080002530      0x4fc build/.//core/raw.o
+                0x0000000080002530                raw_input
+                0x0000000080002670                raw_bind
+                0x0000000080002690                raw_bind_netif
+                0x00000000800026ac                raw_connect
+                0x00000000800026dc                raw_disconnect
+                0x00000000800026f4                raw_recv
+                0x0000000080002700                raw_sendto_if_src
+                0x0000000080002890                raw_sendto
+                0x0000000080002940                raw_send
+                0x0000000080002948                raw_remove
+                0x0000000080002984                raw_new
+                0x00000000800029e4                raw_new_ip_type
+                0x00000000800029ec                raw_netif_ip_addr_changed
+ .text          0x0000000080002a2c        0x4 build/.//core/stats.o
+                0x0000000080002a2c                stats_init
+ .text          0x0000000080002a30        0x0 build/.//core/sys.o
+ .text          0x0000000080002a30        0x0 build/.//core/altcp.o
+ .text          0x0000000080002a30        0x0 build/.//core/altcp_alloc.o
+ .text          0x0000000080002a30        0x0 build/.//core/altcp_tcp.o
+ .text          0x0000000080002a30        0x0 build/.//core/tcp.o
+ .text          0x0000000080002a30        0x0 build/.//core/tcp_in.o
+ .text          0x0000000080002a30        0x0 build/.//core/tcp_out.o
+ .text          0x0000000080002a30      0x2bc build/.//core/timeouts.o
+                0x0000000080002b0c                sys_timeout
+                0x0000000080002b44                sys_timeouts_init
+                0x0000000080002b90                sys_untimeout
+                0x0000000080002be0                sys_check_timeouts
+                0x0000000080002c64                sys_restart_timeouts
+                0x0000000080002cac                sys_timeouts_sleeptime
+ .text          0x0000000080002cec      0x8a0 build/.//core/udp.o
+                0x0000000080002cec                udp_init
+                0x0000000080002cf0                udp_input
+                0x0000000080002fc4                udp_bind
+                0x00000000800030b4                udp_sendto_if_src
+                0x00000000800032a8                udp_sendto_if
+                0x00000000800032f4                udp_sendto
+                0x00000000800033ac                udp_send
+                0x00000000800033c8                udp_bind_netif
+                0x00000000800033e4                udp_connect
+                0x0000000080003490                udp_disconnect
+                0x00000000800034b0                udp_recv
+                0x00000000800034c0                udp_remove
+                0x0000000080003504                udp_new
+                0x0000000080003548                udp_new_ip_type
+                0x000000008000354c                udp_netif_ip_addr_changed
+ .text          0x000000008000358c        0x0 build/.//core/ipv4/autoip.o
+ .text          0x000000008000358c        0x0 build/.//core/ipv4/dhcp.o
+ .text          0x000000008000358c      0xc30 build/.//core/ipv4/etharp.o
+                0x00000000800038f0                etharp_cleanup_netif
+                0x0000000080003958                etharp_find_addr
+                0x00000000800039d8                etharp_get_entry
+                0x0000000080003a34                etharp_input
+                0x0000000080003c58                etharp_request
+                0x0000000080003c7c                etharp_tmr
+                0x0000000080003e34                etharp_query
+                0x0000000080004018                etharp_output
+ .text          0x00000000800041bc      0x474 build/.//core/ipv4/icmp.o
+                0x00000000800042ec                icmp_input
+                0x0000000080004610                icmp_dest_unreach
+                0x0000000080004620                icmp_time_exceeded
+ .text          0x0000000080004630        0x0 build/.//core/ipv4/igmp.o
+ .text          0x0000000080004630      0xd2c build/.//core/ipv4/ip4_frag.o
+                0x00000000800048ec                ip_reass_tmr
+                0x000000008000494c                ip4_reass
+                0x0000000080005030                ip4_frag
+ .text          0x000000008000535c      0x7d8 build/.//core/ipv4/ip4.o
+                0x00000000800053b0                ip4_route
+                0x0000000080005450                ip4_input
+                0x00000000800057c4                ip4_output_if_src
+                0x0000000080005a08                ip4_output_if
+                0x0000000080005a20                ip4_output
+                0x0000000080005aa0                ip4_output_hinted
+ .text          0x0000000080005b34      0x47c build/.//core/ipv4/ip4_addr.o
+                0x0000000080005b34                ip4_addr_isbroadcast_u32
+                0x0000000080005b88                ip4_addr_netmask_valid
+                0x0000000080005bdc                ip4addr_aton
+                0x0000000080005e2c                ipaddr_addr
+                0x0000000080005e58                ip4addr_ntoa_r
+                0x0000000080005fa4                ip4addr_ntoa
+ .text          0x0000000080005fb0        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-atoi.o)
+ .text          0x0000000080005fb0        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-ctype_.o)
+ .text          0x0000000080005fb0        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-memcmp.o)
+ .text          0x0000000080005fb0        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-memcpy.o)
+ .text          0x0000000080005fb0        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-memmove-stub.o)
+ .text          0x0000000080005fb0       0xdc /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-memset.o)
+                0x0000000080005fb0                memset
+ .text          0x000000008000608c        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-strlen.o)
+ .text          0x000000008000608c        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-strncmp.o)
+ .text          0x000000008000608c        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-strtol.o)
+ .text          0x000000008000608c        0x0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-impure.o)
+ .text          0x000000008000608c       0x24 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/rv32i/ilp32/libgcc.a(muldi3.o)
+                0x000000008000608c                __mulsi3
+ .text          0x00000000800060b0       0xb4 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/rv32i/ilp32/libgcc.a(div.o)
+                0x00000000800060b0                __divsi3
+                0x00000000800060b8                __udivsi3
+                0x0000000080006100                __umodsi3
+                0x0000000080006134                __modsi3
+                0x0000000080006164                end = .
+
+.text.startup   0x0000000080006164       0x10
+ .text.startup  0x0000000080006164       0x10 build/lwip_test.o
+                0x0000000080006164                main
+
+.text.atoi      0x0000000080006174        0xc
+ .text.atoi     0x0000000080006174        0xc /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-atoi.o)
+                0x0000000080006174                atoi
+
+.text._atoi_r   0x0000000080006180        0xc
+ .text._atoi_r  0x0000000080006180        0xc /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-atoi.o)
+                0x0000000080006180                _atoi_r
+
+.text.memcmp    0x000000008000618c       0x30
+ .text.memcmp   0x000000008000618c       0x30 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-memcmp.o)
+                0x000000008000618c                memcmp
+
+.text.memcpy    0x00000000800061bc       0xd8
+ .text.memcpy   0x00000000800061bc       0xd8 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-memcpy.o)
+                0x00000000800061bc                memcpy
+
+.text.memmove   0x0000000080006294       0x5c
+ .text.memmove  0x0000000080006294       0x5c /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-memmove-stub.o)
+                0x0000000080006294                memmove
+
+.text.strlen    0x00000000800062f0       0x1c
+ .text.strlen   0x00000000800062f0       0x1c /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-strlen.o)
+                0x00000000800062f0                strlen
+
+.text.strncmp   0x000000008000630c       0x3c
+ .text.strncmp  0x000000008000630c       0x3c /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-strncmp.o)
+                0x000000008000630c                strncmp
+
+.text._strtol_l.isra.0
+                0x0000000080006348      0x20c
+ .text._strtol_l.isra.0
+                0x0000000080006348      0x20c /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-strtol.o)
+
+.text._strtol_r
+                0x0000000080006554        0x4
+ .text._strtol_r
+                0x0000000080006554        0x4 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-strtol.o)
+                0x0000000080006554                _strtol_r
+
+.text.strtol_l  0x0000000080006558       0x1c
+ .text.strtol_l
+                0x0000000080006558       0x1c /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-strtol.o)
+                0x0000000080006558                strtol_l
+
+.text.strtol    0x0000000080006574       0x1c
+ .text.strtol   0x0000000080006574       0x1c /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-strtol.o)
+                0x0000000080006574                strtol
+
+.rela.dyn       0x0000000080006590        0x0
+ .rela.text     0x0000000080006590        0x0 build/lwip_test.o
+ .rela.data.impure_data
+                0x0000000080006590        0x0 build/lwip_test.o
+
+.ctors          0x0000000080006590        0x0
+                0x0000000080006590                . = ALIGN (0x4)
+                0x0000000080006590                _ctors_start = .
+ *(.init_array*)
+ *(SORT_BY_NAME(.ctors.*))
+ *(.ctors)
+                0x0000000080006590                . = ALIGN (0x4)
+                0x0000000080006590                _ctors_end = .
+                [!provide]                        PROVIDE (END_OF_SW_IMAGE = .)
+
+._stack         0x0000000080006590      0x800
+                0x0000000080006590                . = ALIGN (0x10)
+ *fill*         0x0000000080006590        0x0 
+                [!provide]                        PROVIDE (_stack_end = .)
+                0x0000000080006d90                . = (. + _stack_size)
+ *fill*         0x0000000080006590      0x800 
+                0x0000000080006d90                . = ALIGN (0x10)
+                0x0000000080006d90                PROVIDE (_stack_start = .)
+
+._user_heap     0x0000000080006d90        0x0
+                0x0000000080006d90                . = ALIGN (0x8)
+                [!provide]                        PROVIDE (end = .)
+                [!provide]                        PROVIDE (_end = .)
+                [!provide]                        PROVIDE (_heap_start = .)
+                0x0000000080006d90                . = (. + _heap_size)
+                0x0000000080006d90                . = ALIGN (0x8)
+                [!provide]                        PROVIDE (_heap_end = .)
+OUTPUT(build/lwip_test.elf elf32-littleriscv)
+
+.debug_info     0x0000000000000000    0x203c4
+ .debug_info    0x0000000000000000     0x1326 build/lwip_test.o
+ .debug_info    0x0000000000001326       0x22 build/crt.o
+ .debug_info    0x0000000000001348     0x13d9 build/.//netif/ethernet.o
+ .debug_info    0x0000000000002721     0x116d build/.//core/init.o
+ .debug_info    0x000000000000388e      0xc99 build/.//core/def.o
+ .debug_info    0x0000000000004527      0x96a build/.//core/dns.o
+ .debug_info    0x0000000000004e91     0x10b2 build/.//core/inet_chksum.o
+ .debug_info    0x0000000000005f43      0xf9c build/.//core/ip.o
+ .debug_info    0x0000000000006edf      0xccc build/.//core/mem.o
+ .debug_info    0x0000000000007bab     0x150e build/.//core/memp.o
+ .debug_info    0x00000000000090b9     0x1d10 build/.//core/netif.o
+ .debug_info    0x000000000000adc9     0x2755 build/.//core/pbuf.o
+ .debug_info    0x000000000000d51e     0x1915 build/.//core/raw.o
+ .debug_info    0x000000000000ee33      0xb53 build/.//core/stats.o
+ .debug_info    0x000000000000f986      0x96a build/.//core/sys.o
+ .debug_info    0x00000000000102f0      0x96a build/.//core/altcp.o
+ .debug_info    0x0000000000010c5a      0x96a build/.//core/altcp_alloc.o
+ .debug_info    0x00000000000115c4      0x96a build/.//core/altcp_tcp.o
+ .debug_info    0x0000000000011f2e      0x96a build/.//core/tcp.o
+ .debug_info    0x0000000000012898      0x96a build/.//core/tcp_in.o
+ .debug_info    0x0000000000013202      0x96a build/.//core/tcp_out.o
+ .debug_info    0x0000000000013b6c     0x143b build/.//core/timeouts.o
+ .debug_info    0x0000000000014fa7     0x1bff build/.//core/udp.o
+ .debug_info    0x0000000000016ba6      0x96a build/.//core/ipv4/autoip.o
+ .debug_info    0x0000000000017510      0x96a build/.//core/ipv4/dhcp.o
+ .debug_info    0x0000000000017e7a     0x1db6 build/.//core/ipv4/etharp.o
+ .debug_info    0x0000000000019c30     0x161b build/.//core/ipv4/icmp.o
+ .debug_info    0x000000000001b24b      0x96a build/.//core/ipv4/igmp.o
+ .debug_info    0x000000000001bbb5     0x1d54 build/.//core/ipv4/ip4_frag.o
+ .debug_info    0x000000000001d909     0x18db build/.//core/ipv4/ip4.o
+ .debug_info    0x000000000001f1e4     0x1194 build/.//core/ipv4/ip4_addr.o
+ .debug_info    0x0000000000020378       0x26 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/rv32i/ilp32/libgcc.a(muldi3.o)
+ .debug_info    0x000000000002039e       0x26 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/rv32i/ilp32/libgcc.a(div.o)
+
+.debug_abbrev   0x0000000000000000     0x58a4
+ .debug_abbrev  0x0000000000000000      0x34c build/lwip_test.o
+ .debug_abbrev  0x000000000000034c       0x12 build/crt.o
+ .debug_abbrev  0x000000000000035e      0x35e build/.//netif/ethernet.o
+ .debug_abbrev  0x00000000000006bc      0x237 build/.//core/init.o
+ .debug_abbrev  0x00000000000008f3      0x2a9 build/.//core/def.o
+ .debug_abbrev  0x0000000000000b9c      0x1b6 build/.//core/dns.o
+ .debug_abbrev  0x0000000000000d52      0x34e build/.//core/inet_chksum.o
+ .debug_abbrev  0x00000000000010a0      0x1f2 build/.//core/ip.o
+ .debug_abbrev  0x0000000000001292      0x2d3 build/.//core/mem.o
+ .debug_abbrev  0x0000000000001565      0x3bd build/.//core/memp.o
+ .debug_abbrev  0x0000000000001922      0x506 build/.//core/netif.o
+ .debug_abbrev  0x0000000000001e28      0x558 build/.//core/pbuf.o
+ .debug_abbrev  0x0000000000002380      0x4f3 build/.//core/raw.o
+ .debug_abbrev  0x0000000000002873      0x210 build/.//core/stats.o
+ .debug_abbrev  0x0000000000002a83      0x1b6 build/.//core/sys.o
+ .debug_abbrev  0x0000000000002c39      0x1b6 build/.//core/altcp.o
+ .debug_abbrev  0x0000000000002def      0x1b6 build/.//core/altcp_alloc.o
+ .debug_abbrev  0x0000000000002fa5      0x1b6 build/.//core/altcp_tcp.o
+ .debug_abbrev  0x000000000000315b      0x1b6 build/.//core/tcp.o
+ .debug_abbrev  0x0000000000003311      0x1b6 build/.//core/tcp_in.o
+ .debug_abbrev  0x00000000000034c7      0x1b6 build/.//core/tcp_out.o
+ .debug_abbrev  0x000000000000367d      0x3aa build/.//core/timeouts.o
+ .debug_abbrev  0x0000000000003a27      0x50d build/.//core/udp.o
+ .debug_abbrev  0x0000000000003f34      0x1b6 build/.//core/ipv4/autoip.o
+ .debug_abbrev  0x00000000000040ea      0x1b6 build/.//core/ipv4/dhcp.o
+ .debug_abbrev  0x00000000000042a0      0x493 build/.//core/ipv4/etharp.o
+ .debug_abbrev  0x0000000000004733      0x3c2 build/.//core/ipv4/icmp.o
+ .debug_abbrev  0x0000000000004af5      0x1b6 build/.//core/ipv4/igmp.o
+ .debug_abbrev  0x0000000000004cab      0x4b8 build/.//core/ipv4/ip4_frag.o
+ .debug_abbrev  0x0000000000005163      0x39c build/.//core/ipv4/ip4.o
+ .debug_abbrev  0x00000000000054ff      0x37d build/.//core/ipv4/ip4_addr.o
+ .debug_abbrev  0x000000000000587c       0x14 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/rv32i/ilp32/libgcc.a(muldi3.o)
+ .debug_abbrev  0x0000000000005890       0x14 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/rv32i/ilp32/libgcc.a(div.o)
+
+.debug_loc      0x0000000000000000     0x7e37
+ .debug_loc     0x0000000000000000       0x76 build/lwip_test.o
+ .debug_loc     0x0000000000000076      0x278 build/.//netif/ethernet.o
+ .debug_loc     0x00000000000002ee      0x538 build/.//core/def.o
+ .debug_loc     0x0000000000000826      0x997 build/.//core/inet_chksum.o
+ .debug_loc     0x00000000000011bd       0xb5 build/.//core/mem.o
+ .debug_loc     0x0000000000001272      0x2c7 build/.//core/memp.o
+ .debug_loc     0x0000000000001539      0x99c build/.//core/netif.o
+ .debug_loc     0x0000000000001ed5     0x1be8 build/.//core/pbuf.o
+ .debug_loc     0x0000000000003abd      0x7be build/.//core/raw.o
+ .debug_loc     0x000000000000427b      0x2fd build/.//core/timeouts.o
+ .debug_loc     0x0000000000004578      0xbc9 build/.//core/udp.o
+ .debug_loc     0x0000000000005141      0xdc7 build/.//core/ipv4/etharp.o
+ .debug_loc     0x0000000000005f08      0x399 build/.//core/ipv4/icmp.o
+ .debug_loc     0x00000000000062a1      0xd43 build/.//core/ipv4/ip4_frag.o
+ .debug_loc     0x0000000000006fe4      0x900 build/.//core/ipv4/ip4.o
+ .debug_loc     0x00000000000078e4      0x553 build/.//core/ipv4/ip4_addr.o
+
+.debug_aranges  0x0000000000000000      0x3d0
+ .debug_aranges
+                0x0000000000000000       0x28 build/lwip_test.o
+ .debug_aranges
+                0x0000000000000028       0x28 build/crt.o
+ .debug_aranges
+                0x0000000000000050       0x20 build/.//netif/ethernet.o
+ .debug_aranges
+                0x0000000000000070       0x20 build/.//core/init.o
+ .debug_aranges
+                0x0000000000000090       0x20 build/.//core/def.o
+ .debug_aranges
+                0x00000000000000b0       0x18 build/.//core/dns.o
+ .debug_aranges
+                0x00000000000000c8       0x20 build/.//core/inet_chksum.o
+ .debug_aranges
+                0x00000000000000e8       0x18 build/.//core/ip.o
+ .debug_aranges
+                0x0000000000000100       0x20 build/.//core/mem.o
+ .debug_aranges
+                0x0000000000000120       0x20 build/.//core/memp.o
+ .debug_aranges
+                0x0000000000000140       0x20 build/.//core/netif.o
+ .debug_aranges
+                0x0000000000000160       0x20 build/.//core/pbuf.o
+ .debug_aranges
+                0x0000000000000180       0x20 build/.//core/raw.o
+ .debug_aranges
+                0x00000000000001a0       0x20 build/.//core/stats.o
+ .debug_aranges
+                0x00000000000001c0       0x18 build/.//core/sys.o
+ .debug_aranges
+                0x00000000000001d8       0x18 build/.//core/altcp.o
+ .debug_aranges
+                0x00000000000001f0       0x18 build/.//core/altcp_alloc.o
+ .debug_aranges
+                0x0000000000000208       0x18 build/.//core/altcp_tcp.o
+ .debug_aranges
+                0x0000000000000220       0x18 build/.//core/tcp.o
+ .debug_aranges
+                0x0000000000000238       0x18 build/.//core/tcp_in.o
+ .debug_aranges
+                0x0000000000000250       0x18 build/.//core/tcp_out.o
+ .debug_aranges
+                0x0000000000000268       0x20 build/.//core/timeouts.o
+ .debug_aranges
+                0x0000000000000288       0x20 build/.//core/udp.o
+ .debug_aranges
+                0x00000000000002a8       0x18 build/.//core/ipv4/autoip.o
+ .debug_aranges
+                0x00000000000002c0       0x18 build/.//core/ipv4/dhcp.o
+ .debug_aranges
+                0x00000000000002d8       0x20 build/.//core/ipv4/etharp.o
+ .debug_aranges
+                0x00000000000002f8       0x20 build/.//core/ipv4/icmp.o
+ .debug_aranges
+                0x0000000000000318       0x18 build/.//core/ipv4/igmp.o
+ .debug_aranges
+                0x0000000000000330       0x20 build/.//core/ipv4/ip4_frag.o
+ .debug_aranges
+                0x0000000000000350       0x20 build/.//core/ipv4/ip4.o
+ .debug_aranges
+                0x0000000000000370       0x20 build/.//core/ipv4/ip4_addr.o
+ .debug_aranges
+                0x0000000000000390       0x20 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/rv32i/ilp32/libgcc.a(muldi3.o)
+ .debug_aranges
+                0x00000000000003b0       0x20 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/rv32i/ilp32/libgcc.a(div.o)
+
+.debug_ranges   0x0000000000000000      0x588
+ .debug_ranges  0x0000000000000000       0x18 build/lwip_test.o
+ .debug_ranges  0x0000000000000018       0x20 build/crt.o
+ .debug_ranges  0x0000000000000038       0x40 build/.//core/def.o
+ .debug_ranges  0x0000000000000078       0x30 build/.//core/inet_chksum.o
+ .debug_ranges  0x00000000000000a8       0x30 build/.//core/memp.o
+ .debug_ranges  0x00000000000000d8       0x80 build/.//core/netif.o
+ .debug_ranges  0x0000000000000158      0x1d0 build/.//core/pbuf.o
+ .debug_ranges  0x0000000000000328       0x58 build/.//core/raw.o
+ .debug_ranges  0x0000000000000380       0x18 build/.//core/timeouts.o
+ .debug_ranges  0x0000000000000398       0x48 build/.//core/udp.o
+ .debug_ranges  0x00000000000003e0       0x80 build/.//core/ipv4/etharp.o
+ .debug_ranges  0x0000000000000460       0x30 build/.//core/ipv4/icmp.o
+ .debug_ranges  0x0000000000000490       0xa8 build/.//core/ipv4/ip4_frag.o
+ .debug_ranges  0x0000000000000538       0x50 build/.//core/ipv4/ip4.o
+
+.debug_line     0x0000000000000000    0x102e9
+ .debug_line    0x0000000000000000      0x50a build/lwip_test.o
+ .debug_line    0x000000000000050a      0x1be build/crt.o
+ .debug_line    0x00000000000006c8      0x6a7 build/.//netif/ethernet.o
+ .debug_line    0x0000000000000d6f      0x3ed build/.//core/init.o
+ .debug_line    0x000000000000115c      0x6b9 build/.//core/def.o
+ .debug_line    0x0000000000001815      0x19a build/.//core/dns.o
+ .debug_line    0x00000000000019af      0xac8 build/.//core/inet_chksum.o
+ .debug_line    0x0000000000002477      0x2eb build/.//core/ip.o
+ .debug_line    0x0000000000002762      0x3d5 build/.//core/mem.o
+ .debug_line    0x0000000000002b37      0x5eb build/.//core/memp.o
+ .debug_line    0x0000000000003122     0x1388 build/.//core/netif.o
+ .debug_line    0x00000000000044aa     0x21d7 build/.//core/pbuf.o
+ .debug_line    0x0000000000006681      0xd09 build/.//core/raw.o
+ .debug_line    0x000000000000738a      0x2a8 build/.//core/stats.o
+ .debug_line    0x0000000000007632      0x19a build/.//core/sys.o
+ .debug_line    0x00000000000077cc      0x19a build/.//core/altcp.o
+ .debug_line    0x0000000000007966      0x19a build/.//core/altcp_alloc.o
+ .debug_line    0x0000000000007b00      0x19a build/.//core/altcp_tcp.o
+ .debug_line    0x0000000000007c9a      0x19a build/.//core/tcp.o
+ .debug_line    0x0000000000007e34      0x19a build/.//core/tcp_in.o
+ .debug_line    0x0000000000007fce      0x19a build/.//core/tcp_out.o
+ .debug_line    0x0000000000008168      0x96c build/.//core/timeouts.o
+ .debug_line    0x0000000000008ad4     0x1610 build/.//core/udp.o
+ .debug_line    0x000000000000a0e4      0x19a build/.//core/ipv4/autoip.o
+ .debug_line    0x000000000000a27e      0x19a build/.//core/ipv4/dhcp.o
+ .debug_line    0x000000000000a418     0x1a5e build/.//core/ipv4/etharp.o
+ .debug_line    0x000000000000be76      0x9f9 build/.//core/ipv4/icmp.o
+ .debug_line    0x000000000000c86f      0x19a build/.//core/ipv4/igmp.o
+ .debug_line    0x000000000000ca09     0x1a58 build/.//core/ipv4/ip4_frag.o
+ .debug_line    0x000000000000e461     0x10f7 build/.//core/ipv4/ip4.o
+ .debug_line    0x000000000000f558      0xb8f build/.//core/ipv4/ip4_addr.o
+ .debug_line    0x00000000000100e7       0x96 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/rv32i/ilp32/libgcc.a(muldi3.o)
+ .debug_line    0x000000000001017d      0x16c /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/rv32i/ilp32/libgcc.a(div.o)
+
+.debug_str      0x0000000000000000     0x2318
+ .debug_str     0x0000000000000000      0x932 build/lwip_test.o
+                                        0xa74 (size before relaxing)
+ .debug_str     0x0000000000000932       0x12 build/crt.o
+                                         0x44 (size before relaxing)
+ .debug_str     0x0000000000000944      0x286 build/.//netif/ethernet.o
+                                        0xbc4 (size before relaxing)
+ .debug_str     0x0000000000000bca      0x12d build/.//core/init.o
+                                        0x9d0 (size before relaxing)
+ .debug_str     0x0000000000000cf7       0x9c build/.//core/def.o
+                                        0x653 (size before relaxing)
+ .debug_str     0x0000000000000d93        0xb build/.//core/dns.o
+                                        0x56b (size before relaxing)
+ .debug_str     0x0000000000000d9e      0x115 build/.//core/inet_chksum.o
+                                        0x76e (size before relaxing)
+ .debug_str     0x0000000000000eb3        0xa build/.//core/ip.o
+                                        0x906 (size before relaxing)
+ .debug_str     0x0000000000000ebd       0x40 build/.//core/mem.o
+                                        0x6ca (size before relaxing)
+ .debug_str     0x0000000000000efd       0xc5 build/.//core/memp.o
+                                        0xb48 (size before relaxing)
+ .debug_str     0x0000000000000fc2      0x25c build/.//core/netif.o
+                                        0xd0b (size before relaxing)
+ .debug_str     0x000000000000121e      0x3e3 build/.//core/pbuf.o
+                                        0xe19 (size before relaxing)
+ .debug_str     0x0000000000001601      0x1a3 build/.//core/raw.o
+                                        0xcb1 (size before relaxing)
+ .debug_str     0x00000000000017a4        0xd build/.//core/stats.o
+                                        0x690 (size before relaxing)
+ .debug_str     0x00000000000017b1        0xb build/.//core/sys.o
+                                        0x56b (size before relaxing)
+ .debug_str     0x00000000000017bc        0xd build/.//core/altcp.o
+                                        0x56d (size before relaxing)
+ .debug_str     0x00000000000017c9       0x13 build/.//core/altcp_alloc.o
+                                        0x573 (size before relaxing)
+ .debug_str     0x00000000000017dc       0x11 build/.//core/altcp_tcp.o
+                                        0x571 (size before relaxing)
+ .debug_str     0x00000000000017ed        0xb build/.//core/tcp.o
+                                        0x56b (size before relaxing)
+ .debug_str     0x00000000000017f8        0xe build/.//core/tcp_in.o
+                                        0x56e (size before relaxing)
+ .debug_str     0x0000000000001806        0xf build/.//core/tcp_out.o
+                                        0x56f (size before relaxing)
+ .debug_str     0x0000000000001815       0xf7 build/.//core/timeouts.o
+                                        0xab0 (size before relaxing)
+ .debug_str     0x000000000000190c      0x1ab build/.//core/udp.o
+                                        0xd71 (size before relaxing)
+ .debug_str     0x0000000000001ab7       0x13 build/.//core/ipv4/autoip.o
+                                        0x573 (size before relaxing)
+ .debug_str     0x0000000000001aca       0x11 build/.//core/ipv4/dhcp.o
+                                        0x571 (size before relaxing)
+ .debug_str     0x0000000000001adb      0x31c build/.//core/ipv4/etharp.o
+                                        0xe51 (size before relaxing)
+ .debug_str     0x0000000000001df7       0x9b build/.//core/ipv4/icmp.o
+                                        0xb8b (size before relaxing)
+ .debug_str     0x0000000000001e92       0x11 build/.//core/ipv4/igmp.o
+                                        0x571 (size before relaxing)
+ .debug_str     0x0000000000001ea3      0x284 build/.//core/ipv4/ip4_frag.o
+                                        0xe00 (size before relaxing)
+ .debug_str     0x0000000000002127       0x87 build/.//core/ipv4/ip4.o
+                                        0xc63 (size before relaxing)
+ .debug_str     0x00000000000021ae       0x67 build/.//core/ipv4/ip4_addr.o
+                                        0x8df (size before relaxing)
+ .debug_str     0x0000000000002215       0xd0 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/rv32i/ilp32/libgcc.a(muldi3.o)
+                                         0xdc (size before relaxing)
+ .debug_str     0x00000000000022e5       0x33 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/rv32i/ilp32/libgcc.a(div.o)
+                                         0xd9 (size before relaxing)
+
+.comment        0x0000000000000000       0x28
+ .comment       0x0000000000000000       0x28 build/lwip_test.o
+                                         0x29 (size before relaxing)
+ .comment       0x0000000000000028       0x29 build/.//netif/ethernet.o
+ .comment       0x0000000000000028       0x29 build/.//core/init.o
+ .comment       0x0000000000000028       0x29 build/.//core/def.o
+ .comment       0x0000000000000028       0x29 build/.//core/dns.o
+ .comment       0x0000000000000028       0x29 build/.//core/inet_chksum.o
+ .comment       0x0000000000000028       0x29 build/.//core/ip.o
+ .comment       0x0000000000000028       0x29 build/.//core/mem.o
+ .comment       0x0000000000000028       0x29 build/.//core/memp.o
+ .comment       0x0000000000000028       0x29 build/.//core/netif.o
+ .comment       0x0000000000000028       0x29 build/.//core/pbuf.o
+ .comment       0x0000000000000028       0x29 build/.//core/raw.o
+ .comment       0x0000000000000028       0x29 build/.//core/stats.o
+ .comment       0x0000000000000028       0x29 build/.//core/sys.o
+ .comment       0x0000000000000028       0x29 build/.//core/altcp.o
+ .comment       0x0000000000000028       0x29 build/.//core/altcp_alloc.o
+ .comment       0x0000000000000028       0x29 build/.//core/altcp_tcp.o
+ .comment       0x0000000000000028       0x29 build/.//core/tcp.o
+ .comment       0x0000000000000028       0x29 build/.//core/tcp_in.o
+ .comment       0x0000000000000028       0x29 build/.//core/tcp_out.o
+ .comment       0x0000000000000028       0x29 build/.//core/timeouts.o
+ .comment       0x0000000000000028       0x29 build/.//core/udp.o
+ .comment       0x0000000000000028       0x29 build/.//core/ipv4/autoip.o
+ .comment       0x0000000000000028       0x29 build/.//core/ipv4/dhcp.o
+ .comment       0x0000000000000028       0x29 build/.//core/ipv4/etharp.o
+ .comment       0x0000000000000028       0x29 build/.//core/ipv4/icmp.o
+ .comment       0x0000000000000028       0x29 build/.//core/ipv4/igmp.o
+ .comment       0x0000000000000028       0x29 build/.//core/ipv4/ip4_frag.o
+ .comment       0x0000000000000028       0x29 build/.//core/ipv4/ip4.o
+ .comment       0x0000000000000028       0x29 build/.//core/ipv4/ip4_addr.o
+ .comment       0x0000000000000028       0x29 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-atoi.o)
+ .comment       0x0000000000000028       0x29 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-ctype_.o)
+ .comment       0x0000000000000028       0x29 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-memcmp.o)
+ .comment       0x0000000000000028       0x29 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-memcpy.o)
+ .comment       0x0000000000000028       0x29 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-memmove-stub.o)
+ .comment       0x0000000000000028       0x29 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-strlen.o)
+ .comment       0x0000000000000028       0x29 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-strncmp.o)
+ .comment       0x0000000000000028       0x29 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-strtol.o)
+ .comment       0x0000000000000028       0x29 /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-impure.o)
+
+.riscv.attributes
+                0x0000000000000000       0x1c
+ .riscv.attributes
+                0x0000000000000000       0x1c build/lwip_test.o
+ .riscv.attributes
+                0x000000000000001c       0x1a build/crt.o
+ .riscv.attributes
+                0x0000000000000036       0x1c build/.//netif/ethernet.o
+ .riscv.attributes
+                0x0000000000000052       0x1c build/.//core/init.o
+ .riscv.attributes
+                0x000000000000006e       0x1c build/.//core/def.o
+ .riscv.attributes
+                0x000000000000008a       0x1c build/.//core/dns.o
+ .riscv.attributes
+                0x00000000000000a6       0x1c build/.//core/inet_chksum.o
+ .riscv.attributes
+                0x00000000000000c2       0x1c build/.//core/ip.o
+ .riscv.attributes
+                0x00000000000000de       0x1c build/.//core/mem.o
+ .riscv.attributes
+                0x00000000000000fa       0x1c build/.//core/memp.o
+ .riscv.attributes
+                0x0000000000000116       0x1c build/.//core/netif.o
+ .riscv.attributes
+                0x0000000000000132       0x1c build/.//core/pbuf.o
+ .riscv.attributes
+                0x000000000000014e       0x1c build/.//core/raw.o
+ .riscv.attributes
+                0x000000000000016a       0x1c build/.//core/stats.o
+ .riscv.attributes
+                0x0000000000000186       0x1c build/.//core/sys.o
+ .riscv.attributes
+                0x00000000000001a2       0x1c build/.//core/altcp.o
+ .riscv.attributes
+                0x00000000000001be       0x1c build/.//core/altcp_alloc.o
+ .riscv.attributes
+                0x00000000000001da       0x1c build/.//core/altcp_tcp.o
+ .riscv.attributes
+                0x00000000000001f6       0x1c build/.//core/tcp.o
+ .riscv.attributes
+                0x0000000000000212       0x1c build/.//core/tcp_in.o
+ .riscv.attributes
+                0x000000000000022e       0x1c build/.//core/tcp_out.o
+ .riscv.attributes
+                0x000000000000024a       0x1c build/.//core/timeouts.o
+ .riscv.attributes
+                0x0000000000000266       0x1c build/.//core/udp.o
+ .riscv.attributes
+                0x0000000000000282       0x1c build/.//core/ipv4/autoip.o
+ .riscv.attributes
+                0x000000000000029e       0x1c build/.//core/ipv4/dhcp.o
+ .riscv.attributes
+                0x00000000000002ba       0x1c build/.//core/ipv4/etharp.o
+ .riscv.attributes
+                0x00000000000002d6       0x1c build/.//core/ipv4/icmp.o
+ .riscv.attributes
+                0x00000000000002f2       0x1c build/.//core/ipv4/igmp.o
+ .riscv.attributes
+                0x000000000000030e       0x1c build/.//core/ipv4/ip4_frag.o
+ .riscv.attributes
+                0x000000000000032a       0x1c build/.//core/ipv4/ip4.o
+ .riscv.attributes
+                0x0000000000000346       0x1c build/.//core/ipv4/ip4_addr.o
+ .riscv.attributes
+                0x0000000000000362       0x1c /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-atoi.o)
+ .riscv.attributes
+                0x000000000000037e       0x1c /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-ctype_.o)
+ .riscv.attributes
+                0x000000000000039a       0x1c /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-memcmp.o)
+ .riscv.attributes
+                0x00000000000003b6       0x1c /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-memcpy.o)
+ .riscv.attributes
+                0x00000000000003d2       0x1c /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-memmove-stub.o)
+ .riscv.attributes
+                0x00000000000003ee       0x1a /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-memset.o)
+ .riscv.attributes
+                0x0000000000000408       0x1c /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-strlen.o)
+ .riscv.attributes
+                0x0000000000000424       0x1c /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-strncmp.o)
+ .riscv.attributes
+                0x0000000000000440       0x1c /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-strtol.o)
+ .riscv.attributes
+                0x000000000000045c       0x1c /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/../../../../riscv64-unknown-elf/lib/rv32i/ilp32/libc_nano.a(lib_a-impure.o)
+ .riscv.attributes
+                0x0000000000000478       0x1a /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/rv32i/ilp32/libgcc.a(muldi3.o)
+ .riscv.attributes
+                0x0000000000000492       0x1a /opt/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14/bin/../lib/gcc/riscv64-unknown-elf/8.3.0/rv32i/ilp32/libgcc.a(div.o)
+
+.debug_frame    0x0000000000000000     0x16d4
+ .debug_frame   0x0000000000000000       0xe0 build/lwip_test.o
+ .debug_frame   0x00000000000000e0       0x80 build/.//netif/ethernet.o
+ .debug_frame   0x0000000000000160       0x2c build/.//core/init.o
+ .debug_frame   0x000000000000018c       0xc4 build/.//core/def.o
+ .debug_frame   0x0000000000000250      0x10c build/.//core/inet_chksum.o
+ .debug_frame   0x000000000000035c       0x70 build/.//core/mem.o
+ .debug_frame   0x00000000000003cc       0xb0 build/.//core/memp.o
+ .debug_frame   0x000000000000047c      0x284 build/.//core/netif.o
+ .debug_frame   0x0000000000000700      0x468 build/.//core/pbuf.o
+ .debug_frame   0x0000000000000b68      0x188 build/.//core/raw.o
+ .debug_frame   0x0000000000000cf0       0x20 build/.//core/stats.o
+ .debug_frame   0x0000000000000d10      0x118 build/.//core/timeouts.o
+ .debug_frame   0x0000000000000e28      0x1dc build/.//core/udp.o
+ .debug_frame   0x0000000000001004      0x26c build/.//core/ipv4/etharp.o
+ .debug_frame   0x0000000000001270       0xc8 build/.//core/ipv4/icmp.o
+ .debug_frame   0x0000000000001338      0x170 build/.//core/ipv4/ip4_frag.o
+ .debug_frame   0x00000000000014a8      0x120 build/.//core/ipv4/ip4.o
+ .debug_frame   0x00000000000015c8      0x10c build/.//core/ipv4/ip4_addr.o
