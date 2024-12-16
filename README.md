@@ -35,10 +35,10 @@ Fmax = 60 MHz on Lattice ECP5 25F grade 7
 
 Hence this is an extension of VexRiscv, the whole directory structure stays same as in original respository. Added code lays in:
 
-[./src/main/scala/vexriscv/demo/KarnixSOC.scala](src/main/scala/vexriscv/demo/KarnixSOC.scala) - Karnix SOC written in SpinalHDL.
-[./src//main/scala/mylib/](src/main/scala/mylib/) - Karnix SOC hardware components also written in SpinalHDL.
-[./scripts/KarnixSOC/ECP5-25F_karnix_board/](scripts/KarnixSOC/ECP5-25F_karnix_board/) - Working directory containing Makefile to build Karnix SOC for Karnix board with Lattice ECP5 25F FPGA chip.
-[./src/main/c/karnix/](src/main/c/karnix/) - C code with Karnix SOC Hardware Abstraction Layer, ROM monitor, Tetris game [TetRISC-V](src/main/c/karnix/tetriscv/), test hardware code and more.
+- [./src/main/scala/vexriscv/demo/KarnixSOC.scala](src/main/scala/vexriscv/demo/KarnixSOC.scala) - Karnix SOC written in SpinalHDL.
+- [./src//main/scala/mylib/](src/main/scala/mylib/) - Karnix SOC hardware components also written in SpinalHDL.
+- [./scripts/KarnixSOC/ECP5-25F_karnix_board/](scripts/KarnixSOC/ECP5-25F_karnix_board/) - Working directory containing Makefile to build Karnix SOC for Karnix board with Lattice ECP5 25F FPGA chip.
+- [./src/main/c/karnix/](src/main/c/karnix/) - C code with Karnix SOC Hardware Abstraction Layer, ROM monitor, Tetris game [TetRISC-V](src/main/c/karnix/tetriscv/), test hardware code and more.
 
 Please check corresponding README.md for more details.
 
@@ -76,7 +76,7 @@ openFPGALoader -f bin/KarnixSOCTopLevel_25F.bit
 
 Studying SpinalHDL, playing with VexRiscv and with Yosys toolchain resulted in creation of Karnix FPGA board and Karnix SOC. I published a couple of articles that describe many of the things I learnt, all in Russian language:
 
-[Разработка цифровой аппаратуры нетрадиционным методом: Yosys, SpinalHDL, VexRiscv ч.1](https://habr.com/ru/articles/801191/)
-[Разработка цифровой аппаратуры нетрадиционным методом: Yosys, SpinalHDL, VexRiscv ч.2](https://habr.com/ru/articles/802127/)
-[Разработка цифровой аппаратуры нетрадиционным методом: CGA видеоадаптер на SpinalHDL](https://habr.com/ru/articles/855718/)
+- [Разработка цифровой аппаратуры нетрадиционным методом: Yosys, SpinalHDL, VexRiscv ч.1](https://habr.com/ru/articles/801191/)
+- [Разработка цифровой аппаратуры нетрадиционным методом: Yosys, SpinalHDL, VexRiscv ч.2](https://habr.com/ru/articles/802127/)
+- [Разработка цифровой аппаратуры нетрадиционным методом: CGA видеоадаптер на SpinalHDL](https://habr.com/ru/articles/855718/)
 
