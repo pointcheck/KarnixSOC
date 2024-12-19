@@ -9,7 +9,6 @@ COMPRESSED=yes
 LWIPDIR=../karnix_lwip/src
 SOCDIR=../karnix_soc/src
 
-BUILD_NUMBER=`cat build_number`
 
 include $(LWIPDIR)/Filelists.mk
 
@@ -17,11 +16,15 @@ SRCS = 	$(wildcard src/*.c) $(wildcard src/*.cpp) $(wildcard src/*.S) $(wildcard
 #SRCS = 	src/main.c src/utils.c $(wildcard src/*.cpp) $(wildcard src/*.S)
 #SRCS = 	src/main.c src/utils.c $(wildcard src/*.cpp) $(wildcard src/*.S) src/lwip/core/mem.c 
 
-
+DEFS = -DCONFIG_HAS_MODBUS -DCONFIG_HAS_HUB -DCONFIG_HAS_MAC
 
 OBJDIR = build
 
-INC  = -I$(LWIPDIR) -I$(LWIPDIR)/include -I$(SOCDIR) -I$(SOCDIR)/include
+BUILD_NUMBER_FILE=$(OBJDIR)/build_number
+BUILD_NUMBER=`cat $(BUILD_NUMBER_FILE)`
+
+
+INC  = -I./src -I$(LWIPDIR) -I$(LWIPDIR)/include -I$(SOCDIR) -I$(SOCDIR)/include
 LIBS =
 LIBSINC = -L$(OBJDIR)
 LDSCRIPT = $(SOCDIR)/linker.ld -Wl
@@ -66,7 +69,7 @@ endif
 #CFLAGS += -fwhole-program -march=$(MARCH)  -mabi=$(MABI) -DNDEBUG -fno-common -fno-builtin-printf -DBUILD_NUMBER=$(BUILD_NUMBER)+1 
 # use suffix __attribute__((externally_visible))
 
-CFLAGS += -march=$(MARCH)  -mabi=$(MABI) -DNDEBUG -flto -fno-common -fno-builtin-printf -DBUILD_NUMBER=$(BUILD_NUMBER)+1 
+CFLAGS += -march=$(MARCH)  -mabi=$(MABI) -DNDEBUG -flto -fno-common -fno-builtin-printf -DBUILD_NUMBER=$(BUILD_NUMBER)+1 $(DEFS) 
 LDFLAGS += -march=$(MARCH)  -mabi=$(MABI) -specs=nano.specs -lnosys -lc_nano
 #LDFLAGS += -march=rv32im -mabi=ilp32 -specs=nano.specs -lnosys -lc_nano
 
@@ -114,7 +117,14 @@ OBJS := $(subst ..,__,$(OBJS))
 OBJS := $(addprefix $(OBJDIR)/,$(OBJS))
 
 
-all: $(OBJDIR)/$(PROJ_NAME).elf $(OBJDIR)/$(PROJ_NAME).hex $(OBJDIR)/$(PROJ_NAME).hexx $(OBJDIR)/$(PROJ_NAME).bin $(OBJDIR)/$(PROJ_NAME).asm $(OBJDIR)/$(PROJ_NAME).v
+all: check_build_num_file build_sources
+	
+build_sources: $(OBJDIR)/$(PROJ_NAME).elf $(OBJDIR)/$(PROJ_NAME).hex $(OBJDIR)/$(PROJ_NAME).hexx $(OBJDIR)/$(PROJ_NAME).bin $(OBJDIR)/$(PROJ_NAME).asm $(OBJDIR)/$(PROJ_NAME).v
+
+check_build_num_file:
+ifeq (,$(wildcard $(BUILD_NUMBER_FILE)))
+	         echo 1 > $(BUILD_NUMBER_FILE)
+endif
 
 inc_build_num:
 	@expr $(BUILD_NUMBER) + 1 > build_number
