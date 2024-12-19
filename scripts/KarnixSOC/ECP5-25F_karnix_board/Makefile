@@ -1,5 +1,6 @@
 #RAMPROG = karnix_monitor
-RAMPROG = karnix_xip_test
+#RAMPROG = karnix_xip_test
+RAMPROG = karnix_tetriscv
 #RAMPROG = karnix_cga_test
 
 VERILOG = ../../../KarnixSOCTopLevel.v ../../../src/main/verilog/TMDS_encoder.sv ../../../src/main/verilog/OBUFDS.sv
@@ -55,14 +56,13 @@ bin/KarnixSOCTopLevel_random_25F.config : karnix_cabga256.lpf bin/KarnixSOCTopLe
 bin/KarnixSOCTopLevel_25F.config: bin/KarnixSOCTopLevel_random_25F.config ../../../src/main/c/karnix/$(RAMPROG)/build/$(RAMPROG).hexx ../../../KarnixSOCTopLevel_random.hexx
 	ecpbram -v -i bin/KarnixSOCTopLevel_random_25F.config -o bin/KarnixSOCTopLevel_25F.config -f ../../../KarnixSOCTopLevel_random.hexx -t ../../../src/main/c/karnix/$(RAMPROG)/build/$(RAMPROG).hexx
 
-bin/KarnixSOCTopLevel_25F.bit : bin/KarnixSOCTopLevel_25F.config
-	ecppack --svf bin/KarnixSOCTopLevel_25F.svf  bin/KarnixSOCTopLevel_25F.config bin/KarnixSOCTopLevel_25F.bit
+bin/KarnixSOCTopLevel_25F-$(RAMPROG).bit : bin/KarnixSOCTopLevel_25F.config
+	ecppack --svf bin/KarnixSOCTopLevel_25F.svf  bin/KarnixSOCTopLevel_25F.config bin/KarnixSOCTopLevel_25F-$(RAMPROG).bit
 
-compile : bin/KarnixSOCTopLevel_25F.bit
+compile : bin/KarnixSOCTopLevel_25F-$(RAMPROG).bit
 
-prog : bin/KarnixSOCTopLevel_25F.bit
-	#ecpprog bin/KarnixSOCTopLevel_25F.bit
-	openFPGALoader bin/KarnixSOCTopLevel_25F.bit
+prog : bin/KarnixSOCTopLevel_25F-$(RAMPROG).bit
+	openFPGALoader bin/KarnixSOCTopLevel_25F-$(RAMPROG).bit
 
 clean :
 	rm -f bin/* ../../../KarnixSOCTopLevel* ../../../font8x16x256.hex
