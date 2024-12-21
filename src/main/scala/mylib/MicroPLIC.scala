@@ -29,6 +29,11 @@ class Apb3MicroPLICCtrl(irq_nums: Int = 32) extends Component {
 	val IRQLastValue = Reg(Bits(irq_nums bits)) init(0)
 	busCtrl.read(IRQLastValue, address = 4 * (irq_nums / 8))
 
+	val IRQEdgeControl = Reg(Bits(irq_nums bits)) init(0)
+	busCtrl.readAndWrite(IRQEdgeControl, address = 5 * (irq_nums / 8))
+        // If IRQEdgeControl is "1" - IRQPolarity defines edges: 0 - Falling, 1 - Reising.
+        // If IRQEdgeControl is "0" - IRQPolarity defines flat state
+
 	def setIRQ(irq_line: Bool, irq_num: Int): Unit = {
 		if(irq_num >= irq_nums) {
 			throw new Exception("MicroPLIC: Cannot add IRQ line with number: " + irq_num + " as it is too big!");
@@ -39,8 +44,10 @@ class Apb3MicroPLICCtrl(irq_nums: Int = 32) extends Component {
 
 	for (i <- 0 to (irq_nums - 1)) {
 		IRQPending(i).setWhen( IRQEnabled(i) && 
-				!(io.IRQLines(i) === IRQLastValue(i)) && 
-				(io.IRQLines(i) === IRQPolarity(i)) 
+			(
+			(IRQEdgeControl(i) && !(io.IRQLines(i) === IRQLastValue(i)) && (io.IRQLines(i) === IRQPolarity(i))) ||
+			(!IRQEdgeControl(i) && io.IRQLines(i) === IRQPolarity(i))
+			)
 		)
 	}
 

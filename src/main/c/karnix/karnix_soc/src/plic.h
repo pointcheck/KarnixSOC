@@ -7,11 +7,12 @@
 
 typedef struct
 {
-  volatile uint32_t ENABLE;
-  volatile uint32_t PENDING;
-  volatile uint32_t IRQLINE;
-  volatile uint32_t POLARITY;
-  volatile uint32_t IRQLAST;
+  volatile uint32_t ENABLE;	// If "1" - IRQ line is enabled
+  volatile uint32_t PENDING;	// If "1" - Line is pending IRQ
+  volatile uint32_t IRQLINE;	// Current IRQ lines state
+  volatile uint32_t POLARITY;	// If "1" and edge control enabled - Raiseing Edge, "0" - Falling Edge 
+  volatile uint32_t IRQLAST;	// IRQ lines state one clock cycle ago
+  volatile uint32_t EDGE;	// If "1" - control edge change (falling/raising), "0" - control flat state
 } PLIC_Reg;
 
 
