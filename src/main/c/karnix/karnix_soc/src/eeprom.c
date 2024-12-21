@@ -223,7 +223,7 @@ int eeprom_read_page(I2C_Reg* i2c, uint8_t device_addr, uint8_t mem_addr, uint8_
 
 int eeprom_probe(I2C_Reg* i2c) {
 
-	printf("eeprom_probe(%p) begin\r\n", EEPROM_I2C_ADDRESS);
+	//printf("eeprom_probe(%p) begin\r\n", EEPROM_I2C_ADDRESS);
 
 
 	uint32_t buf = 0xDEADBEEF;
