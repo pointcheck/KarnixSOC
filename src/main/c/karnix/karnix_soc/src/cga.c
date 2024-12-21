@@ -403,16 +403,25 @@ void cga_text_print(uint8_t *framebuffer, int x, int y, int fg_color, int bg_col
 	uint32_t *fb = (uint32_t*) framebuffer;
 	uint32_t attributes = (fg_color << 8) | (bg_color << 16);
 
+	if(x < 0)
+		x = cga_get_cursor_x();
+
+	if(y < 0)
+		y = cga_get_cursor_y();
+
 	fb += CGA_TEXT_WIDTH * y + x;
 
 	for(int i = 0; text[i]; i++) {
 		if(text[i] == '\n') {
 			fb += CGA_TEXT_WIDTH;
+			y++;
 		} else if(text[i] == '\r') {
 			fb -= (fb - (uint32_t*)framebuffer) % CGA_TEXT_WIDTH;
+			x=0;
 		} else if(text[i] == '\t') {
 			for(int j = 0; j < 8; j++)
 				*fb++ = attributes | 0x20;
+			x+=8;
 		} else if(text[i] == 0x1b) {
 			i++;
 			switch(text[i]) {
@@ -450,10 +459,14 @@ void cga_text_print(uint8_t *framebuffer, int x, int y, int fg_color, int bg_col
 				} break;
 			}
 			continue;
-		} else
+		} else {
 			*fb++ = attributes | text[i];
+			x++;
+		}
 	}
 
+
+	cga_set_cursor_xy(x, y);
 }
 
 

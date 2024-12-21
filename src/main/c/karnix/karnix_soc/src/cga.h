@@ -82,11 +82,11 @@ void cga_set_cursor_xy(int x, int y);
 void cga_set_cursor_style(int top, int bottom);
 
 static inline int cga_get_cursor_x(void) {
-        return (CGA->CTRL2 >> CGA_CTRL2_CURSOR_X_SHIFT) & 0xff;
+        return (CGA->CTRL2 & CGA_CTRL2_CURSOR_X) >> CGA_CTRL2_CURSOR_X_SHIFT;
 }
 
 static inline int cga_get_cursor_y(void) {
-        return (CGA->CTRL2 >> CGA_CTRL2_CURSOR_Y_SHIFT) & 0xff;
+        return (CGA->CTRL2 & CGA_CTRL2_CURSOR_Y) >> CGA_CTRL2_CURSOR_Y_SHIFT;
 }
 
 static inline void cga_wait_vblank(void) {
