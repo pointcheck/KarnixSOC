@@ -1,5 +1,6 @@
 #include "utils.h"
 #include "soc.h"
+#include "riscv.h"
 #include "modbus.h"
 #include "config.h"
 
@@ -49,13 +50,13 @@ void modbus_rtu_poll(void) {
 		
 		// Critical section: this procedure getting called from timer ISR, all interrupts are blocked
 
-		//csr_clear(mstatus, MSTATUS_MIE); // Disable Machine interrupts
+		csr_clear(mstatus, MSTATUS_MIE); // Disable Machine interrupts
 
 		uint32_t rx_len = modbus_rtu_rx_len;
 		memcpy(rx_buf, (void*)modbus_rtu_rx_buf, MIN(rx_len, MODBUS_RX_BUF_SIZE));
 		modbus_rtu_rx_len = 0;
 
-		//csr_set(mstatus, MSTATUS_MIE); // Enable Machine interrupts
+		csr_set(mstatus, MSTATUS_MIE); // Enable Machine interrupts
 
 		uint32_t tx_len = modbus_recv(rx_buf, rx_len, tx_buf);
 

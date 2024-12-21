@@ -4,18 +4,24 @@
 #include "config.h"
 #include "crc16.h"
 //#include "aes.h"
-#include "hub.h"
+#ifdef CONFIG_HAS_HUB
+	#include "hub.h"
+#endif
 #include "cga.h"
 #include "audiodac.h"
 #include "modbus.h"
+
+#ifndef	CONFIG_HAS_MODBUS
+	#error	"Please define CONFIG_HAS_MODBUS in Makefile DEFS if you want Modbus support!"
+#endif
 
 //#define MODBUS_DEBUG	1
 
 volatile uint32_t reg_color = HUB_COLOR_WHITE;
 volatile uint32_t reg_video_mode = REG_VIDEO_MODE_CGA;
 volatile uint32_t reg_video_frame_size = CGA_FRAMEBUFFER_SIZE;
-volatile uint32_t reg_irq_counter = 0;
-volatile uint32_t reg_sys_counter = 0;
+volatile extern uint32_t reg_irq_counter;
+volatile extern uint32_t reg_sys_counter;
 volatile uint32_t reg_scratch = 0;
 volatile uint32_t reg_config_write = 0;
 
@@ -113,14 +119,18 @@ int modbus_store_reg(uint16_t reg, uint8_t *data, uint16_t data_len) {
 			}
 
 			if(font_id == 0)
+				#ifdef CONFIG_HAS_HUB
 				if(reg_video_mode == REG_VIDEO_MODE_HUB)
 					hub_print(x, y, reg_color, &(data[6]), text_len, font_6x8, 6, 8);
 				else
+				#endif
 					cga_video_print(x, y, reg_color, &(data[6]), text_len, font_6x8, 6, 8);
 			else
+				#ifdef CONFIG_HAS_HUB
 				if(reg_video_mode == REG_VIDEO_MODE_HUB)
 					hub_print(x, y, reg_color, &(data[6]), text_len, font_12x16, 12, 16);
 				else
+				#endif
 					cga_video_print(x, y, reg_color, &(data[6]), text_len, font_12x16, 12, 16);
 
 			ret = 0;
@@ -156,6 +166,7 @@ int modbus_store_reg(uint16_t reg, uint8_t *data, uint16_t data_len) {
 			ret = 0;
 		} break;
 
+		#ifdef CONFIG_HAS_HUB
 		case REG_HUB_TYPE: {
 			Config config;
 
@@ -172,6 +183,7 @@ int modbus_store_reg(uint16_t reg, uint8_t *data, uint16_t data_len) {
 			else
 				ret = 0;
 		} break;
+		#endif
 
 		case REG_MBUS_ADDR: {
 			Config config;
@@ -207,7 +219,6 @@ int modbus_store_reg(uint16_t reg, uint8_t *data, uint16_t data_len) {
 			if(config_load(&config) < 0)
 				config = default_config;
 
-			uint8_t *p = (uint8_t*) &config.ip_addr;
 			config.modbus_baud = (data[0] << 24) | (data[1] << 16) | (data[2] << 8) | data[3];
 
 			if(config_save(&config) < 0)
@@ -216,6 +227,7 @@ int modbus_store_reg(uint16_t reg, uint8_t *data, uint16_t data_len) {
 				ret = 0;
 		} break;
 
+		#ifdef CONFIG_HAS_MAC
 		case REG_IP_ADDR: {
 			Config config;
 
@@ -279,6 +291,7 @@ int modbus_store_reg(uint16_t reg, uint8_t *data, uint16_t data_len) {
 				ret = 0;
 		
 		} break;
+		#endif
 
 	}
 
@@ -377,6 +390,7 @@ int modbus_recv(uint8_t *rx_buf, int rx_len, uint8_t *tx_buf) {
 							tx_len += 4;
 						} break;
 
+						#ifdef	CONFIG_HAS_MAC
 						case REG_IP_ADDR: {
 							Config config;
 
@@ -420,7 +434,9 @@ int modbus_recv(uint8_t *rx_buf, int rx_len, uint8_t *tx_buf) {
 							memcpy(&(tx_buf[3]), p, 6);
 							tx_len += 6;
 						} break;
-
+						#endif
+	
+						#ifdef	CONFIG_HAS_HUB
 						case REG_HUB_TYPE: {
 							Config config;
 
@@ -430,6 +446,7 @@ int modbus_recv(uint8_t *rx_buf, int rx_len, uint8_t *tx_buf) {
 							tx_buf[6] = config.hub_type;
 							tx_len += 6;
 						} break;
+						#endif
 
 						case REG_MBUS_ADDR: {
 							Config config;

@@ -16,6 +16,9 @@
 #include "config.h"
 #include "utils.h"
 
+#ifndef	CONFIG_HAS_MAC
+	#error	"Please define CONFIG_HAS_MAC in Makefile DEFS if you want Ethernet support!"
+#endif
 
 //#define	MAC_DEBUG	1
 
@@ -166,7 +169,7 @@ void mac_poll(void)
 	}
 	#endif
 
-	if(PLIC->IRQLINE & 0x04) {
+	if(PLIC->IRQLINE & PLIC_IRQ_MAC) {
 		//printf("mac_poll() stuck RX packet...\r\n");
 		mac_rx();
 	}
@@ -189,7 +192,7 @@ void mac_rx(void) {
 	uint8_t *payload;
 
 	//print("mac_rx() begin\r\n");
-
+	
 	while(mac_rxPending(MAC)) {
 
 		bits = mac_getRx(MAC);
@@ -207,7 +210,7 @@ void mac_rx(void) {
 			delay_us(10000);
 			mac_setCtrl(MAC, 0);
 
-			return;
+			goto mac_rx_end;
 		}
 
 		buffer_len = bytes_left;
@@ -235,7 +238,7 @@ void mac_rx(void) {
 			}
 
 			printf("mac_rx() RX FIFO cleared\r\n");
-			return;
+			goto mac_rx_end;
 		}
 
 
@@ -338,6 +341,9 @@ void mac_rx(void) {
 
 		pbuf_free(p);
 	}
+
+	mac_rx_end:
+	;
 
 	//printf("mac_rx() done\r\n");
 }
