@@ -6,11 +6,11 @@
 #include <string.h>
 
 Config default_config = {
+	0x01,					// Option: Use DHCP is ON
 	#ifdef	CONFIG_HAS_MAC
 	IPADDR4_INIT_BYTES(192,168,174,199),	// IP address
 	IPADDR4_INIT_BYTES(192,168,174,1),	// IP gateway
 	IPADDR4_INIT_BYTES(255,255,255,0),	// IP netmask
-	0x01,					// Option: Use DHCP is ON
 	{0x02,0x0A,0x0B,0x0C,0x15,0x94},	// MAC addr
 	#endif
 	#ifdef	CONFIG_HAS_HUB

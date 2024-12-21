@@ -14,11 +14,11 @@
 
 //#pragma pack(1)
 typedef struct {
+	uint8_t		options;
 	#ifdef	CONFIG_HAS_MAC
 	ip4_addr_t	ip_addr;
 	ip4_addr_t	gw_addr;
 	ip4_addr_t	netmask;
-	uint8_t		options;
 	uint8_t		mac_addr[6];
 	#endif
 	#ifdef	CONFIG_HAS_HUB
