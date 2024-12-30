@@ -54,6 +54,7 @@ void println(const char*str){
 	print_uart0("\r\n");
 }
 
+
 char to_hex_nibble(char n)
 {
 	n &= 0x0f;
@@ -64,6 +65,7 @@ char to_hex_nibble(char n)
 		return n + '0';
 }
 
+
 void to_hex(char*s , unsigned int n)
 {
 	for(int i = 0; i < 8; i++) {
@@ -73,36 +75,88 @@ void to_hex(char*s , unsigned int n)
 }
 
 
+struct _context {
+	uint32_t gp;
+	uint32_t tp;
+	uint32_t sp;
+	uint32_t ra;
+	uint32_t pc;
+	char crash_str[16];
+	uint32_t cur_pc;
+	uint32_t mtval;
+	uint32_t trap_flag;
+} context = {0};
+
+
+// This function saves current execution context (pc, ra, sp, gp, tp)
+// We need to disable optimization because: 
+// 1) we need this to be procedure call and
+// 2) we use in-line assembly that should be be messed up by compiler.
+void __attribute__((optimize("O0"))) context_save(void) {
+       
+	context.trap_flag = 0;
+
+	asm volatile ("sw gp, (%0)" :  : "r"(&context.gp));
+
+	asm volatile ("sw tp, (%0)" :  : "r"(&context.tp));
+
+	asm volatile ("mv t1, sp; \
+		      addi t1,t1,16; \
+	      	      sw t1, (%0)" :  : "r"(&context.sp)); 
+	// We need parent's stack frame, reference it by adding size of current (16 bytes)
+
+	asm volatile ("sw ra, (%0)" :  : "r"(&context.ra));
+
+	asm volatile ("auipc t1,0; \
+		       sw t1, (%0)" :  : "r"(&context.pc));
+
+}
+
+
 void process_and_wait(uint32_t us) {
+
+	context_save();
+
+	if(context.trap_flag) {
+		context.trap_flag = 0;
+		//printf("*** Restoring stack: sp = %p\r\n", context.sp);
+		asm volatile ("lw sp, (%0)" :  : "r"(&context.sp));
+		cli_prompt();
+		goto skip;
+	}
 
 	unsigned long long t0, t;
 	static unsigned int skip = 0;
 
-	t0 = get_mtime();
+	t0 = MTIME;
 
 	while(1) {
-		t = get_mtime();
+		t = MTIME;
 
 		if(t - t0 >= us)
 			break;
 
-		// Process events
+		// Process events, save execution context priorily
+
 
 		if(events_console_poll) {
-			console_poll(); 
 			events_console_poll = 0;
+			console_poll(); 
 		}
 
 		if(events_modbus_rtu_poll) {
-			modbus_rtu_poll(); 
 			events_modbus_rtu_poll = 0;
+			modbus_rtu_poll(); 
 		}
 
 		if(events_mac_poll) {
-			mac_poll();
 			events_mac_poll = 0;
+			mac_poll();
 		}
+
 	}
+
+	skip:;
 }
 
 
@@ -159,9 +213,9 @@ void main() {
 
 	csr_clear(mstatus, MSTATUS_MIE); // Disable Machine interrupts during hardware init
 
-	init_sbrk(NULL, 0); // Initialize heap for malloc to use on-chip RAM
-
 	delay_us(2000000); // Wait for FCLK to settle
+
+	init_sbrk(NULL, 0); // Initialize heap for malloc to use on-chip RAM
 
 	printf(TEXT_KARNIX_WELCOME, BUILD_NUMBER);
 
@@ -174,14 +228,14 @@ void main() {
 
 	GPIO->OUTPUT |= GPIO_OUT_LED0; // LED0 is ON - indicate we are not yet ready
 
-	printf("Hardware init\r\n");
+	printf("=== Hardware init ===\r\n");
 
 	// Test SRAM and initialize heap for malloc to use SRAM if tested OK
 	printf("Testing SRAM at: %p, size: %u\r\n", SRAM_ADDR_BEGIN, SRAM_SIZE);
 	if(sram_test_write_random_ints(3) == 0) {
-		printf("Enabling SRAM...\r\n");
-		init_sbrk((unsigned int*)SRAM_ADDR_BEGIN, SRAM_SIZE);
 		printf("SRAM %s!\r\n", "enabled"); 
+		//init_sbrk((unsigned int*)SRAM_ADDR_BEGIN, SRAM_SIZE);
+		//printf("Using SRAM as heap\r\n");
 		// If this prints, we are running with new heap all right
 		// Note, that some garbage can be printed along, that's ok!
 	} else {
@@ -189,10 +243,10 @@ void main() {
 	}
 
 	// Perform CGA video RAM test
+	printf("Testing CGA\r\n");
 	cga_ram_test(1);
 
 	// Setup CGA: set text mode and load color palette
-	//
 	cga_set_video_mode(CGA_MODE_TEXT);
 
 	static uint32_t rgb_palette[16] = {
@@ -203,8 +257,10 @@ void main() {
 			};
 	cga_set_palette(rgb_palette);
 
+	// Clear video framebuffer
 	memset(CGA->FB, 0, CGA_FRAMEBUFFER_SIZE);
 
+	// Print Welcome test to CGA
 	sprintf(str, TEXT_KARNIX_WELCOME, BUILD_NUMBER);
 	cga_text_print(CGA->FB, -1, -1, 15, 0, str);
 
@@ -212,16 +268,21 @@ void main() {
 	GPIO->OUTPUT &= ~GPIO_OUT_EEPROM_WP; 
 
 	// Configure interrupt controller 
+	printf("Configuring PLIC\r\n");
 	PLIC->POLARITY = 0x0000007f; // Configure PLIC IRQ polarity for UART0, UART1, MAC, I2C and AUDIODAC0 to Active High 
 	PLIC->EDGE = 0xfffffff8; // All by MAC and UARTs are Falling Edge
 	PLIC->PENDING = 0; // Clear all pending IRQs
 	PLIC->ENABLE = 0xffffffff; // Configure PLIC to enable interrupts from all possible IRQ lines
+	printf("PLIC configred: ENABLE: %p, POLARITY: %p, EDGE: %p\r\n",
+			PLIC->ENABLE, PLIC->POLARITY, PLIC->EDGE);
 
 	// Configure UART0 IRQ sources: bit(0) - TX interrupts, bit(1) - RX interrupts 
 	UART0->STATUS = (UART0->STATUS | UART_STATUS_RX_IRQ_EN); // Allow only RX interrupts 
+	printf("UART0 RX IRQ enabled\r\n");
 
 	// Configure UART1 IRQ sources: bit(0) - TX interrupts, bit(1) - RX interrupts 
 	UART1->STATUS = (UART1->STATUS | UART_STATUS_RX_IRQ_EN); // Allow only RX interrupts 
+	printf("UART1 RX IRQ enabled\r\n");
 
 	// Configure RISC-V IRQ stuff
 	//csr_write(mtvec, ((unsigned long)&trap_entry)); // Set IRQ handling vector
@@ -229,10 +290,12 @@ void main() {
 	// Setup TIMER0 to 100 ms timer for Mac: 25 MHz / 25 / 10000
 	timer_prescaler(TIMER0, SYSTEM_CLOCK_HZ / 1000000);
 	timer_run(TIMER0, 100000);
+	printf("TIMER0 set to 100 ms\r\n");
 
 	// Setup TIMER0 to 50 ms timer for Modbus: 25 MHz / 25 / 10000
 	timer_prescaler(TIMER1, SYSTEM_CLOCK_HZ / 1000000);
 	timer_run(TIMER1, 50000);
+	printf("TIMER1 set to 25 ms\r\n");
 
 	// I2C and EEPROM
 	i2c_init(I2C0);
@@ -242,7 +305,7 @@ void main() {
 	csr_set(mstatus, MSTATUS_MIE); // Enable Machine interrupts during user input 
 
 	fpurge(stdout);
-	printf("Press '*' to reset config");
+	printf("\r\nPress '*' to reset config");
 	fflush(stdout);
 
 	for(int i = 0; i < 5; i++) {
@@ -297,7 +360,7 @@ void main() {
 	modbus_rtu_init();
 	
 
-	printf("Hardware init done\r\n");
+	printf("=== Hardware init done ===\r\n\r\n");
 
        	// GPIO LEDs are OFF - all things do well 
 	GPIO->OUTPUT &= ~(GPIO_OUT_LED0 | GPIO_OUT_LED1 | GPIO_OUT_LED2 | GPIO_OUT_LED3);
@@ -423,25 +486,32 @@ void externalInterrupt(void){
 }
 
 
-static char crash_str[16];
-static uint32_t pc;
-
 void crash(int cause) {
 	
+	context.trap_flag = 1;
+
 	print("\r\n*** TRAP: ");
-	to_hex(crash_str, cause);
-	print(crash_str);
+	to_hex(context.crash_str, cause);
+	print(context.crash_str);
 	print(" at ");
 
-	pc = csr_read(mepc);
+	context.cur_pc = csr_read(mepc);
+	context.mtval = csr_read(mtval);
 
-	to_hex(crash_str, pc);
-	print(crash_str);
+	to_hex(context.crash_str, context.cur_pc);
+	print(context.crash_str);
 	print(" = ");
 
-	to_hex(crash_str, *(uint32_t*)pc);
-	print(crash_str);
+	to_hex(context.crash_str, *(uint32_t*)(context.cur_pc & 0xfffffffc));
+	print(context.crash_str);
+	print(", mtval = ");
+
+	to_hex(context.crash_str, context.mtval);
+	print(context.crash_str);
 	print("\r\n");
+
+	printf("\r*** SAVED: gp = %p, tp = %p, ra = %p, sp = %p, pc = %p\r\n",
+		context.gp, context.tp, context.ra, context.sp, context.pc);
 
 }
 
@@ -469,6 +539,10 @@ void irqCallback() {
 	//	printf("IRQ COUNTER: %d\r\n", reg_irq_counter);
 	//}
 
-	// Interrupt state will be restored by machine on MRET
+	
+	if(context.trap_flag) // Restore saved return address if trap
+		csr_write(mepc, context.ra);
+
+	// Interrupt state will be restored by MRET further in trap_entry.
 }
 
