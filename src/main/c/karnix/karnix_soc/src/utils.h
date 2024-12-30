@@ -23,6 +23,7 @@ void print_uart0(const char*str);
 void print_uart1(const char*str);
 void hard_reboot(void);
 void memcpy_rev(void* dst, void* src, uint32_t count);
+uint32_t strntoul(const char * buf, int size, int base); // string to unsigned long with size
 
 
 #define print print_uart0

@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 #include <_syslist.h>
 #include <reent.h>
@@ -149,5 +150,31 @@ void memcpy_rev(void *dst, void *src, uint32_t count) {
 	}
 }
 
+
+// Fast and simple conversion from BIN/OCT/HEX/DEC to unsigned long.
+// Warning: it does not do any sanity checks, use with caution !!!
+uint32_t strntoul(const char *buf, int size, int base) {
+
+	uint32_t result = 0;
+
+	for(int i = 0; i < size; i++) {
+		uint8_t c = buf[i];
+		uint32_t digit = 0;
+
+		if(c >= 0x30 && c <= 0x39) {
+			digit = c - 0x30;
+		} else if(c >= 0x41 && c <= 0x46) {
+			digit = c - 0x41 + 10;
+		} else if(c >= 0x61 && c <= 0x64) {
+			digit = c - 0x61 + 10;
+		} else {
+			return 0; // errornous character
+		}
+
+		result = result * base + digit;
+	}
+
+	return result;
+}
 
 
