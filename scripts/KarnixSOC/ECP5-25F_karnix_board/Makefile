@@ -1,6 +1,6 @@
-#RAMPROG = karnix_monitor
+RAMPROG = karnix_monitor
 #RAMPROG = karnix_xip_test
-RAMPROG = karnix_tetriscv
+#RAMPROG = karnix_tetriscv
 #RAMPROG = karnix_cga_test
 
 VERILOG = ../../../KarnixSOCTopLevel.v ../../../src/main/verilog/TMDS_encoder.sv ../../../src/main/verilog/OBUFDS.sv
