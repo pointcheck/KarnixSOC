@@ -5,14 +5,16 @@
 #include "riscv.h"
 #include "soc.h"
 #include "utils.h"
+#include "crc32.h"
 
 #define	CLI_BUF_SIZE       	(128*2)
 #define	CLI_HISTORY_SIZE	4
 #define CONSOLE_RX_BUF_SIZE     (128*2)
 #define CONSOLE_RX_DELAY_US     10000
 
-#define	DEBUG_CLI	1	// 0 - off, 1 - few, 2 - more
-#define	ARGN_MAX	8
+#define	DEBUG_CLI		1	// 0 - off, 1 - few, 2 - more
+#define	ARGN_MAX		8
+#define	CRC32_POLYNOMIAL	0xEDB88320
 
 volatile uint32_t console_rx_buf_len = 0;
 volatile uint8_t console_rx_buf[CONSOLE_RX_BUF_SIZE];
@@ -248,9 +250,7 @@ void cli_cmd_input_ihex(char *argv[], int argn) {
 		addr = (uint8_t*) strtoul(argv[1], NULL, 0);
 
 
-	#if(DEBUG_CLI)
-		printf("*** input_ihex: addr = %p, press Ctrl-C to break.\r\n", addr);
-	#endif
+	printf("*** input_ihex: addr = %p, press Ctrl-C to break.\r\n", addr);
 
 	current_address = (uint32_t) addr; // remember last address used
 
@@ -261,6 +261,8 @@ void cli_cmd_input_ihex(char *argv[], int argn) {
 	uint8_t str[256*2+10+1]; // max len of IHEX string
 	uint32_t idx = 0;
 	uint32_t console_rx_buf_idx = 0;
+	uint32_t bytes_read = 0;
+	uint32_t crc = 0;
 
 	while(1) {
 
@@ -297,7 +299,7 @@ void cli_cmd_input_ihex(char *argv[], int argn) {
 		
 			str[idx] = 0;
 
-			#if(DEBUG_CLI>1)
+			#if(DEBUG_CLI>2)
 			printf("*** IHEX: %s, idx = %d\r\n", str, idx);
 			#endif
 
@@ -329,12 +331,58 @@ void cli_cmd_input_ihex(char *argv[], int argn) {
 
 			int type = strntoul(str+6, 2, 16);
 
-			printf("*** IHEX type: %d, size: %d, offset: 0x%04x\r\n", type, data_size, offset);
 
-			if(type == 0) { // Data record
+			// Data record
+			// The byte count specifies number of data bytes in the record.
+			// The example has 0B (eleven) data bytes. The 16-bit starting address for the data
+			// (in the example at addresses beginning at 0010) and the data
+			// ex: 0B0010006164647265737320676170A7
+			if(type == 0) {
 				for(int i = 0; i < data_size; i ++) 
 					*(addr + base + offset + i) = strntoul(str+(i*2)+8, 2, 16);
+
+				crc = crc32((const void*)(addr + base + offset), data_size, crc, CRC32_POLYNOMIAL);
+
+				bytes_read += data_size;
 			}
+
+			// End Of File
+			// Must occur exactly once per file in the last record of the file.
+			// The byte count is 00, the address field is typically 0000 and the data field is omitted.
+			if(type == 1)
+				break;
+
+			// Start Linear Address
+			// The byte count is always 04, the address field is 0000.
+			// The four data bytes represent a 32-bit address value (big endian).
+			// In the case of CPUs that support it, this 32-bit address is the address
+			// at which execution should start.
+			if(type == 5)
+				start32 = strntoul(str+8, 8, 16); 
+
+			// Extended Linear Address
+			// Allows for 32 bit addressing (up to 4 GiB). The byte count is always 02 and the address field
+			// is ignored (typically 0000). The two data bytes (big endian) specify the upper 16 bits
+			// of the 32 bit absolute address for all subsequent type 00 records; these upper address bits
+			// apply until the next 04 record. The absolute address for a type 00 record is formed
+			// by combining the upper 16 address bits of the most recent 04 record with the low 16 address
+			// bits of the 00 record. If a type 00 record is not preceded by any type 04 records then its upper
+			// 16 address bits default to 0000. 
+			if(type == 4)
+				base = strntoul(str+8, 4, 16) << 16;
+
+			// Extended Segment Address
+			// The byte count is always 02, the address field (typically 0000) is ignored and the data field
+			// contains a 16-bit segment base address. This is multiplied by 16 and added to each subsequent
+			// data record address to form the starting address for the data. This allows addressing up to one
+			// mebibyte (1048576 bytes) of address space.
+			if(type == 2)
+				base = strntoul(str+8, 4, 16) << 4;
+
+			#if(DEBUG_CLI>1)
+			printf("*** IHEX tp: %d, sz: %d, addr: %p\r\n",
+					type, data_size, addr + base + offset);
+			#endif
 
 			end_parse:
 				parse_data_flag = 0;
@@ -350,7 +398,9 @@ void cli_cmd_input_ihex(char *argv[], int argn) {
 		}
 	}
 
-	//csr_set(mstatus, MSTATUS_MIE); // Enable Machine interrupts
+	printf("*** IHEX: bytes_read = %u, addr = %p, entry = %p, crc32 = %p (cksum -o 3)\r\n",
+			bytes_read, addr, addr + start32, crc);
+
 }
 
 void cli_cmd_stats(char *argv[], int argn) {
