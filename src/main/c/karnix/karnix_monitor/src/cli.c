@@ -59,13 +59,14 @@ void cli_prompt(void) {
 void cli_cmd_help(char *argv[], int argn) {
 	printf(
 "/// List of commands:\r\n"
-"r[b|d] [*|addr] [len]	- Read and print 'len' bytes or dwords of memory beginning at 'addr'.\r\n"
-"w[b|d] [*|addr] [data] [many]	- Write 'data' byte or dword to memory at 'addr' as 'many' times.\r\n"
-"call   [*|addr] [args]	- Call subroutine at 'addr', 'args' will be provided as argv/argn.\r\n"
-"dump   [*|addr] [len]	- Read 'len' bytes from memory at 'addr' and print in ASCII.\r\n"
-"ihex   [*|addr]	- Input IHEX, decode and store at 'addr' or current location.\r\n"
-"ohex   [*|addr] [len] [entry]	- Ouput 'len' bytes of mem in IHEX format beginning at 'addr'.\r\n"
-"stats  [period]	- Enable printing statistics each 'period' sec, use 0 to disable.\r\n"
+"stats  [period]                - Enable printing statistics each 'period' sec, use 0 to disable.\r\n"
+"r[b|d] [*|addr] [len]          - Read and print 'len' bytes or dwords of memory beginning at 'addr'.\r\n"
+"w[b|d] [*|addr] [data] [many]  - Write 'data' byte or dword to memory at 'addr' as 'many' times.\r\n"
+"call   [*|addr] [args]         - Call subroutine at 'addr', 'args' will be provided as argv/argn.\r\n"
+"dump   [*|addr] [len]          - Read 'len' bytes from memory at 'addr' and print in ASCII.\r\n"
+"ihex   [*|addr]                - Input IHEX, decode and store at 'addr' or current location.\r\n"
+"ohex   [*|addr] [len] [entry]  - Ouput 'len' bytes of mem in IHEX format beginning at 'addr'.\r\n"
+"crc    [*|addr] [len] [poly]   - Calc CRC32 of mem block beginning at 'addr' and size of 'len' bytes.\r\n"
 "\r\n"
 	);
 }
@@ -168,6 +169,35 @@ void cli_cmd_dump(char *argv[], int argn) {
 	}
 }
 
+
+void cli_cmd_crc32(char *argv[], int argn) {
+
+	uint32_t *addr = (uint32_t*) current_address;
+	uint32_t poly = CRC32_POLYNOMIAL;
+	int len = 4;
+	
+	if(argv[1] && argv[1][0] != '*')
+		addr = (uint32_t*) strtoul(argv[1], NULL, 0);
+
+	if(argv[2])
+		len = strtoul(argv[2], NULL, 0);
+
+	if(argv[3])
+		poly = strtoul(argv[3], NULL, 0);
+
+	#if(DEBUG_CLI)
+		printf("/// crc32: addr = %p, len = %u bytes, polynomial = %p\r\n", addr, len, poly);
+	#endif
+
+	int count = 0;
+	char str[24];
+
+	current_address = (uint32_t) addr; // remember last address used
+
+	uint32_t crc = crc32(addr, len, 0, poly);
+
+	printf("/// crc32: %p\r\n", crc);
+}
 
 void cli_cmd_write_byte(char *argv[], int argn) {
 
@@ -554,6 +584,11 @@ void cli_process_command(uint8_t *cmdline, uint32_t len) {
 
 	if(argv[0][0] == 'o' && argv[0][1] == 'h') {
 		cli_cmd_ohex(argv, argn);
+		return;
+	}
+
+	if(argv[0][0] == 'c' && argv[0][1] == 'r') {
+		cli_cmd_crc32(argv, argn);
 		return;
 	}
 
