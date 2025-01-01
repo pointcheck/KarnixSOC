@@ -58,7 +58,7 @@ void cli_prompt(void) {
 // Print usage info 
 void cli_cmd_help(char *argv[], int argn) {
 	printf(
-"*** List of commands:\r\n"
+"/// List of commands:\r\n"
 "r[b|d] [*|addr] [len]	- Read and print 'len' bytes or dwords of memory beginning at 'addr'.\r\n"
 "w[b|d] [*|addr] [data] [many]	- Write 'data' byte or dword to memory at 'addr' as 'many' times.\r\n"
 "call   [*|addr] [args]	- Call subroutine at 'addr', 'args' will be provided as argv/argn.\r\n"
@@ -83,7 +83,7 @@ void cli_cmd_read_byte(char *argv[], int argn) {
 		len = strtoul(argv[2], NULL, 0);
 
 	#if(DEBUG_CLI)
-		printf("*** rb: addr = %p, len = %u\r\n", addr, len);
+		printf("/// rb: addr = %p, len = %u\r\n", addr, len);
 	#endif
 
 	current_address = (uint32_t) addr; // remember last address used
@@ -113,7 +113,7 @@ void cli_cmd_read_dword(char *argv[], int argn) {
 		len = strtoul(argv[2], NULL, 0);
 
 	#if(DEBUG_CLI)
-		printf("*** rd: addr = %p, len = %u\r\n", addr, len);
+		printf("/// rd: addr = %p, len = %u\r\n", addr, len);
 	#endif
 
 	current_address = (uint32_t) addr; // remember last address used
@@ -143,7 +143,7 @@ void cli_cmd_dump(char *argv[], int argn) {
 		len = strtoul(argv[2], NULL, 0);
 
 	#if(DEBUG_CLI)
-		printf("*** dump: addr = %p, len = %u\r\n", addr, len);
+		printf("/// dump: addr = %p, len = %u\r\n", addr, len);
 	#endif
 
 	int count = 0;
@@ -185,7 +185,7 @@ void cli_cmd_write_byte(char *argv[], int argn) {
 		many = (uint32_t) strtoul(argv[3], NULL, 0);
 
 	#if(DEBUG_CLI)
-		printf("*** wb: addr = %p, value = %02x, many = %d\r\n", addr, value, many);
+		printf("/// wb: addr = %p, value = %02x, many = %d\r\n", addr, value, many);
 	#endif
 
 	current_address = (uint32_t) addr; // remember last address used
@@ -211,7 +211,7 @@ void cli_cmd_write_dword(char *argv[], int argn) {
 		many = (uint32_t) strtoul(argv[3], NULL, 0);
 
 	#if(DEBUG_CLI)
-		printf("*** wd: addr = %p, value = %p, many = %d\r\n", addr, value, many);
+		printf("/// wd: addr = %p, value = %p, many = %d\r\n", addr, value, many);
 	#endif
 
 	current_address = (uint32_t) addr; // remember last address used
@@ -231,7 +231,7 @@ void cli_cmd_call(char *argv[], int argn) {
 		addr = (uint32_t*) strtoul(argv[1], NULL, 0);
 
 	#if(DEBUG_CLI)
-		printf("*** call: addr = %p, argn = %d\r\n", addr, argn-1);
+		printf("/// call: addr = %p, argn = %d\r\n", addr, argn-1);
 	#endif
 
 	current_address = (uint32_t) addr; // remember last address used
@@ -240,7 +240,7 @@ void cli_cmd_call(char *argv[], int argn) {
 
 	uint32_t rc = long_jump(&(argv[1]), argn-1);
 
-	printf("*** call: ret = %p\r\n", rc);
+	printf("/// call: ret = %p\r\n", rc);
 }
 
 void cli_cmd_ihex(char *argv[], int argn) {
@@ -252,7 +252,7 @@ void cli_cmd_ihex(char *argv[], int argn) {
 		addr = (uint8_t*) strtoul(argv[1], NULL, 0);
 
 
-	printf("*** ihex: addr = %p, press Ctrl-C to break.\r\n", addr);
+	printf("/// ihex: addr = %p, press Ctrl-C to break.\r\n", addr);
 
 	current_address = (uint32_t) addr; // remember last address used
 
@@ -289,7 +289,7 @@ void cli_cmd_ihex(char *argv[], int argn) {
 		}
 
 		if(c == 0x03 || c == 0x04 || c == 0x08 || c == 0x7f) { // Ctrl-C, Ctrl-D or Backspace or DEL
-			printf("*** ihex: User interrupt (char = 0x%02x)\r\n", c);
+			printf("/// ihex: User interrupt (char = 0x%02x)\r\n", c);
 			break;
 		}
 
@@ -302,7 +302,7 @@ void cli_cmd_ihex(char *argv[], int argn) {
 			str[idx] = 0;
 
 			#if(DEBUG_CLI>2)
-			printf("*** ihex: %s, idx = %d\r\n", str, idx);
+			printf("/// ihex: %s, idx = %d\r\n", str, idx);
 			#endif
 
 			int data_size = strntoul(str, 2, 16);
@@ -310,7 +310,7 @@ void cli_cmd_ihex(char *argv[], int argn) {
 			int len = strlen(str);
 
 			if(len != data_size*2+10) {
-				printf("*** ihex: Calculated str size %d mismatches received len %d\r\n", data_size*2+10, len);
+				printf("/// ihex: Calculated str size %d mismatches received len %d\r\n", data_size*2+10, len);
 				goto end_parse;
 			}
 
@@ -325,7 +325,7 @@ void cli_cmd_ihex(char *argv[], int argn) {
 			uint8_t his_sum = (uint8_t) strntoul(str+8+data_size*2, 2, 16);
 
 			if(sum != his_sum) {
-				printf("*** ihex: Checksum mismatch: sum = %02x, his = %02x\r\n", sum, his_sum);
+				printf("/// ihex: Checksum mismatch: sum = %02x, his = %02x\r\n", sum, his_sum);
 				goto end_parse;
 			}
 
@@ -382,7 +382,7 @@ void cli_cmd_ihex(char *argv[], int argn) {
 				base = strntoul(str+8, 4, 16) << 4;
 
 			#if(DEBUG_CLI>1)
-			printf("*** ihex tp: %d, sz: %d, addr: %p\r\n",
+			printf("/// ihex tp: %d, sz: %d, addr: %p\r\n",
 					type, data_size, addr + base + offset);
 			#endif
 
@@ -394,13 +394,13 @@ void cli_cmd_ihex(char *argv[], int argn) {
 
 			if(idx >= 256*2+10) {
 				str[idx] = 0;
-				printf("*** Too long: %s\r\n", str);
+				printf("/// Too long: %s\r\n", str);
 				parse_data_flag = 0;
 			}
 		}
 	}
 
-	printf("*** ihex: bytes_read = %u, addr = %p, entry = %p, crc32 = %p (cksum -o 3)\r\n",
+	printf("/// ihex: bytes_read = %u, addr = %p, entry = %p, crc32 = %p (cksum -o 3)\r\n",
 			bytes_read, addr, addr + start32, crc);
 
 }
@@ -419,7 +419,7 @@ void cli_cmd_ohex(char *argv[], int argn) {
 	if(argv[3])
 		start32 = strtoul(argv[3], NULL, 0) - (uint32_t)addr;
 
-	printf("*** ohex: addr = %p, len = %u, entry = %p, press Ctrl-C to break.\r\n", addr, len, start32);
+	printf("/// ohex: addr = %p, len = %u, entry = %p, press Ctrl-C to break.\r\n", addr, len, start32);
 
 	current_address = (uint32_t) addr; // remember last address used
 
@@ -437,7 +437,7 @@ void cli_cmd_ohex(char *argv[], int argn) {
 		printf("%02X\r\n", sum);
 
 		if(console_rx_buf_len) {
-			printf("*** ohex: User interrupt\r\n");
+			printf("/// ohex: User interrupt\r\n");
 			break;
 		}
 
@@ -451,7 +451,7 @@ void cli_cmd_ohex(char *argv[], int argn) {
 		       ":00000001FF\r\n", start32,
 		       (~(4+0+0+5+((start32>>24)&0xff)+((start32>>16)&0xff)+((start32>>8)&0xff)+(start32&0xff)) + 1) & 0xff);
 
-	printf("*** ohex: end\r\n%c", 0x4); // send End-of-Transmission (Ctrl-D) in the end
+	printf("/// ohex: end\r\n%c", 0x4); // send End-of-Transmission (Ctrl-D) in the end
 }
 
 void cli_cmd_stats(char *argv[], int argn) {
@@ -488,7 +488,7 @@ void cli_process_command(uint8_t *cmdline, uint32_t len) {
 
 	if(argn == 0) {
 		#if(DEBUG_CLI)
-		printf("*** argn is 0!\r\n");
+		printf("/// argn is 0!\r\n");
 		#endif
 		return;
 	}
