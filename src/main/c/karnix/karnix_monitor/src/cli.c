@@ -12,9 +12,10 @@
 #define CONSOLE_RX_BUF_SIZE     (128*2)
 #define CONSOLE_RX_DELAY_US     10000
 
-#define	DEBUG_CLI		1	// 0 - off, 1 - few, 2 - more
-#define	ARGN_MAX		8
-#define	CRC32_POLYNOMIAL	0xEDB88320
+#define	DEBUG_CLI		1		// 0 - off, 1 - few, 2 - more
+#define	ARGN_MAX		8		// Max number of arguments in cmd line
+#define	CRC32_POLYNOMIAL	0xEDB88320	// same as in "cksum -o 3"
+#define	OHEX_BYTES_PER_LINE	16		// num of bytes in IHEX line, should be power of 2
 
 volatile uint32_t console_rx_buf_len = 0;
 volatile uint8_t console_rx_buf[CONSOLE_RX_BUF_SIZE];
@@ -63,6 +64,7 @@ void cli_cmd_help(char *argv[], int argn) {
 "call   [*|addr] [args]	- Call subroutine at 'addr', 'args' will be provided as argv/argn.\r\n"
 "dump   [*|addr] [len]	- Read 'len' bytes from memory at 'addr' and print in ASCII.\r\n"
 "ihex   [*|addr]	- Input IHEX, decode and store at 'addr' or current location.\r\n"
+"ohex   [*|addr] [len] [entry]	- Ouput 'len' bytes of mem in IHEX format beginning at 'addr'.\r\n"
 "stats  [period]	- Enable printing statistics each 'period' sec, use 0 to disable.\r\n"
 "\r\n"
 	);
@@ -241,7 +243,7 @@ void cli_cmd_call(char *argv[], int argn) {
 	printf("*** call: ret = %p\r\n", rc);
 }
 
-void cli_cmd_input_ihex(char *argv[], int argn) {
+void cli_cmd_ihex(char *argv[], int argn) {
 
 	uint8_t *addr = (uint8_t*) current_address;
 	uint32_t base = 0, offset = 0, start16 = 0, start32 = 0;
@@ -250,7 +252,7 @@ void cli_cmd_input_ihex(char *argv[], int argn) {
 		addr = (uint8_t*) strtoul(argv[1], NULL, 0);
 
 
-	printf("*** input_ihex: addr = %p, press Ctrl-C to break.\r\n", addr);
+	printf("*** ihex: addr = %p, press Ctrl-C to break.\r\n", addr);
 
 	current_address = (uint32_t) addr; // remember last address used
 
@@ -287,7 +289,7 @@ void cli_cmd_input_ihex(char *argv[], int argn) {
 		}
 
 		if(c == 0x03 || c == 0x04 || c == 0x08 || c == 0x7f) { // Ctrl-C, Ctrl-D or Backspace or DEL
-			printf("*** User interrupt (char = 0x%02x)\r\n", c);
+			printf("*** ihex: User interrupt (char = 0x%02x)\r\n", c);
 			break;
 		}
 
@@ -300,7 +302,7 @@ void cli_cmd_input_ihex(char *argv[], int argn) {
 			str[idx] = 0;
 
 			#if(DEBUG_CLI>2)
-			printf("*** IHEX: %s, idx = %d\r\n", str, idx);
+			printf("*** ihex: %s, idx = %d\r\n", str, idx);
 			#endif
 
 			int data_size = strntoul(str, 2, 16);
@@ -308,7 +310,7 @@ void cli_cmd_input_ihex(char *argv[], int argn) {
 			int len = strlen(str);
 
 			if(len != data_size*2+10) {
-				printf("*** Calculated str size %d mismatches received len %d\r\n", data_size*2+10, len);
+				printf("*** ihex: Calculated str size %d mismatches received len %d\r\n", data_size*2+10, len);
 				goto end_parse;
 			}
 
@@ -323,7 +325,7 @@ void cli_cmd_input_ihex(char *argv[], int argn) {
 			uint8_t his_sum = (uint8_t) strntoul(str+8+data_size*2, 2, 16);
 
 			if(sum != his_sum) {
-				printf("*** Checksum mismatch: sum = %02x, his = %02x\r\n", sum, his_sum);
+				printf("*** ihex: Checksum mismatch: sum = %02x, his = %02x\r\n", sum, his_sum);
 				goto end_parse;
 			}
 
@@ -380,7 +382,7 @@ void cli_cmd_input_ihex(char *argv[], int argn) {
 				base = strntoul(str+8, 4, 16) << 4;
 
 			#if(DEBUG_CLI>1)
-			printf("*** IHEX tp: %d, sz: %d, addr: %p\r\n",
+			printf("*** ihex tp: %d, sz: %d, addr: %p\r\n",
 					type, data_size, addr + base + offset);
 			#endif
 
@@ -398,9 +400,58 @@ void cli_cmd_input_ihex(char *argv[], int argn) {
 		}
 	}
 
-	printf("*** IHEX: bytes_read = %u, addr = %p, entry = %p, crc32 = %p (cksum -o 3)\r\n",
+	printf("*** ihex: bytes_read = %u, addr = %p, entry = %p, crc32 = %p (cksum -o 3)\r\n",
 			bytes_read, addr, addr + start32, crc);
 
+}
+
+void cli_cmd_ohex(char *argv[], int argn) {
+
+	uint8_t *addr = (uint8_t*) current_address;
+	uint32_t start32 = 0, len = 1, offset = 0;
+	
+	if(argv[1] && argv[1][0] != '*')
+		addr = (uint8_t*) strtoul(argv[1], NULL, 0);
+
+	if(argv[2])
+		len = strtoul(argv[2], NULL, 0);
+
+	if(argv[3])
+		start32 = strtoul(argv[3], NULL, 0) - (uint32_t)addr;
+
+	printf("*** ohex: addr = %p, len = %u, entry = %p, press Ctrl-C to break.\r\n", addr, len, start32);
+
+	current_address = (uint32_t) addr; // remember last address used
+
+	while(offset < len) {
+		uint8_t hex_len = (offset + OHEX_BYTES_PER_LINE <= len) ? 
+			OHEX_BYTES_PER_LINE  : (len - offset) % OHEX_BYTES_PER_LINE;
+		printf(":%02X%04X%02X", hex_len, offset & 0xffff, 0x0);
+		uint8_t sum = hex_len + ((offset>>8)&0xff)+(offset&0xff)+0;
+		for(int i = 0; i < hex_len; i++) {
+			uint8_t byte = *(addr + offset++);
+			printf("%02X", byte);
+			sum += byte;
+		}
+		sum = ~sum + 1;
+		printf("%02X\r\n", sum);
+
+		if(console_rx_buf_len) {
+			printf("*** ohex: User interrupt\r\n");
+			break;
+		}
+
+		if((offset & 0xffff) == 0) // 64K overlap ?
+			printf(":02000004%04X%02X\r\n", (offset >> 16) & 0xffff,
+				(~(2+0+0+4+((offset>>24)&0xff)+((offset>>16)&0xff)) + 1) & 0xff);
+	}
+
+	if(offset == len) // Successful end ?
+		printf(":04000005%08X%02X\r\n"
+		       ":00000001FF\r\n", start32,
+		       (~(4+0+0+5+((start32>>24)&0xff)+((start32>>16)&0xff)+((start32>>8)&0xff)+(start32&0xff)) + 1) & 0xff);
+
+	printf("*** ohex: end\r\n%c", 0x4); // send End-of-Transmission (Ctrl-D) in the end
 }
 
 void cli_cmd_stats(char *argv[], int argn) {
@@ -497,7 +548,12 @@ void cli_process_command(uint8_t *cmdline, uint32_t len) {
 	}
 
 	if(argv[0][0] == 'i' && argv[0][1] == 'h') {
-		cli_cmd_input_ihex(argv, argn);
+		cli_cmd_ihex(argv, argn);
+		return;
+	}
+
+	if(argv[0][0] == 'o' && argv[0][1] == 'h') {
+		cli_cmd_ohex(argv, argn);
 		return;
 	}
 
