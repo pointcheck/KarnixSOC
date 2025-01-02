@@ -2,10 +2,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <alloca.h>
 #include "riscv.h"
 #include "soc.h"
 #include "utils.h"
 #include "crc32.h"
+#include "zmodem.h"
 
 #define	CLI_BUF_SIZE       	(128*2)
 #define	CLI_HISTORY_SIZE	4
@@ -16,6 +18,7 @@
 #define	ARGN_MAX		8		// Max number of arguments in cmd line
 #define	CRC32_POLYNOMIAL	0xEDB88320	// same as in "cksum -o 3"
 #define	OHEX_BYTES_PER_LINE	16		// num of bytes in IHEX line, should be power of 2
+#define	PATHLEN			257		// Max file name len in 4.2BSD.
 
 volatile uint32_t console_rx_buf_len = 0;
 volatile uint8_t console_rx_buf[CONSOLE_RX_BUF_SIZE];
@@ -29,6 +32,8 @@ uint32_t cli_buf_len = 0;
 
 uint32_t current_address = 0x80000000;
 extern volatile uint32_t reg_sys_print_stats;
+
+void* ZModemWriteAddress;
 
 void cli_process_command(uint8_t *cmd, uint32_t len);
 
@@ -62,11 +67,14 @@ void cli_cmd_help(char *argv[], int argn) {
 "stats  [period]                - Enable printing statistics each 'period' sec, use 0 to disable.\r\n"
 "r[b|d] [*|addr] [len]          - Read and print 'len' bytes or dwords of memory beginning at 'addr'.\r\n"
 "w[b|d] [*|addr] [data] [many]  - Write 'data' byte or dword to memory at 'addr' as 'many' times.\r\n"
+"addr   [*|addr]                - Set current address pointer to 'addr'.\r\n"
 "call   [*|addr] [args]         - Call subroutine at 'addr', 'args' will be provided as argv/argn.\r\n"
 "dump   [*|addr] [len]          - Read 'len' bytes from memory at 'addr' and print in ASCII.\r\n"
+"type   [*|addr]                - Print ASCII string in memory at 'addr'.\r\n"
 "ihex   [*|addr]                - Input IHEX, decode and store at 'addr' or current location.\r\n"
 "ohex   [*|addr] [len] [entry]  - Ouput 'len' bytes of mem in IHEX format beginning at 'addr'.\r\n"
 "crc    [*|addr] [len] [poly]   - Calc CRC32 of mem block beginning at 'addr' and size of 'len' bytes.\r\n"
+"rz     [*|addr]                - Receive file over ZModem to mem 'addr'.\r\n"
 "\r\n"
 	);
 }
@@ -170,6 +178,24 @@ void cli_cmd_dump(char *argv[], int argn) {
 }
 
 
+void cli_cmd_type(char *argv[], int argn) {
+
+	uint8_t *addr = (uint8_t*) current_address;
+	int len = 1;
+	
+	if(argv[1] && argv[1][0] != '*')
+		addr = (uint8_t*) strtoul(argv[1], NULL, 0);
+
+	#if(DEBUG_CLI)
+		printf("/// type: addr = %p\r\n", addr);
+	#endif
+
+	current_address = (uint32_t) addr; // remember last address used
+
+	printf("%s\r\n", addr);
+}
+
+
 void cli_cmd_crc32(char *argv[], int argn) {
 
 	uint32_t *addr = (uint32_t*) current_address;
@@ -198,6 +224,56 @@ void cli_cmd_crc32(char *argv[], int argn) {
 
 	printf("/// crc32: %p\r\n", crc);
 }
+
+
+void cli_cmd_addr(char *argv[], int argn) {
+
+	uint32_t *addr = (uint32_t*) current_address;
+	
+	if(argv[1] && argv[1][0] != '*')
+		addr = (uint32_t*) strtoul(argv[1], NULL, 0);
+
+	current_address = (uint32_t) addr; // remember last address used
+
+	#if(DEBUG_CLI)
+		printf("/// addr = %p\r\n", addr);
+	#endif
+}
+
+void cli_cmd_rz(char *argv[], int argn) {
+
+	uint32_t *addr = (uint32_t*) current_address;
+	
+	if(argv[1] && argv[1][0] != '*')
+		addr = (uint32_t*) strtoul(argv[1], NULL, 0);
+
+	#if(DEBUG_CLI)
+		printf("/// rx zmodem: addr = %p\r\n", addr);
+	#endif
+
+	ZModemWriteAddress = addr;
+
+	csr_clear(mstatus, MSTATUS_MIE); // Disable Machine interrupts
+
+	// Allocate room for filename on stack (257 bytes)
+	char *filename = (char*) alloca(PATHLEN);
+
+	// Receive by ZModem: three attempts, 1M max file size
+	int rc = wcreceive(15, 1024*1024, filename);
+
+	csr_set(mstatus, MSTATUS_MIE); // Enable Machine interrupts
+
+	if(rc == 0) {
+		printf("/// rx zmodem success: read_bytes = %d, file = %s, crc32 = %p\r\n",
+			ZModemRxBytes, filename, crc32((uint8_t*)addr, ZModemRxBytes, 0, CRC32_POLYNOMIAL));
+	} else {
+		printf("/// rx zmodem fail: rc = %d, read_bytes = %u, left_bytes = %u, max = %u\r\n",
+				rc, ZModemRxBytes, ZModemBytesleft, 1024*1024);
+	}
+
+	current_address = (uint32_t) addr; // remember last address used
+}
+
 
 void cli_cmd_write_byte(char *argv[], int argn) {
 
@@ -577,6 +653,11 @@ void cli_process_command(uint8_t *cmdline, uint32_t len) {
 		return;
 	}
 
+	if(argv[0][0] == 't' && argv[0][1] == 'y') {
+		cli_cmd_type(argv, argn);
+		return;
+	}
+
 	if(argv[0][0] == 'i' && argv[0][1] == 'h') {
 		cli_cmd_ihex(argv, argn);
 		return;
@@ -589,6 +670,22 @@ void cli_process_command(uint8_t *cmdline, uint32_t len) {
 
 	if(argv[0][0] == 'c' && argv[0][1] == 'r') {
 		cli_cmd_crc32(argv, argn);
+		return;
+	}
+
+	if(argv[0][0] == 'a' && argv[0][1] == 'd') {
+		cli_cmd_addr(argv, argn);
+		return;
+	}
+
+	if(argv[0][0] == 'r' && argv[0][1] == 'z') {
+		cli_cmd_rz(argv, argn);
+		return;
+	}
+
+	//if(strncasecmp(argv[0], "**B01000000", 11) == 0) {
+	if(argv[0][0] == '*' && argv[0][1] == '*' && argv[0][2] == 'B' && argv[0][3] == '0') {
+		cli_cmd_rz(argv, argn);
 		return;
 	}
 
