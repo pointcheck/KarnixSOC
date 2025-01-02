@@ -7,6 +7,7 @@ typedef struct
   volatile uint32_t STATUS;
   volatile uint32_t CLOCK_DIVIDER;
   volatile uint32_t FRAME_CONFIG;
+  volatile uint32_t STATUS2;
 } Uart_Reg;
 
 #define	UART_STATUS_TX_IRQ_EN	(1<<0)
@@ -16,6 +17,12 @@ typedef struct
 #define	UART_STATUS_TX_VALID	(1<<15)
 #define	UART_STATUS_TX_FIFO_OCC	(0xff<<16)
 #define	UART_STATUS_RX_FIFO_OCC	(0xff<<24)
+#define	UART_STATUS2_RX_ERROR		(1<<0)
+#define	UART_STATUS2_RX_OVERFLOW	(1<<1)
+#define	UART_STATUS2_RX_BREAK		(1<<8)
+#define	UART_STATUS2_RX_BREAK_DETECTED	(1<<9)
+#define	UART_STATUS2_TX_BREAK		(1<<10)
+#define	UART_STATUS2_TX_BREAK_CLEAR	(1<<11)
 
 #define	UART_PRE_SAMPLING_SIZE	1
 #define	UART_SAMPLING_SIZE	3
@@ -60,6 +67,13 @@ static void uart_applyConfig(Uart_Reg *reg, Uart_Config *config){
 	reg->FRAME_CONFIG = ((config->dataLength-1) << 0) | (config->parity << 8) | (config->stop << 16);
 }
 
+static void uart_sendBreak(Uart_Reg *reg){
+	reg->STATUS2 |= UART_STATUS2_TX_BREAK;
+	for(volatile int i=0;i<10000;i++);
+	reg->STATUS2 |= UART_STATUS2_TX_BREAK_CLEAR;
+}
+
+int uart_read(Uart_Reg *reg, char *buf, int size, int timeout);
 
 #endif /* _UART_H_ */
 
