@@ -5,6 +5,7 @@
 #include <alloca.h>
 #include "riscv.h"
 #include "soc.h"
+#include "qspi.h"
 #include "utils.h"
 #include "crc32.h"
 #include "zmodem.h"
@@ -60,23 +61,119 @@ void cli_prompt(void) {
 	fflush(stdout);
 }
 
-// Print usage info 
 void cli_cmd_help(char *argv[], int argn) {
 	printf(
-"/// List of commands:\r\n"
-"stats  [period]                - Enable printing statistics each 'period' sec, use 0 to disable.\r\n"
-"r[b|d] [*|addr] [len]          - Read and print 'len' bytes or dwords of memory beginning at 'addr'.\r\n"
-"w[b|d] [*|addr] [data] [many]  - Write 'data' byte or dword to memory at 'addr' as 'many' times.\r\n"
-"addr   [*|addr]                - Set current address pointer to 'addr'.\r\n"
-"call   [*|addr] [args]         - Call subroutine at 'addr', 'args' will be provided as argv/argn.\r\n"
-"dump   [*|addr] [len]          - Read 'len' bytes from memory at 'addr' and print in ASCII.\r\n"
-"type   [*|addr]                - Print ASCII string in memory at 'addr'.\r\n"
-"ihex   [*|addr]                - Input IHEX, decode and store at 'addr' or current location.\r\n"
-"ohex   [*|addr] [len] [entry]  - Ouput 'len' bytes of mem in IHEX format beginning at 'addr'.\r\n"
-"crc    [*|addr] [len] [poly]   - Calc CRC32 of mem block beginning at 'addr' and size of 'len' bytes.\r\n"
-"rz     [*|addr]                - Receive file over ZModem to mem 'addr'.\r\n"
+"/// List of general commands:\r\n"
+"stats	[period]		- Enable printing statistics each 'period' sec, use 0 to disable.\r\n"
+"r[b|d]	[*|addr] [len]		- Read and print 'len' bytes or dwords of memory beginning at 'addr'.\r\n"
+"w[b|d]	[*|addr] [data] [many]	- Write 'data' byte or dword to memory at 'addr' as 'many' times.\r\n"
+"addr	[*|addr]		- Set current address pointer to 'addr'.\r\n"
+"call	[*|addr] [args]		- Call subroutine at 'addr', 'args' will be provided as argv/argn.\r\n"
+"dump	[*|addr] [len]		- Read 'len' bytes from memory at 'addr' and print in ASCII.\r\n"
+"type	[*|addr]		- Print ASCII string in memory at 'addr'.\r\n"
+"ihex	[*|addr]		- Input IHEX, decode and store at 'addr' or current location.\r\n"
+"ohex	[*|addr] [len] [entry]  - Ouput 'len' bytes of mem in IHEX format beginning at 'addr'.\r\n"
+"crc	[*|addr] [len] [poly]	- Calc CRC32 of mem block beginning at 'addr' and size of 'len' bytes.\r\n"
+"rz	[*|addr]		- Receive file over ZModem to mem 'addr'.\r\n"
+"nor	[?|erase|cp]		- NOR flash operations.\r\n"
 "\r\n"
 	);
+}
+
+
+void cli_cmd_nor_help(char *argv[], int argn) {
+	printf(
+"/// List of NOR flash commands:\r\n"
+"nor	erase <addr> <len>	- Erase sectors beginnign at 'addr', ending at 'addr+len'.\r\n"
+"nor	cp <addr1> <addr2> <len>	- Copy data 'len' bytes of data from memory 'addr2' to NOR flash at 'addr1'\r\n"
+	);
+}
+
+
+void cli_cmd_nor_erase(char *argv[], int argn) {
+	uint8_t *addr = (uint8_t*) current_address;
+	int len = 1;
+
+	if(argn < 4) {
+		cli_cmd_nor_help(argv, argn);
+		return;
+	}
+
+	if(argv[2] && argv[2][0] != '*')
+		addr = (uint8_t*) strtoul(argv[2], NULL, 0);
+
+	if(argv[3])
+		len = strtoul(argv[3], NULL, 0);
+
+	#if(DEBUG_CLI)
+		printf("/// nor erase: addr = %p, len = %u\r\n", addr, len);
+	#endif
+
+	current_address = (uint32_t) addr; // remember last address used
+
+        uint32_t t0 = get_mtime();
+	uint32_t i;
+
+	for(i = 0; i < len; i += 4096) {
+		printf("%p\r", (addr + i));
+		fflush(stdout);
+
+                qspi_erase_sector((uint32_t)(addr+i));
+
+                while(qspi_get_status() & QSPI_DEVICE_STATUS_BUSY);
+
+		if(console_rx_buf_len)
+			break;
+	}
+
+        uint32_t t1= get_mtime();
+
+        printf("\r\n/// nor erase: complete %u bytes in %u uS, status = %p\r\n", i, t1-t0, qspi_get_status());
+}
+
+
+void cli_cmd_nor_copy(char *argv[], int argn) {
+	uint32_t *addr1 = (uint32_t*) current_address;
+	uint32_t *addr2 = (uint32_t*) current_address;
+	uint32_t len = 4;
+
+	if(argn < 5) {
+		cli_cmd_nor_help(argv, argn);
+		return;
+	}
+
+	if(argv[2] && argv[2][0] != '*')
+		addr1 = (uint32_t*) strtoul(argv[2], NULL, 0);
+
+	if(argv[3] && argv[3][0] != '*')
+		addr2 = (uint32_t*) strtoul(argv[3], NULL, 0);
+
+	if(argv[4])
+		len = strtoul(argv[4], NULL, 0) & 0xfffffffc;
+
+	#if(DEBUG_CLI)
+		printf("/// nor copy: to = %p, from = %p, len = %u\r\n", addr1, addr2, len);
+	#endif
+
+	current_address = (uint32_t) addr1; // remember last address used
+
+        uint32_t t0 = get_mtime();
+	uint32_t i;
+
+	for(i = 0; i < len/4; i ++) {
+		qspi_write_enable();
+
+		*(addr1++) = *(addr2++);
+
+                while(qspi_get_status() & QSPI_DEVICE_STATUS_BUSY);
+
+		if(console_rx_buf_len)
+			break;
+	}
+
+        uint32_t t1 = get_mtime();
+
+        printf("\r\n/// nor copy: complete %d bytes in %u uS, status = 0x%02x\r\n", i*4, t1-t0, qspi_get_status());
 }
 
 
@@ -296,8 +393,14 @@ void cli_cmd_write_byte(char *argv[], int argn) {
 
 	current_address = (uint32_t) addr; // remember last address used
 
-	for(int i = 0; i < many; i++)
+	for(int i = 0; i < many; i++) {
+		// Is this writing to QSPI NOR flash ?
+		if(addr >= (uint8_t*)(QSPI_MEMORY_ADDRESS) &&
+		   addr < (uint8_t*)(QSPI_MEMORY_ADDRESS+QSPI_MEMORY_SIZE))
+			qspi_write_enable();
+			
 		*addr++ = value;
+	}
 }
 
 
@@ -322,8 +425,14 @@ void cli_cmd_write_dword(char *argv[], int argn) {
 
 	current_address = (uint32_t) addr; // remember last address used
 
-	for(int i = 0; i < many; i++)
+	for(int i = 0; i < many; i++) {
+		// Is this writing to QSPI NOR flash ?
+		if(addr >= (uint32_t*)(QSPI_MEMORY_ADDRESS) &&
+		   addr < (uint32_t*)(QSPI_MEMORY_ADDRESS+QSPI_MEMORY_SIZE))
+			qspi_write_enable();
+			
 		*addr++ = value;
+	}
 
 }
 
@@ -686,6 +795,22 @@ void cli_process_command(uint8_t *cmdline, uint32_t len) {
 	//if(strncasecmp(argv[0], "**B01000000", 11) == 0) {
 	if(argv[0][0] == '*' && argv[0][1] == '*' && argv[0][2] == 'B' && argv[0][3] == '0') {
 		cli_cmd_rz(argv, argn);
+		return;
+	}
+
+	if(argv[0][0] == 'n' && argv[0][1] == 'o') {
+
+		if(argn < 4) {
+			cli_cmd_nor_help(argv, argn);
+			return;
+		}
+
+		if(argv[1][0] == 'e' && argv[1][1] == 'r')
+			cli_cmd_nor_erase(argv, argn);
+		else if(argv[1][0] == 'c' && argv[1][1] == 'p')
+			cli_cmd_nor_copy(argv, argn);
+		else
+			cli_cmd_nor_help(argv, argn);
 		return;
 	}
 
