@@ -5,6 +5,7 @@
 #include <string.h>
 
 #define	QSPI_MEMORY_ADDRESS	0xA0000000
+#define	QSPI_MEMORY_SIZE	0x01000000
 #define	QSPI_CTRL_WE		(1<<31)
 #define	QSPI_CTRL_CMD_ERASE	(1<<30)
 #define	QSPI_CTRL_CMD_STATUS	(1<<29)
