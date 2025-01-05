@@ -20,7 +20,6 @@
 #include "cga.h"
 #include "crc32.h"
 #include "qspi.h"
-#include "text.h"
 #include "cli.h"
 
 /* Below is some linker specific stuff */
@@ -33,6 +32,8 @@ extern unsigned int   heap_end; /* programmer defined heap end */
 #define SRAM_SIZE       (512*1024)
 #define SRAM_ADDR_BEGIN 0x90000000
 #define SRAM_ADDR_END   (0x90000000 + SRAM_SIZE)
+
+#define	WELCOME_TEXT "Welcome to Karnix SoC Monitor. Build #%04u at %s %s. Main addr: %p\r\n\r\nCopyright (C) 2024, Fabmicro, LLC.\r\n\r\n"
 
 extern struct netif default_netif;
 
@@ -47,7 +48,7 @@ volatile uint32_t reg_cga_vblank_irqs = 0;
 volatile uint32_t reg_audiodac0_irqs = 0;
 volatile uint32_t reg_boot = 1;
 
-uint32_t deadbeef = 0;		// If not zero - we are in soft-start mode
+__attribute__ ((section (".noinit"))) uint32_t deadbeef;	// If equal to 0xdeadbeef - we are in soft-start mode
 
 void println(const char*str){
 	print_uart0(str);
@@ -113,6 +114,8 @@ void __attribute__((optimize("O0"))) context_save(void) {
 }
 
 
+
+
 void process_and_wait(uint32_t us) {
 
 	context_save();
@@ -121,6 +124,7 @@ void process_and_wait(uint32_t us) {
 		context.trap_flag = 0;
 		//printf("*** Restoring stack: sp = %p\r\n", context.sp);
 		asm volatile ("lw sp, (%0)" :  : "r"(&context.sp));
+		csr_set(mstatus, MSTATUS_MIE); // Enable Machine interrupts
 		cli_prompt();
 		goto skip;
 	}
@@ -205,11 +209,9 @@ int sram_test_write_random_ints(int interations) {
 }
 
 
-
 void main() {
 
 	char str[256];
-
 
 	csr_clear(mstatus, MSTATUS_MIE); // Disable Machine interrupts during hardware init
 
@@ -217,10 +219,11 @@ void main() {
 
 	init_sbrk(NULL, 0); // Initialize heap for malloc to use on-chip RAM
 
-	printf(TEXT_KARNIX_WELCOME, BUILD_NUMBER);
+	printf(WELCOME_TEXT, BUILD_NUMBER, __DATE__, __TIME__, &main);
 
-	if(deadbeef != 0) {
+	if(deadbeef == 0xdeadbeef) {
 		print("Soft-start, performing hard reset!\r\n");
+		delay_us(200000);
 		hard_reboot();
 	} else {
 		deadbeef = 0xdeadbeef;
@@ -261,7 +264,7 @@ void main() {
 	memset(CGA->FB, 0, CGA_FRAMEBUFFER_SIZE);
 
 	// Print Welcome test to CGA
-	sprintf(str, TEXT_KARNIX_WELCOME, BUILD_NUMBER);
+	sprintf(str, WELCOME_TEXT, BUILD_NUMBER, __DATE__, __TIME__, &main);
 	cga_text_print(CGA->FB, -1, -1, 15, 0, str);
 
 	// Enable writes to EEPROM
