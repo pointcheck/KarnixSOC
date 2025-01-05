@@ -146,6 +146,7 @@ Within this model it's possible to put binary containing all the above segments 
 
 Pros:
   * Allows separation of program from hardware bitstream.
+  * Allows binary with large .text segements, as big as NOR flash free space allows.
   
 Cons:
   * Not possible to place binary to a different location in NOR flash.
