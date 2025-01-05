@@ -25,59 +25,14 @@ SECTIONS {
     *crt.o(.text);
   } > RAM
 
-
-  .data :
-  {
-    *(.rdata)
-    *(.rodata .rodata.*)
-    *(.gnu.linkonce.r.*)
-    *(.data .data.*)
-    *(.gnu.linkonce.d.*)
-    . = ALIGN(8);
-    PROVIDE( __global_pointer$ = . + 0x800 );
-    *(.sdata .sdata.*)
-    *(.gnu.linkonce.s.*)
-    . = ALIGN(8);
-    *(.srodata.cst16)
-    *(.srodata.cst8)
-    *(.srodata.cst4)
-    *(.srodata.cst2)
-    *(.srodata .srodata.*)
-  } > RAM
-
-  .bss (NOLOAD) : {
-		. = ALIGN(4);
-		/* This is used by the startup in order to initialize the .bss secion */
-		_bss_start = .;
-    *(.sbss*)
-    *(.gnu.linkonce.sb.*)
-    *(.bss .bss.*)
-    *(.gnu.linkonce.b.*)
-    *(COMMON)
-		. = ALIGN(4);
-		_bss_end = .;
-  } > RAM
-
-
-  .rodata         :
-  {
-    *(.rdata)
-    *(.rodata .rodata.*)
-    *(.gnu.linkonce.r.*)
-  } > RAM
-
-  .noinit (NOLOAD) : {
-      . = ALIGN(4);
-      *(.noinit .noinit.*)
-      . = ALIGN(4);
-  } > RAM
-
-  .memory : {
+  .text : {
+    . = ALIGN(4);
     *(.text);
+    *(.text.*);
     end = .;
   } > RAM
 
-  .ctors          :
+  .ctors :
   {
     . = ALIGN(4);
     _ctors_start = .;
@@ -89,14 +44,65 @@ SECTIONS {
     PROVIDE ( END_OF_SW_IMAGE = . );
   } > RAM
 
+  .rodata :
+  {
+    . = ALIGN(4);
+    *(.rdata)
+    *(.rodata)
+    *(.rodata.*)
+    *(.gnu.linkonce.r.*)
+    *(.srodata.cst16)
+    *(.srodata.cst8)
+    *(.srodata.cst4)
+    *(.srodata.cst2)
+    *(.srodata .srodata.*)
+    *(.eh_frame .eh_frame.*) /* C++ exception handling and backtrace */
+    *(.got) /* global offset pointers for dynamic linker */
+    *(.got.plt) /* global function pointers for dynamic linker */
+  } > RAM
+
+  .data :
+  {
+    . = ALIGN(4);
+    PROVIDE (_data_start = .);
+    *(.data)
+    *(.data.*)
+    . = ALIGN(8);
+    PROVIDE( __global_pointer$ = . + 0x800 );
+    *(.gnu.linkonce.d.*)
+    *(.sdata .sdata.*)
+    *(.sdata2 .sdata2.*)
+    *(.gnu.linkonce.s.*)
+    . = ALIGN(4);
+    PROVIDE(_data_end = .);
+  } > RAM
+
+  .bss (NOLOAD) : {
+    . = ALIGN(4);
+    /* This is used by the startup in order to initialize the .bss secion */
+    _bss_start = .;
+    *(.sbss*)
+    *(.gnu.linkonce.sb.*)
+    *(.bss .bss.*)
+    *(.gnu.linkonce.b.*)
+    *(COMMON)
+    . = ALIGN(4);
+    _bss_end = .;
+  } > RAM
+
+  .noinit (NOLOAD) : {
+      . = ALIGN(4);
+      *(.noinit .noinit.*)
+      . = ALIGN(4);
+  } > RAM
 
   ._stack (NOLOAD):
   {
     . = ALIGN(16);
-    PROVIDE (_stack_end = .);
+    PROVIDE(_stack_end = .);
     . = . + _stack_size;
     . = ALIGN(16);
-    PROVIDE (_stack_start = .);
+    PROVIDE(_stack_start = .);
   } > RAM
 
   ._ram_heap (NOLOAD):
@@ -109,6 +115,5 @@ SECTIONS {
     /* PROVIDE ( _heap_end = ALIGN(ORIGIN(RAM) + LENGTH(RAM) - 8 ,8) ); */
     PROVIDE ( _ram_heap_end = ALIGN(ORIGIN(RAM) + LENGTH(RAM) ,8) );
   } > RAM
-
 
 }
