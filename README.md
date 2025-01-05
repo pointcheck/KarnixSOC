@@ -111,7 +111,7 @@ Knowingly, almost every program running on a CPU consists of machine code, the d
 Segments .bss, .stack and .heap usually do not contain any data and are initialized during startup (in crt.S) using free address space above .data.
 
 
-### Software model #1 - Flat RAM binary.
+### Software model #1 - Flat RAM binary
 
 Let's call it "flat binary" when all the above segments constituting a program are located in same memory region (RAM), segments .text, .rodata and .data are compiled and put in a single binary file and also follow each others in order like:
   - .text
@@ -140,7 +140,7 @@ This model is simple and easy to use if your binary fits in RAM and you have all
 This model is implemented by using [karnix_soc/src/linker.ld](src/main/c/karnix/karnix_soc/src/linker.ld)
 
 
-### Software model #2 - Fixed address XiP binary.
+### Software model #2 - Fixed address XiP binary
 
 Within this model it's possible to put binary containing all the above segments in NOR flash memory at a fixed address, say at 0xA00E0000, and execure code right from there. In this case the startup code (crt.S) should take care of reallocating .data segment to RAM, as well as initializing .bss and setting up stack pointer.
 
@@ -161,9 +161,12 @@ Here ```-o 0xE0000``` defines offset relative to NOR flash internal address. Thi
 This model is implemented by using [karnix_soc/src/linker_xip.ld](src/main/c/karnix/karnix_soc/src/linker_xip.ld)
 
 
-### Software model #3 - Position Independent XiP binary with fixed RAM.
+### Software model #3 - Position Independent XiP binary with fixed RAM access
 
 In theory it's possible to write code in a way that all accesses to data segments will use hard-coded address of RAM region not tied to PC. In ARM, a special compiler option ```-mno-pic-data-is-text-relative``` serves this purpose. Unfortunately, in case of RISC-V neither GCC, nor LLVM supports this feature, hence it's impossible to write such code in any higher level programming languages. Although it is possible to write such code in assembly, both compilers will generate code that accesses data based on PC, which makes such model impractical to use. 
+
+Pros:
+  * Allows many large binaries to be put in same NOR flash at different locations.
 
 This model is implemented by using [karnix_soc/src/linker_xip.ld](src/main/c/karnix/karnix_soc/src/linker_xip.ld)
  
