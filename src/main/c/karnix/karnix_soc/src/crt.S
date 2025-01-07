@@ -4,11 +4,14 @@
 
     .section	.start_jump,"ax",@progbits
 crtStart:
-  //long jump to allow crtInit to be anywhere
-  //do it always in 12 bytes
-  lui x2,       %hi(crtInit)
-  addi x2, x2,  %lo(crtInit)
-  jalr x1,x2
+  csrc mstatus, 0x8 // Disable interrupts
+
+  // take address of trap_entry relative to PC and store it to mtvec
+  la t1,trap_entry
+  csrw mtvec, t1
+
+  la t1,crtInit // takes address relative to PC
+  jr t1 // jump crtInit
   nop
 
 .section .text
@@ -58,9 +61,15 @@ trap_entry:
 crtInit:
   .option push
   .option norelax
+
+  // Preserve old context: SP, GP and RA
+  mv t1, sp
+  la sp, _stack_start 
+  addi sp, sp, -12
+  sw t1, 8(sp)
+  sw gp, 4(sp)
+  sw ra, 0(sp)
   la gp, __global_pointer$
-  .option pop
-  la sp, _stack_start
 
 bss_init:
   la a0, _bss_start
@@ -87,7 +96,6 @@ ctors_loop:
 ctors_done:
   addi sp,sp,4
 
-
   li a0, 0x880     //880 enable timer + external interrupts
   csrw mie,a0
   //li a0, 0x1808     //1808 enable interrupts
@@ -95,5 +103,11 @@ ctors_done:
   csrw mstatus,a0
 
   call main
-infinitLoop:
-  j infinitLoop
+
+return:
+  // Restore old context: SP, GP and RA
+  lw ra,0(sp)
+  lw gp,4(sp)
+  lw sp,8(sp)
+  ret 
+
