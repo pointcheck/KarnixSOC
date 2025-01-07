@@ -20,20 +20,14 @@
 #include "cga.h"
 #include "crc32.h"
 #include "qspi.h"
+#include "context.h"
 #include "cli.h"
-
-/* Below is some linker specific stuff */
-extern unsigned int   _stack_start; /* Set by linker.  */
-extern unsigned int   _stack_size; /* Set by linker.  */
-extern unsigned int   trap_entry;
-extern unsigned int   heap_start; /* programmer defined heap start */
-extern unsigned int   heap_end; /* programmer defined heap end */
 
 #define SRAM_SIZE       (512*1024)
 #define SRAM_ADDR_BEGIN 0x90000000
 #define SRAM_ADDR_END   (0x90000000 + SRAM_SIZE)
 
-#define	WELCOME_TEXT "Welcome to Karnix SoC Monitor. Build #%04u at %s %s. Main addr: %p\r\n\r\nCopyright (C) 2024, Fabmicro, LLC.\r\n\r\n"
+#define	WELCOME_TEXT "Welcome to Karnix SoC Monitor. Build #%04u at %s %s. Main addr: %p\r\n\r\nCopyright (C) 2024-2025, Fabmicro, LLC.\r\n\r\n"
 
 extern struct netif default_netif;
 
@@ -50,81 +44,13 @@ volatile uint32_t reg_boot = 1;
 
 __attribute__ ((section (".noinit"))) uint32_t deadbeef;	// If equal to 0xdeadbeef - we are in soft-start mode
 
-void println(const char*str){
-	print_uart0(str);
-	print_uart0("\r\n");
-}
-
-
-char to_hex_nibble(char n)
-{
-	n &= 0x0f;
-
-	if(n > 0x09)
-		return n + 'A' - 0x0A;
-	else
-		return n + '0';
-}
-
-
-void to_hex(char*s , unsigned int n)
-{
-	for(int i = 0; i < 8; i++) {
-		s[i] = to_hex_nibble(n >> (28 - i*4));
-	}
-	s[8] = 0;
-}
-
-
-struct _context {
-	uint32_t gp;
-	uint32_t tp;
-	uint32_t sp;
-	uint32_t ra;
-	uint32_t pc;
-	char crash_str[16];
-	uint32_t cur_pc;
-	uint32_t mtval;
-	uint32_t trap_flag;
-} context = {0};
-
-
-// This function saves current execution context (pc, ra, sp, gp, tp)
-// We need to disable optimization because: 
-// 1) we need this to be procedure call and
-// 2) we use in-line assembly that should be be messed up by compiler.
-void __attribute__((optimize("O0"))) context_save(void) {
-       
-	context.trap_flag = 0;
-
-	asm volatile ("sw gp, (%0)" :  : "r"(&context.gp));
-
-	asm volatile ("sw tp, (%0)" :  : "r"(&context.tp));
-
-	asm volatile ("mv t1, sp; \
-		      addi t1,t1,16; \
-	      	      sw t1, (%0)" :  : "r"(&context.sp)); 
-	// We need parent's stack frame, reference it by adding size of current (16 bytes)
-
-	asm volatile ("sw ra, (%0)" :  : "r"(&context.ra));
-
-	asm volatile ("auipc t1,0; \
-		       sw t1, (%0)" :  : "r"(&context.pc));
-
-}
-
-
-
 
 void process_and_wait(uint32_t us) {
 
 	context_save();
 
 	if(context.trap_flag) {
-		context.trap_flag = 0;
-		//printf("*** Restoring stack: sp = %p\r\n", context.sp);
-		asm volatile ("lw sp, (%0)" :  : "r"(&context.sp));
-		csr_set(mstatus, MSTATUS_MIE); // Enable Machine interrupts
+		context_restore();
 		cli_prompt();
 		goto skip;
 	}
