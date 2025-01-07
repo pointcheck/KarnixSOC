@@ -2,6 +2,7 @@
 #define _UTILS_H_
 #include <stdint.h>
 #include <stdio.h>
+#include <uart.h>
 
 #define SATURATE8(X)    (X > 255 ? 255 : X < 0 ? 0: X)
 #define ABS(X)          ((X) > 0 ? (X) : (-1 * (X)))
@@ -14,7 +15,18 @@
 #define ROR( val, steps ) ( ( val >> Shift( val, steps ) ) | ( val << ( BitsCount( val ) - Shift( val, steps ) ) ) )
 
 
-extern unsigned char* sbrk_heap_end;
+extern unsigned char* sbrk_heap_end; /* Set by init_sbrk() and maintained by _sbrk() */
+extern unsigned int end; /* Set by linker.  */
+extern unsigned int _bss_start; /* Set by linker.  */
+extern unsigned int _bss_end; /* Set by linker.  */
+extern unsigned int _ram_heap_start; /* Set by linker.  */
+extern unsigned int _ram_heap_end; /* Set by linker.  */
+extern unsigned int _stack_start; /* Set by linker.  */
+extern unsigned int _stack_size; /* Set by linker.  */
+extern unsigned int trap_entry;
+extern unsigned int* heap_start; /* programmer defined heap start */
+extern unsigned int* heap_end; /* programmer defined heap end */
+
 
 void init_sbrk(unsigned int* heap, int size);
 void delay(uint32_t loops);
@@ -24,7 +36,9 @@ void print_uart1(const char*str);
 void hard_reboot(void);
 void memcpy_rev(void* dst, void* src, uint32_t count);
 uint32_t strntoul(const char * buf, int size, int base); // string to unsigned long with size
-
+void println(const char*str);
+char to_hex_nibble(char n);
+void to_hex(char*s , unsigned int n);
 
 #define print print_uart0
 

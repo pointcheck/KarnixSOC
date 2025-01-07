@@ -12,14 +12,8 @@
 
 
 // Below is some linker specific stuff 
-extern unsigned int end; /* Set by linker.  */
-extern unsigned int _ram_heap_start; /* Set by linker.  */
-extern unsigned int _ram_heap_end; /* Set by linker.  */
-extern unsigned int _stack_start; /* Set by linker.  */
-extern unsigned int _stack_size; /* Set by linker.  */
-extern unsigned int trap_entry;
 unsigned char* sbrk_heap_end = 0; /* tracks heap usage */
-unsigned int* heap_start = 0; /* programmer define heap start */
+unsigned int* heap_start = 0; /* programmer defined heap start */
 unsigned int* heap_end = 0; /* programmer defined heap end */
 
 
@@ -175,6 +169,32 @@ uint32_t strntoul(const char *buf, int size, int base) {
 	}
 
 	return result;
+}
+
+
+void println(const char*str){
+	print_uart0(str);
+	print_uart0("\r\n");
+}
+
+
+char to_hex_nibble(char n)
+{
+	n &= 0x0f;
+
+	if(n > 0x09)
+		return n + 'A' - 0x0A;
+	else
+		return n + '0';
+}
+
+
+void to_hex(char*s , unsigned int n)
+{
+	for(int i = 0; i < 8; i++) {
+		s[i] = to_hex_nibble(n >> (28 - i*4));
+	}
+	s[8] = 0;
 }
 
 
