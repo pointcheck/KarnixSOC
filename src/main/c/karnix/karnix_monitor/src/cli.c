@@ -8,6 +8,7 @@
 #include "qspi.h"
 #include "utils.h"
 #include "crc32.h"
+#include "context.h"
 #include "zmodem.h"
 
 #define	CLI_BUF_SIZE       	(128*2)
@@ -454,6 +455,10 @@ void cli_cmd_call(char *argv[], int argn) {
 	uint32_t (*long_jump)(char *argv[], int arg) = (uint32_t (*)(char *argv[], int arg)) addr;
 
 	uint32_t rc = long_jump(&(argv[1]), argn-1);
+
+	// Anonymous function possibly messed up with our context,
+	// so restore context completely.
+	context_restore();
 
 	printf("/// call: ret = %p\r\n", rc);
 }
