@@ -10,14 +10,12 @@
 #include "utils.h"
 #include "wd.h"
 
-
 // Below is some linker specific stuff 
 unsigned char* sbrk_heap_end = 0; /* tracks heap usage */
 unsigned int* heap_start = 0; /* programmer defined heap start */
 unsigned int* heap_end = 0; /* programmer defined heap end */
 
-
-// Below is neede for malloc to work in non-threaded environment 
+// Below is necessary for malloc to work in non-threaded environment 
 void __malloc_lock(struct _reent *REENT) { /* print("__malloc_lock()\r\n"); */ }
 void __malloc_unlock(struct _reent *REENT) { /* print("__malloc_unlock()\r\n"); */ }
 
@@ -37,7 +35,12 @@ void init_sbrk(unsigned int* heap, int size) {
 
 void * _sbrk (unsigned int incr) {
 
-	//print("_sbrk() begin\r\n");
+	#if(DEBUG_SBRK)
+	char str[16];
+	print("_sbrk() request, incr: ");
+	to_hex(str, (unsigned int)incr);
+	println(str);
+	#endif
 
 	unsigned char* prev_heap_end;
 
@@ -50,17 +53,29 @@ void * _sbrk (unsigned int incr) {
 	prev_heap_end = sbrk_heap_end;
 
 	if((unsigned int)(sbrk_heap_end + incr) >= (unsigned int)heap_end) {
-		char str[128];
-		snprintf(str, 128, "_sbrk() OUT OF MEM, sbrk_heap_end = %p, heap_end = %p, incr = %u\r\n", sbrk_heap_end, heap_end, incr);
+
+		#if(DEBUG_SBRK)
+		print("_sbrk() out of mem, sbrk_heap_end: ");
+		to_hex(str, (unsigned int)sbrk_heap_end);
 		print(str);
+		print(", heap_end: ");
+		to_hex(str, (unsigned int)heap_end);
+		print(str);
+		print(", incr: ");
+		to_hex(str, (unsigned int)incr);
+		println(str);
+		#endif
+
 		return ((void*)-1); // error - no more memory
 	}
 
 	sbrk_heap_end += incr;
 
-	//char str[128];
-	//snprintf(str, 128, "_sbrk() end prev_heap_end = %p, incr = %u, heap_end = %p\r\n", prev_heap_end, incr, heap_end);
-	//print(str);
+	#if(DEBUG_SBRK)
+	print("_sbrk() prev_heap_end: ");
+	to_hex(str, (unsigned int)prev_heap_end);
+	println(str);
+	#endif
 
 	return (void *) prev_heap_end;
 }
