@@ -70,6 +70,7 @@ crtInit:
   sw gp, 4(sp)
   sw ra, 0(sp)
   la gp, __global_pointer$
+  .option pop
 
 bss_init:
   la a0, _bss_start
