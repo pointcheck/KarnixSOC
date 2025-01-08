@@ -11,7 +11,17 @@ OUTPUT_ARCH(riscv)
 ENTRY(crtStart)
 
 MEMORY {
+
+  /* Uncomment one of the below RAM regions: */
+
+  /* Synthesized RAM */
   RAM      (rwx): ORIGIN = 0x80000000, LENGTH = 72k
+
+  /* Synthesized RAM with 1K offset for bootloader/monitor */
+  /* RAM      (rwx): ORIGIN = 0x80001000, LENGTH = 71k */
+
+  /* SRAM */
+  /* RAM      (rwx): ORIGIN = 0x90000000, LENGTH = 512k */
 }
 
 _stack_size = DEFINED(_stack_size) ? _stack_size : 4096;
@@ -57,8 +67,14 @@ SECTIONS {
     *(.srodata.cst2)
     *(.srodata .srodata.*)
     *(.eh_frame .eh_frame.*) /* C++ exception handling and backtrace */
+    . = ALIGN(4);
+    PROVIDE(_GOT = .);
     *(.got) /* global offset pointers for dynamic linker */
     *(.got.plt) /* global function pointers for dynamic linker */
+    . = ALIGN(4);
+    /* Provide pointer to reference impure_data (struct _reent) used in LIBC */
+    PROVIDE(_IMPURE_DATA = .);
+    *(.data.impure_data)
   } > RAM
 
   .data :
