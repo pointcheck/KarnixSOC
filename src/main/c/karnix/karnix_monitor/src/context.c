@@ -28,5 +28,11 @@ void __attribute__((optimize("O0"))) context_save(void) {
 	asm volatile ("mv t1, sp; \
 		addi t1,t1,16; \
 		sw t1, (%0)" :  : "r"(&context.sp)); 
+
+	// Save PLIC configuration
+	context.plic_enable = PLIC->ENABLE;
+	context.plic_edge = PLIC->EDGE;
+	context.plic_polarity = PLIC->POLARITY;
+
 }
 

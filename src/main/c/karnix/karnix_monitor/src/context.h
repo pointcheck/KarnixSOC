@@ -8,6 +8,7 @@
 
 #include <stdint.h>
 #include "riscv.h"
+#include "plic.h"
 
 extern unsigned int   trap_entry;
 
@@ -17,6 +18,9 @@ extern struct _context {
 	uint32_t sp;
 	uint32_t ra;
 	uint32_t pc;
+	uint32_t plic_enable;
+	uint32_t plic_polarity;
+	uint32_t plic_edge;
 	char crash_str[16];
 	uint32_t cur_pc;
 	uint32_t mtval;
@@ -35,6 +39,9 @@ void context_save(void);
 	asm volatile ("lw ra, (%0)" :  : "r"(&context.ra)); \
 	asm volatile ("lw gp, (%0)" :  : "r"(&context.gp)); \
 	asm volatile ("lw sp, (%0)" :  : "r"(&context.sp)); \
+	PLIC->ENABLE = context.plic_enable; \
+	PLIC->EDGE = context.plic_edge; \
+	PLIC->POLARITY = context.plic_polarity; \
 	csr_write(mtvec, &trap_entry); \
 	csr_set(mstatus, MSTATUS_MIE);
 
