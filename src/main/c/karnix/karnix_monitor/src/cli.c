@@ -442,6 +442,7 @@ void cli_cmd_call(char *argv[], int argn) {
 
 	uint32_t *addr = (uint32_t*) current_address;
 	int len = 1;
+	uint64_t t0, t1;
 	
 	if(argv[1] && argv[1][0] != '*')
 		addr = (uint32_t*) strtoul(argv[1], NULL, 0);
@@ -454,13 +455,17 @@ void cli_cmd_call(char *argv[], int argn) {
 
 	uint32_t (*long_jump)(char *argv[], int arg) = (uint32_t (*)(char *argv[], int arg)) addr;
 
+	t0 = get_mtime();
+
 	uint32_t rc = long_jump(&(argv[1]), argn-1);
+
+	t1 = get_mtime();
 
 	// Anonymous function possibly messed up with our context,
 	// so restore context completely.
 	context_restore();
 
-	printf("/// call: ret = %p\r\n", rc);
+	printf("/// call: ret = %p, exec time = %lu millisecs\r\n", rc, t1 - t0);
 }
 
 void cli_cmd_ihex(char *argv[], int argn) {
@@ -819,8 +824,9 @@ void cli_process_command(uint8_t *cmdline, uint32_t len) {
 		return;
 	}
 
-	cli_process_command_end:
-	;
+	if(argv[0][0] != 0)
+		printf("/// Unknown command: %s\r\n", argv[0]);
+
 }
 
 
