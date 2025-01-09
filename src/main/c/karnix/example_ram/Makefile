@@ -144,7 +144,7 @@ $(OBJDIR)/%.elf: $(OBJS) | $(OBJDIR)
 	$(RISCV_OBJCOPY) -O binary $^ $@
 
 %.hex: %.elf
-	$(RISCV_OBJCOPY) -O ihex $^ $@
+	$(RISCV_OBJCOPY) -O ihex --change-section-address *-0x80000000 $^ $@
 
 %.hexx: %.bin 
 	hexdump -v -e '/4 "%08X\n"' < $^ > $@ 
