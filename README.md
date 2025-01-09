@@ -33,7 +33,7 @@ Fmax = 60 MHz on Lattice ECP5 25F grade 7
 
 ## Directory structure
 
-Hence this is an extension of VexRiscv, the whole directory structure stays same as in original respository. Added code lays in:
+Hence this is an extension of VexRiscv, the whole directory structure stays same as in original respository. Added code resides in:
 
 - [./src/main/scala/vexriscv/demo/KarnixSOC.scala](src/main/scala/vexriscv/demo/KarnixSOC.scala) - Karnix SOC written in SpinalHDL.
 - [./src/main/scala/mylib/](src/main/scala/mylib/) - Karnix SOC hardware components also written in SpinalHDL.
