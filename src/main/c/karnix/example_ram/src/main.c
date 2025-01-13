@@ -70,11 +70,6 @@ extern const struct __sFILE_fake __sf_fake_stdin;
 extern const struct __sFILE_fake __sf_fake_stdout;
 extern const struct __sFILE_fake __sf_fake_stderr;
 extern unsigned int _IMPURE_DATA; /* reference to .data.impure_data section */
-//struct _reent impure_data;
-//struct __sFILE fake_stdin;
-//struct __sFILE fake_stdout;
-//struct __sFILE fake_stderr;
-void __sinit(struct _reent*);
 
 int main(void) {
 
