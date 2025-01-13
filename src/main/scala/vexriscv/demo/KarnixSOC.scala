@@ -595,7 +595,7 @@ case class KarnixSOCTopLevel() extends Component{
     }
 
     val briey = new KarnixSOC(KarnixSOCConfig.default.copy(
-		axiFrequency = 60.0 MHz, 
+		axiFrequency = 58.3 MHz, 
 		onChipRamSize = 72 kB , 
 		onChipRamHexFile = "KarnixSOCTopLevel_random.hex"
 	))
