@@ -1,23 +1,23 @@
 # example_ram is an example of RAM located program for Karnix SOC.
 
-This example uses karnix_soc/src/linker.ld linker script and karnix_soc/src/crt.S as startup code, which both implement Software Model #1 (see top README.md for more info about software models). In this model program can be loaded in any location in RAM. In case of Karnix SoC it can be either in synthesized RAM begnning at 0x80000000 (72 KB) or external SDRAM at 0x90000000 (512 KB) soldered on Karnix board. To load example_ram binary to RAM one needs a help of Monitor or a Bootloader. 
+This example uses [karnix_soc/src/linker.ld](../karnix_soc/src/linker.ld) linker script and [karnix_soc/src/crt.S](../karnix_soc/src/crt.S) as startup code, which both implement Software Model #1 (see top README.md for more info about software models). In this model program can be loaded in any location in RAM. In case of Karnix SoC it can be either in synthesized RAM begnning at 0x80000000 (72 KB) or external SDRAM at 0x90000000 (512 KB) soldered on Karnix board. To load example_ram binary to RAM one needs a help of Monitor or a Bootloader. 
 
-## What is does
+## What it does
 
 This example does the following:
 
-1. Intitializes .bss data and overrides trap_entry point to install its own ("C" function irqCallback()).
+1. Intitializes ```.bss``` data segment and overrides ```trap_entry``` point to install its own function ```irqCallback()```.
 2. Setups PLIC, Timer1 and Timer2 periodic interrupts, prints some info in IRQ handle for timer interrupts.
 3. Uses global and local array to print some text.
-4. Initializes heap by calling to ```init_sbrk()``` and uses malloc() to test it.
-5. Initializes stdlib's (LIBC) "impure_data" structure by adjusting pointers to "struct _reent" and to fake file stream sructures.
+4. Initializes heap by calling to ```init_sbrk()``` and uses ```malloc()``` to test it.
+5. Initializes stdlib's (LIBC) ```impure_data``` structure by adjusting pointers to ```struct _reent``` and to fake file stream sructures.
 6. Prints global pointers.
-7. Call printf() as one of the most heavy stdlib function to demonstrate stdlib is ready and workng.
+7. Call ```printf()``` as one of the most heavy stdlib function to demonstrate stdlib is ready and workng.
 8. Returns to Monitor with some result code.
 
 ## How to build
 
-Just use ```make``` command in karnix_ram/ directory, the resultng files will be in karnix_ram/build:
+Just use ```make``` command in **karnix_ram/** directory:
 
 ```
 rz@devbox:~/KarnixSOC/src/main/c/karnix/example_ram$ make
@@ -27,7 +27,11 @@ Memory region         Used Size  Region Size  %age Used
 /opt/riscv64/bin/riscv64-unknown-elf-objdump -S -d build/example_ram.elf > build/example_ram.asm
 /opt/riscv64/bin/riscv64-unknown-elf-objcopy -O ihex --change-section-address *-0x80000000 build/example_ram.elf build/example_ram.hex
 /opt/riscv64/bin/riscv64-unknown-elf-objcopy -O binary build/example_ram.elf build/example_ram.bin
+```
 
+The resulting files will be in **karnix_ram/build**:
+
+```
 rz@devbox:~/KarnixSOC/src/main/c/karnix/example_ram$ ls -l build/
 total 320
 drwxrwxr-x 3 rz rz   4096 Jan 13 21:41 __
@@ -53,7 +57,7 @@ You will be needing ```example_ram.bin``` or ```example_ram.hex```, both can be 
 rz@butterfly:~ % openFPGALoader -f KarnixSOCTopLevel_25F-karnix_monitor.bit
 ```
 
-The bitstream file ```KarnixSOCTopLevel_25F-karnix_monitor.bit``` can be found in this same repository in hardware build directory.
+Note, the bitstream file ```KarnixSOCTopLevel_25F-karnix_monitor.bit``` can be found in this same repository in hardware build directory.
 
 3. Connect terminal to the board on DEBUG serial port /dev/ttyU1 (/dev/ttyUSB1 on Linux) using ```minicom``` or ```cu```. Since I'm a FreeBSD user I'll use ```cu``` as terminal, like this:
 
@@ -89,27 +93,31 @@ reg_sys_print_stats = 0
 MONITOR[0x80000000]-> ihex 0x90000000
 /// ihex: addr = 0x90000000, press Ctrl-C to break.
 ```
-Here I type ```~>``` to get to cu's command mode to send text file:
+Now I type ```~>``` to get to cu's command mode to send text file:
 ```
 ~>Local file name? example_ram.hex
 ```
 
-Once sending is over the following statictics will be provided by Monitor:
+Once sending is over the following statistics will be provided by Monitor:
 
 ```
 /// ihex: bytes_read = 9320, addr = 0x90000000, entry = 0x10000000, crc32 = 0x9eeafe14 (cksum -o 3)
 ```
 
-5. Call the program with ```call *``` command. You can use any arbitrary address instead of '*'.
+You may compare CRC32 checksums if you like. On FreeBSD use ```cksum -o 3 example_ram.hex```, then convert decimal result to hex.
+
+For ```minicom``` users, sending ASCII file can be done by pressing ```Ctrl-A, S```, select ```ascii``` when select file to send.
+
+5. Call the program with ```call *``` command. You can use any arbitrary address instead of '*', which means last used address.
 
 ```
 MONITOR[0x90000000]-> call *
 /// call: addr = 0x90000000, argn = 1
 ```
 
-Monitor reports calling address and number of passing text argumentsi in the above.
+Monitor reports calling address and number of passing text arguments, as in the above.
 
-Same moment output from ```example_ram``` starts printing to the terminal:
+Same moment output from ```example_ram``` program starts printing to the terminal:
 
 ```
 TIMER0 IRQ
@@ -238,11 +246,11 @@ TIMER1 IRQ
 MONITOR[0x90000000]-> 
 ```
 
-Once program is over you will get back to the Monitor prompt. Resulting code (0x11223344) and total execution time (4153857) will be shown as in above.
+6. Once program is over you will get back to the Monitor prompt. Resulting code (0x11223344) and total execution time (4153857) will be shown as in above.
 
 Note, on return from ```call```, Monitor always restores its context as well as trap handler and PLIC state. You do not have to do this in your program.
 
-Use this example_ram as template for your programs.
+Use this ```example_ram``` as template for your programs.
 
 PS: You can store your programs to NOR flash using ```openFPGALoader -o <offset>```, then use ```copy <to> <from> <size>``` Monitor command to copy your program from NOR Flash to RAM before calling it. Calling (executing) from NOR flash won't work in this software model, check [example_xip](../example_xip/) for that. 
 
@@ -250,5 +258,6 @@ Good luck!
 
 --
 Regards,
+
 Ruslan Zalata
 
