@@ -17,7 +17,7 @@ This example does the following:
 
 ## How to build
 
-Just use ```make``` command in **karnix_ram/** directory:
+Just use ```make``` command in **karnix/example_ram/** directory:
 
 ```
 rz@devbox:~/KarnixSOC/src/main/c/karnix/example_ram$ make
@@ -29,7 +29,7 @@ Memory region         Used Size  Region Size  %age Used
 /opt/riscv64/bin/riscv64-unknown-elf-objcopy -O binary build/example_ram.elf build/example_ram.bin
 ```
 
-The resulting files will be in **karnix_ram/build**:
+The resulting files will be in **karnix/example_ram/build**:
 
 ```
 rz@devbox:~/KarnixSOC/src/main/c/karnix/example_ram$ ls -l build/
