@@ -147,6 +147,7 @@ void main() {
 
 	printf(WELCOME_TEXT, BUILD_NUMBER, __DATE__, __TIME__, &main);
 
+	#if(RESET_ON_SOFT_START)
 	if(deadbeef == 0xdeadbeef) {
 		print("Soft-start, performing hard reset!\r\n");
 		delay_us(200000);
@@ -154,6 +155,7 @@ void main() {
 	} else {
 		deadbeef = 0xdeadbeef;
 	}
+	#endif
 
 	GPIO->OUTPUT |= GPIO_OUT_LED0; // LED0 is ON - indicate we are not yet ready
 
