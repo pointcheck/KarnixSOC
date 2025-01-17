@@ -134,16 +134,17 @@ int sram_test_write_random_ints(int interations) {
 	return fails++;
 }
 
+extern void __sinit(void *);
+extern unsigned int _IMPURE_DATA;
 
 void main() {
-
-	char str[256];
 
 	csr_clear(mstatus, MSTATUS_MIE); // Disable Machine interrupts during hardware init
 
 	delay_us(2000000); // Wait for FCLK to settle
 
 	init_sbrk(NULL, 0); // Initialize heap for malloc to use on-chip RAM
+	__sinit(&_IMPURE_DATA);
 
 	printf(WELCOME_TEXT, BUILD_NUMBER, __DATE__, __TIME__, &main);
 
@@ -158,6 +159,63 @@ void main() {
 	#endif
 
 	GPIO->OUTPUT |= GPIO_OUT_LED0; // LED0 is ON - indicate we are not yet ready
+
+	// Enable I2C for EEPROM
+	i2c_init(I2C0);
+
+	printf("=== Configuring ===\r\n");
+
+	// Reset to Factory Defaults if "***" sequence received from UART0
+	fpurge(stdout);
+	printf("\r\nPress '*' to reset config");
+	fflush(stdout);
+
+	console_config_reset_counter = 0;
+	
+	for(int i = 0; i < 5; i++) {
+		if(uart_readOccupancy(UART0)) {
+			char c = UART0->DATA;
+		
+			if(c == '*') {
+				uart_write(UART0, c);
+				console_config_reset_counter++;
+			} else {
+				console_config_reset_counter = 0;
+			}
+		}
+
+		if(console_config_reset_counter > 2) // has user typed *** on the console ?
+			break;
+
+		if((GPIO->INPUT & GPIO_IN_CONFIG_PIN) == 0) // is CONFIG pin tied to ground ?
+			break;
+
+		putchar('.');
+		fflush(stdout);
+		delay_us(500000);
+	}
+
+	printf("\r\n");
+
+	active_config = default_config; 
+
+	if(console_config_reset_counter > 2) {
+		console_config_reset_counter = 0;
+		printf("Defaults loaded by %s!\r\n", "user request");
+ 	} else if((GPIO->INPUT & GPIO_IN_CONFIG_PIN) == 0) {
+		printf("Defaults loaded by %s!\r\n", "CONFIG pin");
+	} else {
+		if(eeprom_probe(I2C0) == 0) {
+			if(config_load(&active_config) == 0) {
+				printf("Config loaded from EEPROM\r\n");
+			} else {
+				active_config = default_config;
+				printf("Defaults loaded by %s!\r\n", "EEPROM CRC ERROR");
+			}
+		} else {
+			printf("Defaults loaded by %s!\r\n", "EEPROM malfunction");
+		}
+	} 
 
 	printf("=== Hardware init ===\r\n");
 
@@ -192,20 +250,14 @@ void main() {
 	memset(CGA->FB, 0, CGA_FRAMEBUFFER_SIZE);
 
 	// Print Welcome test to CGA
-	sprintf(str, WELCOME_TEXT, BUILD_NUMBER, __DATE__, __TIME__, &main);
-	cga_text_print(CGA->FB, -1, -1, 15, 0, str);
+	{
+		char str[256];
+		sprintf(str, WELCOME_TEXT, BUILD_NUMBER, __DATE__, __TIME__, &main);
+		cga_text_print(CGA->FB, -1, -1, 15, 0, str);
+	}
 
 	// Enable writes to EEPROM
 	GPIO->OUTPUT &= ~GPIO_OUT_EEPROM_WP; 
-
-	// Configure interrupt controller 
-	printf("Configuring PLIC\r\n");
-	PLIC->POLARITY = 0x0000007f; // Configure PLIC IRQ polarity for UART0, UART1, MAC, I2C and AUDIODAC0 to Active High 
-	PLIC->EDGE = 0xfffffff8; // All by MAC and UARTs are Falling Edge
-	PLIC->PENDING = 0; // Clear all pending IRQs
-	PLIC->ENABLE = 0xffffffff; // Configure PLIC to enable interrupts from all possible IRQ lines
-	printf("PLIC configred: ENABLE: %p, POLARITY: %p, EDGE: %p\r\n",
-			PLIC->ENABLE, PLIC->POLARITY, PLIC->EDGE);
 
 	// Configure UART0 IRQ sources: bit(0) - TX interrupts, bit(1) - RX interrupts 
 	UART0->STATUS = (UART0->STATUS | UART_STATUS_RX_IRQ_EN); // Allow only RX interrupts 
@@ -215,9 +267,18 @@ void main() {
 	UART1->STATUS = (UART1->STATUS | UART_STATUS_RX_IRQ_EN); // Allow only RX interrupts 
 	printf("UART1 RX IRQ enabled\r\n");
 
-	// Configure RISC-V IRQ stuff
-	//csr_write(mtvec, ((unsigned long)&trap_entry)); // Set IRQ handling vector
+	// Intialize and configure HUB controller
+	//hub_init(active_config.hub_type);
 
+	// Configure network stuff 
+	mac_lwip_init(); // Initialize MAC controller and LWIP stack, also add network interface
+
+	// Init and bind Modbus/UDP module to UDP port
+	modbus_udp_init();
+
+	// Setup serial paramenters for Modbus/RTU module
+	modbus_rtu_init();
+	
 	// Setup TIMER0 to 100 ms timer for Mac: 25 MHz / 25 / 10000
 	timer_prescaler(TIMER0, SYSTEM_CLOCK_HZ / 1000000);
 	timer_run(TIMER0, 100000);
@@ -228,76 +289,20 @@ void main() {
 	timer_run(TIMER1, 50000);
 	printf("TIMER1 set to 25 ms\r\n");
 
-	// I2C and EEPROM
-	i2c_init(I2C0);
+	// Setup interrupt controller 
+	PLIC->POLARITY = 0x0000007f; // Configure PLIC IRQ polarity for UART0, UART1, MAC, I2C and AUDIODAC0 to Active High 
+	PLIC->EDGE = 0xfffffff8; // All by MAC and UARTs are Falling Edge
+	PLIC->PENDING = 0; // Clear all pending IRQs
+	PLIC->ENABLE = 0xffffffff; // Configure PLIC to enable interrupts from all possible IRQ lines
+	printf("PLIC configred: ENABLE: %p, POLARITY: %p, EDGE: %p\r\n",
+			PLIC->ENABLE, PLIC->POLARITY, PLIC->EDGE);
 
-	// Reset to Factory Defaults if "***" sequence received from UART0
-
-	csr_set(mstatus, MSTATUS_MIE); // Enable Machine interrupts during user input 
-
-	fpurge(stdout);
-	printf("\r\nPress '*' to reset config");
-	fflush(stdout);
-
-	for(int i = 0; i < 5; i++) {
-		if(console_config_reset_counter > 2) // has user typed *** on the console ?
-			break;
-
-		if((GPIO->INPUT & GPIO_IN_CONFIG_PIN) == 0) // is CONFIG pin tied to ground ?
-			break;
-
-		putchar('.');
-		fflush(stdout);
-		delay_us(500000);
-	}
-
-	reg_boot = 0;
-
-	printf("\r\n");
-
-	active_config = default_config; 
-
-	if(console_config_reset_counter > 2) {
-		console_config_reset_counter = 0;
-		printf("Defaults loaded by %s!\r\n", "user request");
- 	} else if((GPIO->INPUT & GPIO_IN_CONFIG_PIN) == 0) {
-		printf("Defaults loaded by %s!\r\n", "CONFIG pin");
-	} else {
-		if(eeprom_probe(I2C0) == 0) {
-			if(config_load(&active_config) == 0) {
-				printf("Config loaded from EEPROM\r\n");
-			} else {
-				active_config = default_config;
-				printf("Defaults loaded by %s!\r\n", "EEPROM CRC ERROR");
-			}
-		} else {
-			printf("Defaults loaded by %s!\r\n", "EEPROM malfunction");
-		}
-	} 
-
-
-	csr_clear(mstatus, MSTATUS_MIE); // Disable Machine interrupts during hardware init
-
-	// Intialize and configure HUB controller
-	//hub_init(active_config.hub_type);
-
-	// Configure network stuff 
-	mac_lwip_init(); // Initiazlier MAC controller and LWIP stack, also add network interface
-
-	// Init and bind Modbus/UDP module to UDP port
-	modbus_udp_init();
-
-	// Setup serial paramenters for Modbus/RTU module
-	modbus_rtu_init();
-	
-
-	printf("=== Hardware init done ===\r\n\r\n");
+	csr_set(mstatus, MSTATUS_MIE); // Enable Machine interrupts
 
        	// GPIO LEDs are OFF - all things do well 
 	GPIO->OUTPUT &= ~(GPIO_OUT_LED0 | GPIO_OUT_LED1 | GPIO_OUT_LED2 | GPIO_OUT_LED3);
 
-	csr_set(mstatus, MSTATUS_MIE); // Enable Machine interrupts
-
+	printf("=== Hardware init done ===\r\n\r\n");
 
 	while(1) {
 
@@ -348,22 +353,8 @@ void externalInterrupt(void){
 		GPIO->OUTPUT |= GPIO_OUT_LED3; // LED0 is ON
 		//printf("UART0: ");
 
-		// Special case for boot sequence
-		if(reg_boot) {
-			while(uart_readOccupancy(UART0)) {
-				char c = UART0->DATA;
-			
-				if(c == '*') {
-					uart_write(UART0, c);
-					console_config_reset_counter++;
-				} else {
-					console_config_reset_counter = 0;
-				}
-			}
-		} else {
-			console_rx();
-			events_console_poll = 1;
-		}
+		console_rx();
+		events_console_poll = 1;
 
 		PLIC->PENDING &= ~PLIC_IRQ_UART0;
 	}
