@@ -30,7 +30,7 @@ uint32_t ts_ipreass = 0;
 uint32_t ts_dhcp_fine = 0;
 uint32_t ts_dhcp_coarse = 0;
 
-struct netif default_netif; // Our network interface structure
+struct netif default_netif = {0}; // Our network interface structure
 
 err_t mac_tx_packet(struct netif *netif, struct pbuf *p);
 void mac_rx_packet(void);
