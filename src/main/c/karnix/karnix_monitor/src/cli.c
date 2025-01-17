@@ -11,9 +11,9 @@
 #include "context.h"
 #include "zmodem.h"
 
-#define	CLI_BUF_SIZE       	(128*2)
+#define	CLI_BUF_SIZE       	128
 #define	CLI_HISTORY_SIZE	4
-#define CONSOLE_RX_BUF_SIZE     (128*2)
+#define CONSOLE_RX_BUF_SIZE     128
 #define CONSOLE_RX_DELAY_US     10000
 
 #define	DEBUG_CLI		1		// 0 - off, 1 - few, 2 - more
@@ -76,6 +76,7 @@ void cli_cmd_help(char *argv[], int argn) {
 "ohex	[*|addr] [len] [entry]  - Ouput 'len' bytes of mem in IHEX format beginning at 'addr'.\r\n"
 "crc	[*|addr] [len] [poly]	- Calc CRC32 of mem block beginning at 'addr' and size of 'len' bytes.\r\n"
 "rz	[*|addr]		- Receive file over ZModem to mem 'addr'.\r\n"
+"reg				- Print current context registers.\r\n"
 "nor	[?|erase|cp]		- NOR flash operations.\r\n"
 "\r\n"
 	);
@@ -336,6 +337,13 @@ void cli_cmd_addr(char *argv[], int argn) {
 	#if(DEBUG_CLI)
 		printf("/// addr = %p\r\n", addr);
 	#endif
+}
+
+
+void cli_cmd_reg(char *argv[], int argn) {
+
+	printf("/// Context: sp = %p, gp = %p, tp = %p, ra = %p, pc = %p\r\n",
+		context.sp, context.gp, context.tp, context.ra, context.pc);
 }
 
 void cli_cmd_rz(char *argv[], int argn) {
@@ -799,6 +807,11 @@ void cli_process_command(uint8_t *cmdline, uint32_t len) {
 
 	if(argv[0][0] == 'r' && argv[0][1] == 'z') {
 		cli_cmd_rz(argv, argn);
+		return;
+	}
+
+	if(argv[0][0] == 'r' && argv[0][1] == 'e') {
+		cli_cmd_reg(argv, argn);
 		return;
 	}
 
