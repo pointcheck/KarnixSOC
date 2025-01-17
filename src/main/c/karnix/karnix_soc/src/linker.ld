@@ -57,6 +57,7 @@ SECTIONS {
   .rodata :
   {
     . = ALIGN(4);
+    PROVIDE (_rodata_start = .);
     *(.rdata)
     *(.rodata)
     *(.rodata.*)
@@ -74,6 +75,7 @@ SECTIONS {
     . = ALIGN(4);
     /* Provide pointer to reference impure_data (struct _reent) used in LIBC */
     PROVIDE(_IMPURE_DATA = .);
+    PROVIDE (_rodata_end = .);
     *(.data.impure_data)
   } > RAM
 
