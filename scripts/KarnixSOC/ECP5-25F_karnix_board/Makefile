@@ -40,7 +40,7 @@ hexx2bin: hexx2bin.c
 
 
 ../../../src/main/c/karnix/$(RAMPROG)/build/$(RAMPROG).hexx:
-	(cd ../../../src/main/c/karnix/$(RAMPROG); $(MAKE))
+	(cd ../../../src/main/c/karnix/$(RAMPROG); MODEL=ram $(MAKE))
 
 
 ../../../KarnixSOCTopLevel.v*.bin: ../../../src/main/c/karnix/$(RAMPROG)/build/$(RAMPROG).hexx
