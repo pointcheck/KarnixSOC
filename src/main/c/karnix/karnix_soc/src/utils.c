@@ -30,6 +30,13 @@ void init_sbrk(unsigned int* heap, int size) {
 	}
 
 	sbrk_heap_end = (char*) heap_start;
+
+	#if(DEBUG_SBRK)
+	char str[16];
+	print("init_sbrk() sbrk_heap_end: ");
+	to_hex(str, (unsigned int)sbrk_heap_end);
+	println(str);
+	#endif
 }
 
 
