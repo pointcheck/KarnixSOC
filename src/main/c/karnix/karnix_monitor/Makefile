@@ -1,4 +1,7 @@
 PROJ_NAME=karnix_monitor
+#MODEL ?= ram
+MODEL ?= xip
+#
 DEBUG=no
 BENCH=no
 MULDIV=yes
@@ -6,17 +9,40 @@ ATOMIC=yes
 FPU=yes
 COMPRESSED=yes
 
+#DEFS = -DCONFIG_HAS_MODBUS -DCONFIG_HAS_MAC -DDEBUG_SBRK
+DEFS = -DCONFIG_HAS_MODBUS -DCONFIG_HAS_MAC
+
+ifeq ($(MODEL),ram)
+	CRT = $(CRT_RAM)
+	LDSCRIPT = $(LDSCRIPT_RAM)
+	PROJ_NAME_M = $(PROJ_NAME)_ram
+else
+ifeq ($(MODEL),xip)
+	CRT = $(CRT_XIP)
+	LDSCRIPT = $(LDSCRIPT_XIP)
+	PROJ_NAME_M = $(PROJ_NAME)_xip
+else
+	echo "Unsupported software model: " $(MODEL)
+	exit 0
+endif
+endif
+
 LWIPDIR=../karnix_lwip/src
 SOCDIR=../karnix_soc/src
 
+CRT_RAM=src/crt_monitor_ram.S
+LDSCRIPT_RAM=src/linker_monitor_ram.ld -Wl
+
+CRT_XIP=src/crt_monitor_xip.S
+LDSCRIPT_XIP=src/linker_monitor_xip.ld -Wl
 
 include $(LWIPDIR)/Filelists.mk
 
-SRCS = 	$(wildcard src/*.c) $(wildcard src/*.cpp) $(wildcard src/*.S) \
-       	$(wildcard $(SOCDIR)/*.c) $(wildcard $(SOCDIR)/*.cpp) $(wildcard $(SOCDIR)/*.S) \
-	$(COREFILES) $(CORE4FILES) $(LWIPDIR)/netif/ethernet.c 
+SRCS = 	$(wildcard src/*.c) $(wildcard src/*.cpp) \
+       	$(wildcard $(SOCDIR)/*.c) $(wildcard $(SOCDIR)/*.cpp) \
+	$(COREFILES) $(CORE4FILES) $(LWIPDIR)/netif/ethernet.c \
+	$(CRT)
 
-DEFS = -DCONFIG_HAS_MODBUS -DCONFIG_HAS_MAC
 
 OBJDIR = build
 
@@ -27,7 +53,7 @@ BUILD_NUMBER=`cat $(BUILD_NUMBER_FILE)`
 INC  = -I./src -I$(LWIPDIR) -I$(LWIPDIR)/include -I$(SOCDIR) -I$(SOCDIR)/include
 LIBS =
 LIBSINC = -L$(OBJDIR)
-LDSCRIPT = $(SOCDIR)/linker.ld -Wl
+#LDSCRIPT = src/linker_monitor.ld -Wl
 
 #include ../../../resources/gcc.mk
 # Set it to yes if you are using the sifive precompiled GCC pack
@@ -105,7 +131,7 @@ RISCV_OBJDUMP = $(RISCV_PATH)/bin/$(RISCV_NAME)-objdump
 RISCV_CC=$(RISCV_PATH)/bin/$(RISCV_NAME)-gcc
 
 CFLAGS +=  -MD -fstrict-volatile-bitfields -fno-strict-aliasing
-LDFLAGS +=  -nostdlib -lgcc -mcmodel=medany -nostartfiles -ffreestanding -Wl,-Bstatic,-T,$(LDSCRIPT),-Map,$(OBJDIR)/$(PROJ_NAME).map,--print-memory-usage
+LDFLAGS +=  -nostdlib -lgcc -mcmodel=medany -nostartfiles -ffreestanding -Wl,-Bstatic,-T,$(LDSCRIPT),-Map,$(OBJDIR)/$(PROJ_NAME_M).map,--print-memory-usage
 #LDFLAGS += -lgcc -lc -lg -nostdlib  -lgcc  -msave-restore    --strip-debug,
 
 OBJS := $(SRCS)
@@ -117,9 +143,11 @@ OBJS := $(subst ..,__,$(OBJS))
 OBJS := $(addprefix $(OBJDIR)/,$(OBJS))
 
 
-all: check_build_num_file build_sources
-	
-build_sources: $(OBJDIR)/$(PROJ_NAME).elf $(OBJDIR)/$(PROJ_NAME).hex $(OBJDIR)/$(PROJ_NAME).hexx $(OBJDIR)/$(PROJ_NAME).bin $(OBJDIR)/$(PROJ_NAME).asm $(OBJDIR)/$(PROJ_NAME).v
+all: check_build_num_file
+	$(MAKE) MODEL=ram build_sources $(OBJDIR)/$(PROJ_NAME).hexx
+	$(MAKE) MODEL=xip build_sources
+
+build_sources: $(OBJDIR)/$(PROJ_NAME_M).elf $(OBJDIR)/$(PROJ_NAME_M).hex $(OBJDIR)/$(PROJ_NAME_M).bin $(OBJDIR)/$(PROJ_NAME_M).asm $(OBJDIR)/$(PROJ_NAME_M).v
 
 check_build_num_file:
 ifeq (,$(wildcard $(BUILD_NUMBER_FILE)))
@@ -139,7 +167,7 @@ $(OBJDIR)/%.elf: $(OBJS) | $(OBJDIR)
 %.bin: %.elf
 	$(RISCV_OBJCOPY) -O binary $^ $@
 
-%.hexx: %.bin 
+%.hexx: %_ram.bin 
 	hexdump -v -e '/4 "%08X\n"' < $^ > $@ 
 	$(MAKE) inc_build_num
 
