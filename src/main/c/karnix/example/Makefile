@@ -1,25 +1,38 @@
-PROJ_NAME=example_ram
+PROJ_NAME=example
+#
 DEBUG=no
 BENCH=no
 MULDIV=yes
 ATOMIC=yes
 FPU=yes
 COMPRESSED=yes
+#MODEL ?= ram
+MODEL ?= xip
 
+# Set defines as appropriate
+#DEFS += -DDEBUG_SBRK	# Enable mamory allocations, sbrk() and init_sbrk() debug
+#DEFS += -DCONFIG_HAS_MODBUS	# Enable Modbus
+#DEFS += -DCONFIG_HAS_MAC	# Enable Ethernet
 
 SOCDIR=../karnix_soc/src
-CRT=$(SOCDIR)/crt.S
-LDSCRIPT = $(SOCDIR)/linker.ld -Wl
 
+# LwIP support: uncomment below when necessary
 #LWIPDIR=../karnix_lwip/src
 #include $(LWIPDIR)/Filelists.mk
 
-SRCS =  $(wildcard src/*.c) $(wildcard src/*.cpp) \
-       	$(SOCDIR)/utils.c \
-	$(CRT)
+# Include subset of LwIP source code files needed for your program
+#SRCS += $(COREFILES) $(CORE4FILES) $(LWIPDIR)/netif/ethernet.c
 
-#DEFS = -DCONFIG_HAS_MODBUS -DCONFIG_HAS_MAC -DDEBUG_SBRK
-DEFS = -DDEBUG_SBRK
+# Set list of source code files
+SRCS += $(wildcard src/*.c) $(wildcard src/*.cpp) $(wildcard src/*.S)
+SRCS += $(SOCDIR)/utils.c
+SRCS += $(CRT)
+
+CRT_RAM=$(SOCDIR)/crt_ram.S
+LDSCRIPT_RAM=$(SOCDIR)/linker_ram.ld -Wl
+
+CRT_XIP=$(SOCDIR)/crt_xip.S
+LDSCRIPT_XIP=$(SOCDIR)/linker_xip.ld -Wl
 
 OBJDIR = build
 
@@ -30,9 +43,10 @@ BUILD_NUMBER=`cat $(BUILD_NUMBER_FILE)`
 INC  = -I./src -I$(LWIPDIR) -I$(LWIPDIR)/include -I$(SOCDIR) -I$(SOCDIR)/include
 LIBS =
 LIBSINC = -L$(OBJDIR)
+#LDSCRIPT = src/linker_monitor.ld -Wl
 
 #include ../../../resources/gcc.mk
-# Set it to yes if you are using the SiFive precompiled GCC pack
+# Set it to yes if you are using the sifive precompiled GCC pack
 SIFIVE_GCC_PACK ?= yes
 
 ifeq ($(SIFIVE_GCC_PACK),yes)
@@ -76,10 +90,6 @@ LDFLAGS += -march=$(MARCH)  -mabi=$(MABI) -specs=nano.specs -lnosys -lc_nano
 #LDFLAGS += -march=rv32im -mabi=ilp32 -specs=nano.specs -lnosys -lc_nano
 
 
-
-#include ../../../resources/subproject.mk
-
-
 ifeq ($(DEBUG),yes)
 	CFLAGS += -g3 -O0
 endif
@@ -99,16 +109,27 @@ else
 endif
 
 
-
+ifeq ($(MODEL),ram)
+	CRT = $(CRT_RAM)
+	LDSCRIPT = $(LDSCRIPT_RAM)
+	PROJ_NAME_M = $(PROJ_NAME)_ram
+else
+ifeq ($(MODEL),xip)
+	CRT = $(CRT_XIP)
+	LDSCRIPT = $(LDSCRIPT_XIP)
+	PROJ_NAME_M = $(PROJ_NAME)_xip
+else
+	#
+endif
+endif
 
 
 RISCV_OBJCOPY = $(RISCV_PATH)/bin/$(RISCV_NAME)-objcopy
 RISCV_OBJDUMP = $(RISCV_PATH)/bin/$(RISCV_NAME)-objdump
-RISCV_STRIP = $(RISCV_PATH)/bin/$(RISCV_NAME)-strip
 RISCV_CC=$(RISCV_PATH)/bin/$(RISCV_NAME)-gcc
 
 CFLAGS +=  -MD -fstrict-volatile-bitfields -fno-strict-aliasing
-LDFLAGS +=  -nostdlib -lgcc -mcmodel=medany -nostartfiles -ffreestanding -Wl,-Bstatic,-T,$(LDSCRIPT),-Map,$(OBJDIR)/$(PROJ_NAME).map,--print-memory-usage
+LDFLAGS +=  -nostdlib -lgcc -mcmodel=medany -nostartfiles -ffreestanding -Wl,-Bstatic,-T,$(LDSCRIPT),-Map,$(OBJDIR)/$(PROJ_NAME_M).map,--print-memory-usage
 #LDFLAGS += -lgcc -lc -lg -nostdlib  -lgcc  -msave-restore    --strip-debug,
 
 OBJS := $(SRCS)
@@ -120,9 +141,20 @@ OBJS := $(subst ..,__,$(OBJS))
 OBJS := $(addprefix $(OBJDIR)/,$(OBJS))
 
 
-all: check_build_num_file build_sources
-	
-build_sources: $(OBJDIR)/$(PROJ_NAME).elf $(OBJDIR)/$(PROJ_NAME).asm $(OBJDIR)/$(PROJ_NAME).hex $(OBJDIR)/$(PROJ_NAME).hexx $(OBJDIR)/$(PROJ_NAME).bin
+all:
+	$(MAKE) ram
+	$(MAKE) xip
+
+ram: check_build_num_file
+	@echo "*** Building for RAM ***"
+	$(MAKE) MODEL=ram build_sources $(OBJDIR)/$(PROJ_NAME).hexx
+
+xip: check_build_num_file
+	@echo "*** Building for XIP ***"
+	$(MAKE) MODEL=xip build_sources
+
+
+build_sources: $(OBJDIR)/$(PROJ_NAME_M).elf $(OBJDIR)/$(PROJ_NAME_M).hex $(OBJDIR)/$(PROJ_NAME_M).bin $(OBJDIR)/$(PROJ_NAME_M).asm $(OBJDIR)/$(PROJ_NAME_M).v
 
 check_build_num_file:
 ifeq (,$(wildcard $(BUILD_NUMBER_FILE)))
@@ -135,21 +167,22 @@ inc_build_num:
 
 $(OBJDIR)/%.elf: $(OBJS) | $(OBJDIR)
 	$(RISCV_CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) $(LIBSINC) $(LIBS)
-#	$(RISCV_STRIP) $@
 
-%.asm: %.elf
-	$(RISCV_OBJDUMP) -S -d $^ > $@
+%.hex: %.elf
+	$(RISCV_OBJCOPY) -O ihex $^ $@
 
 %.bin: %.elf
 	$(RISCV_OBJCOPY) -O binary $^ $@
 
-%.hex: %.elf
-	$(RISCV_OBJCOPY) -O ihex --change-section-address *-0x80000000 $^ $@
-
-%.hexx: %.bin 
+%.hexx: %_ram.bin 
 	hexdump -v -e '/4 "%08X\n"' < $^ > $@ 
 	$(MAKE) inc_build_num
 
+%.v: %.elf
+	$(RISCV_OBJCOPY) -O verilog $^ $@
+
+%.asm: %.elf
+	$(RISCV_OBJDUMP) -S -d $^ > $@
 
 %/src/cga.o: CFLAGS += -O1 
 

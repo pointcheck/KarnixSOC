@@ -81,8 +81,7 @@ int main(void) {
 	   enabled and configured, including exhausting TIMER0 and TIMER1.
 	   So we might be needing to disable interrupts from PLIC, else may hang.
 	*/
-	//PLIC->ENABLE = 0; /* Disable all PLIC IRQ lines */
-
+	PLIC->ENABLE = 0; /* Disable all PLIC IRQ lines */
 
 	/* Wait for CPU clocks to settle, needed only if running stand-alone. */
 	delay_us(2000000);
@@ -128,6 +127,13 @@ int main(void) {
 	to_hex(buf, (unsigned int)& _ram_heap_end);
 	print_uart0(buf);
 	print_uart0("\r\n");
+
+	print_uart0("\r\n*** Setting up PLIC and timers:\r\n");
+	timer_run(TIMER0, 1000000); // 1 s timer
+	timer_run(TIMER1, 100000); // 100 ms timer
+	PLIC->EDGE &= ~(PLIC_IRQ_TIMER0 | PLIC_IRQ_TIMER1); /* Edge control for Timer0 and Timer1: Level */
+	PLIC->POLARITY |= (PLIC_IRQ_TIMER0 | PLIC_IRQ_TIMER1); /* Set polarity for Timer0 and Timer1: Level High */
+	PLIC->ENABLE |= (PLIC_IRQ_TIMER0 | PLIC_IRQ_TIMER1); /* Enable IRQ lines for Timer0 and Timer1 */
 
 	/* Initialize heap for malloc to use free RAM right above the stack */
 	print_uart0("\r\n*** Init heap:\r\n");
