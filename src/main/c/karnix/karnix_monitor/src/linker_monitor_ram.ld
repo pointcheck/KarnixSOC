@@ -31,8 +31,8 @@ _ram_heap_size = DEFINED(_ram_heap_size) ? _ram_heap_size : 0;
 SECTIONS {
 
   ._vector ORIGIN(RAM): {
-    *crt.o(.start_jump);
-    *crt.o(.text);
+    *crt*.o(.start_jump);
+    *crt*.o(.text);
   } > RAM
 
   .text : {
