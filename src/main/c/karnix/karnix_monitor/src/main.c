@@ -413,6 +413,9 @@ void crash(int cause) {
 	
 	context.trap_flag = 1;
 
+	context.cur_pc = csr_read(mepc);
+	context.mtval = csr_read(mtval);
+
 	printk("\r\n*** TRAP: %p at %p = %p, mtval = %p\r\n",
 		cause, context.cur_pc, *(uint32_t*)(context.cur_pc & 0xfffffffc), context.mtval);
 
