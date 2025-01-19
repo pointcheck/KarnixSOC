@@ -45,7 +45,7 @@ void init_sbrk(unsigned int* heap, int size) {
 void * _sbrk (unsigned int incr) {
 
 	#if(DEBUG_SBRK)
-	print("_sbrk() request, incr: %d\r\n", (unsigned int)incr);
+	printk("_sbrk() request, incr: %d\r\n", (unsigned int)incr);
 	#endif
 
 	unsigned char* prev_heap_end;
