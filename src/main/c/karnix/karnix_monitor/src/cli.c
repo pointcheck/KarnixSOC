@@ -70,6 +70,7 @@ void cli_cmd_help(char *argv[], int argn) {
 "w[b|d]	[*|addr] [data] [many]	- Write 'data' byte or dword to memory at 'addr' as 'many' times.\r\n"
 "addr	[*|addr]		- Set current address pointer to 'addr'.\r\n"
 "call	[*|addr] [args]		- Call subroutine at 'addr', 'args' will be provided as argv/argn.\r\n"
+"copy	[*|to] [*|from] [len]	- Copy 'len' bytes of memory from 'from' to 'to'.\r\n"
 "dump	[*|addr] [len]		- Read 'len' bytes from memory at 'addr' and print in ASCII.\r\n"
 "type	[*|addr]		- Print ASCII string in memory at 'addr'.\r\n"
 "ihex	[*|addr]		- Input IHEX, decode and store at 'addr' or current location.\r\n"
@@ -237,6 +238,28 @@ void cli_cmd_read_dword(char *argv[], int argn) {
 		if(console_rx_buf_len)
 			break;
 	}
+}
+
+void cli_cmd_copy(char *argv[], int argn) {
+
+	uint8_t *to = (uint8_t*) current_address;
+	uint8_t *from = (uint8_t*) current_address;
+	uint32_t len = 0;
+	
+	if(argv[1] && argv[1][0] != '*')
+		to = (uint8_t*) strtoul(argv[1], NULL, 0);
+
+	if(argv[2] && argv[2][0] != '*')
+		from = (uint8_t*) strtoul(argv[1], NULL, 0);
+
+	if(argv[3])
+		len = strtoul(argv[3], NULL, 0);
+
+	#if(DEBUG_CLI)
+		printf("/// copy: to = %p, from = %p, len = %u\r\n", to, from, len);
+	#endif
+
+	memcpy(to, from, len);
 }
 
 void cli_cmd_dump(char *argv[], int argn) {
@@ -779,6 +802,11 @@ void cli_process_command(uint8_t *cmdline, uint32_t len) {
 
 	if(argv[0][0] == 'c' && argv[0][1] == 'a') {
 		cli_cmd_call(argv, argn);
+		return;
+	}
+
+	if(argv[0][0] == 'c' && argv[0][1] == 'o') {
+		cli_cmd_copy(argv, argn);
 		return;
 	}
 
