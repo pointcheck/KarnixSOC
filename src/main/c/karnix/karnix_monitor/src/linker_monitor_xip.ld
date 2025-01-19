@@ -16,11 +16,11 @@ MEMORY {
   FLASH    (rwx): ORIGIN = 0xA00E0000, LENGTH = 15488k
 
   /* Synthesized RAM */
-  RAM      (rwx): ORIGIN = 0x80000000, LENGTH = 8k
+  RAM      (rwx): ORIGIN = 0x80000000, LENGTH = 12k
 
 }
 
-_stack_size = DEFINED(_stack_size) ? _stack_size : 1800; 
+_stack_size = DEFINED(_stack_size) ? _stack_size : 4k; 
 _ram_heap_size = DEFINED(_ram_heap_size) ? _ram_heap_size : 0;
 
 

@@ -24,7 +24,7 @@ MEMORY {
   /* RAM      (rwx): ORIGIN = 0x90000000, LENGTH = 512k */
 }
 
-_stack_size = DEFINED(_stack_size) ? _stack_size : 1800;
+_stack_size = DEFINED(_stack_size) ? _stack_size : 3k;
 _ram_heap_size = DEFINED(_ram_heap_size) ? _ram_heap_size : 0;
 
 
