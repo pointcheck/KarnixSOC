@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <string.h>
 
-extern const char font_6x8[];
 extern const char font_12x16[];
 
 #define CGA_VIDEO_WIDTH		320
