@@ -36,9 +36,7 @@ void print_uart1(const char*str);
 void hard_reboot(void);
 void memcpy_rev(void* dst, void* src, uint32_t count);
 uint32_t strntoul(const char * buf, int size, int base); // string to unsigned long with size
-void println(const char*str);
-char to_hex_nibble(char n);
-void to_hex(char*s , unsigned int n);
+void printk(const char *fmt, ...);
 
 #define print print_uart0
 

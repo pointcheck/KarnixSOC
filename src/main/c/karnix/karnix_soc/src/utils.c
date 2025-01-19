@@ -19,6 +19,11 @@ unsigned int* heap_end = 0; /* programmer defined heap end */
 void __malloc_lock(struct _reent *REENT) { /* print("__malloc_lock()\r\n"); */ }
 void __malloc_unlock(struct _reent *REENT) { /* print("__malloc_unlock()\r\n"); */ }
 
+#define va_list  __builtin_va_list
+#define va_start __builtin_va_start
+#define va_end   __builtin_va_end
+#define va_arg   __builtin_va_arg
+
 void init_sbrk(unsigned int* heap, int size) {
 
 	if(heap == NULL) {
@@ -32,10 +37,7 @@ void init_sbrk(unsigned int* heap, int size) {
 	sbrk_heap_end = (char*) heap_start;
 
 	#if(DEBUG_SBRK)
-	char str[16];
-	print("init_sbrk() sbrk_heap_end: ");
-	to_hex(str, (unsigned int)sbrk_heap_end);
-	println(str);
+	printk("init_sbrk() sbrk_heap_end: %p\r\n", (unsigned int)sbrk_heap_end);
 	#endif
 }
 
@@ -43,10 +45,7 @@ void init_sbrk(unsigned int* heap, int size) {
 void * _sbrk (unsigned int incr) {
 
 	#if(DEBUG_SBRK)
-	char str[16];
-	print("_sbrk() request, incr: ");
-	to_hex(str, (unsigned int)incr);
-	println(str);
+	print("_sbrk() request, incr: %d\r\n", (unsigned int)incr);
 	#endif
 
 	unsigned char* prev_heap_end;
@@ -62,15 +61,8 @@ void * _sbrk (unsigned int incr) {
 	if((unsigned int)(sbrk_heap_end + incr) >= (unsigned int)heap_end) {
 
 		#if(DEBUG_SBRK)
-		print("_sbrk() out of mem, sbrk_heap_end: ");
-		to_hex(str, (unsigned int)sbrk_heap_end);
-		print(str);
-		print(", heap_end: ");
-		to_hex(str, (unsigned int)heap_end);
-		print(str);
-		print(", incr: ");
-		to_hex(str, (unsigned int)incr);
-		println(str);
+		printk("_sbrk() out of mem, sbrk_heap_end: %p, heap_end: %p, incr: %d\r\n",
+			(unsigned int)sbrk_heap_end, (unsigned int)heap_end, (unsigned int)incr);
 		#endif
 
 		return ((void*)-1); // error - no more memory
@@ -79,9 +71,7 @@ void * _sbrk (unsigned int incr) {
 	sbrk_heap_end += incr;
 
 	#if(DEBUG_SBRK)
-	print("_sbrk() prev_heap_end: ");
-	to_hex(str, (unsigned int)prev_heap_end);
-	println(str);
+	printk("_sbrk() prev_heap_end: %p\r\n", (unsigned int)prev_heap_end);
 	#endif
 
 	return (void *) prev_heap_end;
@@ -122,6 +112,73 @@ void print_uart1(const char*str) {
 	}
 }
 
+
+void printk(const char *fmt, ...) {
+	va_list vargs;
+	va_start(vargs, fmt);
+
+	while (*fmt) {
+		if (*fmt == '%') {
+			fmt++; // Skip '%'
+			switch (*fmt) { // Read the next character
+				case '\0': // '%' at the end of the format string
+					uart_write(UART0, '%');
+					goto end;
+				case '%': // Print '%'
+					uart_write(UART0, '%');
+					break;
+				case 's': { // Print a NULL-terminated string.
+					const char *s = va_arg(vargs, const char *);
+					while (*s) {
+						uart_write(UART0, *s);
+						s++;
+					}
+					break;
+				}
+				case 'd': { // Print an integer in decimal.
+					int value = va_arg(vargs, int);
+					if (value < 0) {
+						uart_write(UART0, '-');
+						value = -value;
+					}
+
+					int divisor = 1;
+					while (value / divisor > 9)
+						divisor *= 10;
+
+					while (divisor > 0) {
+						uart_write(UART0, '0' + value / divisor);
+						value %= divisor;
+						divisor /= 10;
+					}
+
+					break;
+				}
+
+				case 'p': {
+					uart_write(UART0, '0');
+					uart_write(UART0, 'x');
+				};
+				case 'x': { // Print an integer in hexadecimal.
+					int value = va_arg(vargs, int);
+					for (int i = 7; i >= 0; i--) {
+						int nibble = (value >> (i * 4)) & 0xf;
+						uart_write(UART0, "0123456789abcdef"[nibble]);
+					}
+					break;
+				}
+			}
+		} else
+			uart_write(UART0, *fmt);
+
+		fmt++;
+	}
+
+end:
+	va_end(vargs);
+}
+
+
 int _write (int fd, const void *buf, size_t count) {
 	int i;
 	char* p = (char*) buf;
@@ -151,7 +208,7 @@ int _getpid(void) {
 void hard_reboot(void) {
 	//void (*begin)(void) = (void*) 0x80000000;
 	//begin();
-	print("*** GOING HARD RESET ***\r\n");
+	printk("*** GOING HARD RESET ***\r\n");
 	delay_us(1000);
 	WD->REBOOT = 1;
 }
@@ -192,31 +249,4 @@ uint32_t strntoul(const char *buf, int size, int base) {
 
 	return result;
 }
-
-
-void println(const char*str){
-	print_uart0(str);
-	print_uart0("\r\n");
-}
-
-
-char to_hex_nibble(char n)
-{
-	n &= 0x0f;
-
-	if(n > 0x09)
-		return n + 'A' - 0x0A;
-	else
-		return n + '0';
-}
-
-
-void to_hex(char*s , unsigned int n)
-{
-	for(int i = 0; i < 8; i++) {
-		s[i] = to_hex_nibble(n >> (28 - i*4));
-	}
-	s[8] = 0;
-}
-
 
