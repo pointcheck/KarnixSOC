@@ -21,7 +21,6 @@ extern struct _context {
 	uint32_t plic_enable;
 	uint32_t plic_polarity;
 	uint32_t plic_edge;
-	char crash_str[16];
 	uint32_t cur_pc;
 	uint32_t mtval;
 	volatile uint32_t trap_flag;

@@ -149,7 +149,7 @@ void main() {
 
 	#if(RESET_ON_SOFT_START)
 	if(deadbeef == 0xdeadbeef) {
-		print("Soft-start, performing hard reset!\r\n");
+		printk("Soft-start, performing hard reset!\r\n");
 		delay_us(200000);
 		hard_reboot();
 	} else {
@@ -362,7 +362,7 @@ void externalInterrupt(void){
 
 
 	if(PLIC->PENDING & PLIC_IRQ_I2C) { // I2C xmit complete 
-		//print("I2C IRQ\r\n");
+		//printk("I2C IRQ\r\n");
 		PLIC->PENDING &= ~PLIC_IRQ_I2C;
 	}
 
@@ -375,7 +375,7 @@ void externalInterrupt(void){
 	}
 
 	if(PLIC->PENDING & PLIC_IRQ_MAC) { // MAC is pending
-		//print("MAC IRQ\r\n");
+		//printk("MAC IRQ\r\n");
 		mac_rx();
 		PLIC->PENDING &= ~PLIC_IRQ_MAC;
 	}
@@ -388,21 +388,21 @@ void externalInterrupt(void){
 	}
 
 	if(PLIC->PENDING & PLIC_IRQ_TIMER1) { // Timer1 (for Modbus RTU) 
-		//print("TIMER1 IRQ\r\n");
+		//printk("TIMER1 IRQ\r\n");
 		timer_run(TIMER1, 50000); // 50 ms timer
 		events_modbus_rtu_poll = 1;
 		PLIC->PENDING &= ~PLIC_IRQ_TIMER1;
 	}
 
 	if(PLIC->PENDING & PLIC_IRQ_AUDIODAC0) { // AUDIODAC is pending
-		//print("AUDIODAC IRQ\r\n");
+		//printk("AUDIODAC IRQ\r\n");
 		reg_audiodac0_irqs++;
 		//audiodac0_samples_sent += audiodac0_isr();
 		PLIC->PENDING &= ~PLIC_IRQ_AUDIODAC0;
 	}
 
 	if(PLIC->PENDING & PLIC_IRQ_CGA_VBLANK) { // CGA vertical blanking 
-		//print("VBLANK IRQ\r\n");
+		//printk("VBLANK IRQ\r\n");
 		reg_cga_vblank_irqs++;
 		PLIC->PENDING &= ~PLIC_IRQ_CGA_VBLANK;
 	}
@@ -413,27 +413,10 @@ void crash(int cause) {
 	
 	context.trap_flag = 1;
 
-	print("\r\n*** TRAP: ");
-	to_hex(context.crash_str, cause);
-	print(context.crash_str);
-	print(" at ");
+	printk("\r\n*** TRAP: %p at %p = %p, mtval = %p\r\n",
+		cause, context.cur_pc, *(uint32_t*)(context.cur_pc & 0xfffffffc), context.mtval);
 
-	context.cur_pc = csr_read(mepc);
-	context.mtval = csr_read(mtval);
-
-	to_hex(context.crash_str, context.cur_pc);
-	print(context.crash_str);
-	print(" = ");
-
-	to_hex(context.crash_str, *(uint32_t*)(context.cur_pc & 0xfffffffc));
-	print(context.crash_str);
-	print(", mtval = ");
-
-	to_hex(context.crash_str, context.mtval);
-	print(context.crash_str);
-	print("\r\n");
-
-	printf("\r*** SAVED: gp = %p, tp = %p, ra = %p, sp = %p, pc = %p\r\n",
+	printk("\r*** SAVED: gp = %p, tp = %p, ra = %p, sp = %p, pc = %p\r\n",
 		context.gp, context.tp, context.ra, context.sp, context.pc);
 
 }
