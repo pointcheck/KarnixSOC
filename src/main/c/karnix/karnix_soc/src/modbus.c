@@ -124,11 +124,11 @@ int modbus_store_reg(uint16_t reg, uint8_t *data, uint16_t data_len) {
 					hub_print(x, y, reg_color, &(data[6]), text_len, font_6x8, 6, 8);
 				else
 				#endif
-					cga_video_print(x, y, reg_color, &(data[6]), text_len, font_12x16, 6, 8);
+					cga_video_print(x, y, reg_color, &(data[6]), text_len, font_12x16, 12, 16);
 			else
 				#ifdef CONFIG_HAS_HUB
 				if(reg_video_mode == REG_VIDEO_MODE_HUB)
-					hub_print(x, y, reg_color, &(data[6]), text_len, font_6x8, 12, 16);
+					hub_print(x, y, reg_color, &(data[6]), text_len, font_6x8, 6, 8);
 				else
 				#endif
 					cga_video_print(x, y, reg_color, &(data[6]), text_len, font_12x16, 12, 16);
