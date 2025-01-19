@@ -19,7 +19,7 @@ MEMORY {
   FLASH    (rwx): ORIGIN = 0xA0100000, LENGTH = 15360k
 
   /* Synthesized RAM with offset for Bootloader/Monitor data and stack */
-  RAM      (rwx): ORIGIN = 0x80002000, LENGTH = 64k
+  RAM      (rwx): ORIGIN = 0x80003000, LENGTH = 60k
 
 }
 
