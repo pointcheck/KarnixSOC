@@ -9,8 +9,8 @@ ATOMIC=yes
 FPU=yes
 COMPRESSED=yes
 
-#DEFS = -DCONFIG_HAS_MODBUS -DCONFIG_HAS_MAC -DDEBUG_SBRK
 DEFS = -DCONFIG_HAS_MODBUS -DCONFIG_HAS_MAC
+#DEFS += -DDEBUG_SBRK 
 
 # LwIP support
 LWIPDIR=../karnix_lwip/src
@@ -213,7 +213,9 @@ $(OBJDIR):
 
 .PHONY: clean
 clean:
-	rm -rf $(OBJDIR)/*
+	rm -rf $(OBJDIR)/src
+	rm -rf $(OBJDIR)/__
+	rm -rf $(OBJDIR)/$(PROJ_NAME)*
 
 clean-all : clean 
 

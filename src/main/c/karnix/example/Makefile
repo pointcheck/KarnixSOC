@@ -217,7 +217,10 @@ $(OBJDIR):
 
 .PHONY: clean
 clean:
-	rm -rf $(OBJDIR)/*
+	rm -rf $(OBJDIR)/src
+	rm -rf $(OBJDIR)/__
+	rm -rf $(OBJDIR)/$(PROJ_NAME)*
+
 
 clean-all : clean 
 
