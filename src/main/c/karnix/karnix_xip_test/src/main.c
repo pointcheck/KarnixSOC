@@ -10,36 +10,6 @@
 #include "crc32.h"
 #include "qspi.h"
 
-/* Below is some linker specific stuff */
-extern unsigned int   _stack_start; /* Set by linker.  */
-extern unsigned int   _stack_size; /* Set by linker.  */
-extern unsigned int   trap_entry;
-extern unsigned int   heap_start; /* programmer defined heap start */
-extern unsigned int   heap_end; /* programmer defined heap end */
-
-void println(const char*str){
-	print_uart0(str);
-	print_uart0("\r\n");
-}
-
-char to_hex_nibble(char n)
-{
-	n &= 0x0f;
-
-	if(n > 0x09)
-		return n + 'A' - 0x0A;
-	else
-		return n + '0';
-}
-
-void to_hex(char*s , unsigned int n)
-{
-	for(int i = 0; i < 8; i++) {
-		s[i] = to_hex_nibble(n >> (28 - i*4));
-	}
-	s[8] = 0;
-}
-
 
 void test_nor_xip(void) {
 	uint32_t t0, t1;
@@ -150,24 +120,14 @@ void externalInterrupt(void){
 
 
 static char crash_str[16];
-static uint32_t pc;
+static uint32_t pc, mtval;
 
 void crash(int cause) {
 	
-	print("\r\n*** TRAP: ");
-	to_hex(crash_str, cause);
-	print(crash_str);
-	print(" at ");
-
 	pc = csr_read(mepc);
+	mtval = csr_read(mtval);
 
-	to_hex(crash_str, pc);
-	print(crash_str);
-	print(" = ");
-
-	to_hex(crash_str, *(uint32_t*)pc);
-	print(crash_str);
-	print("\r\n");
+	printk("\r\n*** TRAP: %p at %p = %p\r\n", cause, pc, *(uint32_t*)pc);
 
 }
 

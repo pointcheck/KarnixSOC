@@ -1,30 +1,49 @@
 PROJ_NAME=karnix_xip_test
+#
 DEBUG=no
 BENCH=no
 MULDIV=yes
 ATOMIC=yes
 FPU=yes
 COMPRESSED=yes
+#MODEL ?= ram
+MODEL ?= xip
 
-LWIPDIR=../karnix_lwip/src
+# Set defines as appropriate
+#DEFS += -DDEBUG_SBRK	# Enable mamory allocations, sbrk() and init_sbrk() debug
+#DEFS += -DCONFIG_HAS_MODBUS	# Enable Modbus
+#DEFS += -DCONFIG_HAS_MAC	# Enable Ethernet
+
 SOCDIR=../karnix_soc/src
 
-BUILD_NUMBER=`cat build_number`
+# LwIP support: uncomment below when necessary
+#LWIPDIR=../karnix_lwip/src
+#include $(LWIPDIR)/Filelists.mk
 
-include $(LWIPDIR)/Filelists.mk
+# Include subset of LwIP source code files needed for your program
+#SRCS += $(COREFILES) $(CORE4FILES) $(LWIPDIR)/netif/ethernet.c
 
-SRCS = 	$(wildcard src/*.c) $(wildcard src/*.cpp) $(wildcard src/*.S) $(wildcard $(SOCDIR)/*.c) $(wildcard $(SOCDIR)/*.cpp) $(wildcard $(SOCDIR)/*.S) $(LWIPDIR)/netif/ethernet.c 
-#SRCS = 	src/main.c src/utils.c $(wildcard src/*.cpp) $(wildcard src/*.S)
-#SRCS = 	src/main.c src/utils.c $(wildcard src/*.cpp) $(wildcard src/*.S) src/lwip/core/mem.c 
+# Set list of source code files
+SRCS += $(wildcard src/*.c) $(wildcard src/*.cpp) $(wildcard src/*.S)
+SRCS += $(SOCDIR)/utils.c
+SRCS += $(CRT)
 
+CRT_RAM=$(SOCDIR)/crt_ram.S
+LDSCRIPT_RAM=$(SOCDIR)/linker_ram.ld -Wl
 
+CRT_XIP=$(SOCDIR)/crt_xip.S
+LDSCRIPT_XIP=$(SOCDIR)/linker_xip.ld -Wl
 
 OBJDIR = build
 
-INC  = -I$(LWIPDIR) -I$(LWIPDIR)/include -I$(SOCDIR) -I$(SOCDIR)/include
+BUILD_NUMBER_FILE=$(OBJDIR)/build_number
+BUILD_NUMBER=`cat $(BUILD_NUMBER_FILE)`
+
+
+INC  = -I./src -I$(LWIPDIR) -I$(LWIPDIR)/include -I$(SOCDIR) -I$(SOCDIR)/include
 LIBS =
 LIBSINC = -L$(OBJDIR)
-LDSCRIPT = $(SOCDIR)/linker.ld -Wl
+#LDSCRIPT = src/linker_monitor.ld -Wl
 
 #include ../../../resources/gcc.mk
 # Set it to yes if you are using the sifive precompiled GCC pack
@@ -66,13 +85,9 @@ endif
 #CFLAGS += -fwhole-program -march=$(MARCH)  -mabi=$(MABI) -DNDEBUG -fno-common -fno-builtin-printf -DBUILD_NUMBER=$(BUILD_NUMBER)+1 
 # use suffix __attribute__((externally_visible))
 
-CFLAGS += -march=$(MARCH)  -mabi=$(MABI) -DNDEBUG -flto -fno-common -fno-builtin-printf -DBUILD_NUMBER=$(BUILD_NUMBER)+1 
+CFLAGS += -march=$(MARCH)  -mabi=$(MABI) -DNDEBUG -flto -fno-common -fno-builtin-printf -DBUILD_NUMBER=$(BUILD_NUMBER)+1 $(DEFS) 
 LDFLAGS += -march=$(MARCH)  -mabi=$(MABI) -specs=nano.specs -lnosys -lc_nano
 #LDFLAGS += -march=rv32im -mabi=ilp32 -specs=nano.specs -lnosys -lc_nano
-
-
-
-#include ../../../resources/subproject.mk
 
 
 ifeq ($(DEBUG),yes)
@@ -94,7 +109,19 @@ else
 endif
 
 
-
+ifeq ($(MODEL),ram)
+	CRT = $(CRT_RAM)
+	LDSCRIPT = $(LDSCRIPT_RAM)
+	PROJ_NAME_M = $(PROJ_NAME)_ram
+else
+ifeq ($(MODEL),xip)
+	CRT = $(CRT_XIP)
+	LDSCRIPT = $(LDSCRIPT_XIP)
+	PROJ_NAME_M = $(PROJ_NAME)_xip
+else
+	#
+endif
+endif
 
 
 RISCV_OBJCOPY = $(RISCV_PATH)/bin/$(RISCV_NAME)-objcopy
@@ -102,7 +129,7 @@ RISCV_OBJDUMP = $(RISCV_PATH)/bin/$(RISCV_NAME)-objdump
 RISCV_CC=$(RISCV_PATH)/bin/$(RISCV_NAME)-gcc
 
 CFLAGS +=  -MD -fstrict-volatile-bitfields -fno-strict-aliasing
-LDFLAGS +=  -nostdlib -lgcc -mcmodel=medany -nostartfiles -ffreestanding -Wl,-Bstatic,-T,$(LDSCRIPT),-Map,$(OBJDIR)/$(PROJ_NAME).map,--print-memory-usage
+LDFLAGS +=  -nostdlib -lgcc -mcmodel=medany -nostartfiles -ffreestanding -Wl,-Bstatic,-T,$(LDSCRIPT),-Map,$(OBJDIR)/$(PROJ_NAME_M).map,--print-memory-usage
 #LDFLAGS += -lgcc -lc -lg -nostdlib  -lgcc  -msave-restore    --strip-debug,
 
 OBJS := $(SRCS)
@@ -114,10 +141,29 @@ OBJS := $(subst ..,__,$(OBJS))
 OBJS := $(addprefix $(OBJDIR)/,$(OBJS))
 
 
-all: $(OBJDIR)/$(PROJ_NAME).elf $(OBJDIR)/$(PROJ_NAME).hex $(OBJDIR)/$(PROJ_NAME).hexx $(OBJDIR)/$(PROJ_NAME).bin $(OBJDIR)/$(PROJ_NAME).asm $(OBJDIR)/$(PROJ_NAME).v
+all:
+	$(MAKE) ram
+	$(MAKE) xip
+
+ram: check_build_num_file
+	@echo "*** Building for RAM ***"
+	$(MAKE) MODEL=ram build_sources $(OBJDIR)/$(PROJ_NAME).hexx
+
+xip: check_build_num_file
+	@echo "*** Building for XIP ***"
+	$(MAKE) MODEL=xip build_sources
+
+
+build_sources: $(OBJDIR)/$(PROJ_NAME_M).elf $(OBJDIR)/$(PROJ_NAME_M).hex $(OBJDIR)/$(PROJ_NAME_M).bin $(OBJDIR)/$(PROJ_NAME_M).asm $(OBJDIR)/$(PROJ_NAME_M).v
+
+check_build_num_file:
+ifeq (,$(wildcard $(BUILD_NUMBER_FILE)))
+	mkdir -p $(OBJDIR)
+	echo 1 > $(BUILD_NUMBER_FILE)
+endif
 
 inc_build_num:
-	@expr $(BUILD_NUMBER) + 1 > build_number
+	@expr $(BUILD_NUMBER) + 1 > $(BUILD_NUMBER_FILE) 
 
 $(OBJDIR)/%.elf: $(OBJS) | $(OBJDIR)
 	$(RISCV_CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) $(LIBSINC) $(LIBS)
@@ -128,7 +174,7 @@ $(OBJDIR)/%.elf: $(OBJS) | $(OBJDIR)
 %.bin: %.elf
 	$(RISCV_OBJCOPY) -O binary $^ $@
 
-%.hexx: %.bin 
+%.hexx: %_ram.bin 
 	hexdump -v -e '/4 "%08X\n"' < $^ > $@ 
 	$(MAKE) inc_build_num
 
@@ -171,7 +217,10 @@ $(OBJDIR):
 
 .PHONY: clean
 clean:
-	rm -rf $(OBJDIR)/*
+	rm -rf $(OBJDIR)/src
+	rm -rf $(OBJDIR)/__
+	rm -rf $(OBJDIR)/$(PROJ_NAME)*
+
 
 clean-all : clean 
 
