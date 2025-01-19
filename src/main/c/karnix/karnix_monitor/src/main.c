@@ -27,7 +27,7 @@
 #define SRAM_ADDR_BEGIN 0x90000000
 #define SRAM_ADDR_END   (0x90000000 + SRAM_SIZE)
 
-#define	WELCOME_TEXT "Welcome to Karnix SoC Monitor. Build #%04u at %s %s. Main addr: %p\r\n\r\nCopyright (C) 2024-2025, Fabmicro, LLC.\r\n\r\n"
+#define	WELCOME_TEXT "Welcome to Karnix SoC Monitor. Copyright (C) 2024-2025, Fabmicro, LLC.\r\nBuild #%04u at %s %s. Main addr: %p\r\n\r\n"
 
 extern struct netif default_netif;
 
@@ -247,6 +247,8 @@ void main() {
 
 	// Clear video framebuffer
 	memset(CGA->FB, 0, CGA_FRAMEBUFFER_SIZE);
+	cga_set_cursor_xy(0, 0);
+	cga_set_scroll(0);
 
 	// Print Welcome test to CGA
 	{
