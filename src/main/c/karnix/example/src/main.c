@@ -35,6 +35,8 @@
 #include "utils.h"
 
 
+#define	MALLOC_TEST_SIZE	1024
+
 extern unsigned int trap_entry; /* Trap entry point provided by crt.S */
 
 /* Context saving structure */
@@ -62,7 +64,7 @@ void __attribute__((optimize("O0"))) test(int i) {
 	buf[5] = '\n';
 	buf[6] = 0;
 
-	print_uart0(buf);
+	printk(buf);
 }
 
 
@@ -89,73 +91,42 @@ int main(void) {
 	/* Save current stack pointer for trap handling. */
 	asm volatile ("sw sp, (%0)" :  : "r"(&context.sp));
 
-	print_uart0("\r\n= = = HELLO WORLD = = =\r\n");
+	printk("\r\n= = = HELLO WORLD = = =\r\n");
 
-	print_uart0("*** Use global read-write data:\r\n");
+	printk("*** Use global read-write data:\r\n");
 
 	for(int i = 0; i < 10; i++)
 		test(i);
 
-	print_uart0("\r\n*** Print current context:\r\n");
+	printk("\r\n*** Print current context:\r\n");
 
-	print_uart0("SP: ");
-	to_hex(buf, (unsigned int)context.sp);
-	print_uart0(buf);
-	print_uart0("\r\n");
+	printk("SP: %p, _stack_start: %p, _bss_start: %p\r\n"
+		"_bss_end: %p, _ram_heap_start: %p, _ram_heap_end: %p\r\n",
+		(unsigned int)context.sp, (unsigned int)& _stack_start,
+		(unsigned int)& _bss_start, (unsigned int)& _bss_end,
+		(unsigned int)& _ram_heap_start, (unsigned int)& _ram_heap_end);
 
-	print_uart0("_stack_start: ");
-	to_hex(buf, (unsigned int)& _stack_start);
-	print_uart0(buf);
-	print_uart0("\r\n");
-
-	print_uart0("_bss_start: ");
-	to_hex(buf, (unsigned int)& _bss_start);
-	print_uart0(buf);
-	print_uart0("\r\n");
-
-	print_uart0("_bss_end: ");
-	to_hex(buf, (unsigned int)& _bss_end);
-	print_uart0(buf);
-	print_uart0("\r\n");
-
-	print_uart0("_ram_heap_start: ");
-	to_hex(buf, (unsigned int)& _ram_heap_start);
-	print_uart0(buf);
-	print_uart0("\r\n");
-
-	print_uart0("_ram_heap_end: ");
-	to_hex(buf, (unsigned int)& _ram_heap_end);
-	print_uart0(buf);
-	print_uart0("\r\n");
-
-	print_uart0("\r\n*** Setting up PLIC and timers:\r\n");
+	printk("\r\n*** Setting up PLIC and timers:\r\n");
 	timer_run(TIMER0, 1000000); // 1 s timer
 	timer_run(TIMER1, 100000); // 100 ms timer
 	PLIC->EDGE &= ~(PLIC_IRQ_TIMER0 | PLIC_IRQ_TIMER1); /* Edge control for Timer0 and Timer1: Level */
 	PLIC->POLARITY |= (PLIC_IRQ_TIMER0 | PLIC_IRQ_TIMER1); /* Set polarity for Timer0 and Timer1: Level High */
 	PLIC->ENABLE |= (PLIC_IRQ_TIMER0 | PLIC_IRQ_TIMER1); /* Enable IRQ lines for Timer0 and Timer1 */
 
+	printk("PLIC->ENABLE: %p, PLIC->EDGE: %p, PLIC->POLARITY: %p\r\n",
+		PLIC->ENABLE, PLIC->EDGE, PLIC->POLARITY);
+
 	/* Initialize heap for malloc to use free RAM right above the stack */
-	print_uart0("\r\n*** Init heap:\r\n");
+	printk("\r\n*** Init heap:\r\n");
 	init_sbrk(NULL, 0);
-	print_uart0("init_sbrk done!\r\n");
+	printk("init_sbrk done!\r\n");
 
-	print_uart0("heap_start: ");
-	to_hex(buf, (unsigned int)heap_start);
-	print_uart0(buf);
-	print_uart0("\r\n");
+	printk("heap_start: %p, heap_end: %p, sbrk_heap_end: %p\r\n",
+		(unsigned int)heap_start, (unsigned int)heap_end,
+		(unsigned int)sbrk_heap_end);
 
-	print_uart0("heap_end: ");
-	to_hex(buf, (unsigned int)heap_end);
-	print_uart0(buf);
-	print_uart0("\r\n");
 
-	print_uart0("sbrk_heap_end: ");
-	to_hex(buf, (unsigned int)sbrk_heap_end);
-	print_uart0(buf);
-	print_uart0("\r\n");
-
-	print_uart0("\r\n*** Adjusting global REENT structure:\r\n");
+	printk("\r\n*** Adjusting global REENT structure:\r\n");
 
 	*(uint32_t*)&_impure_ptr = (uint32_t)&_IMPURE_DATA;
 	*(uint32_t*)&_global_impure_ptr = (uint32_t)_impure_ptr;
@@ -163,39 +134,25 @@ int main(void) {
 	_impure_ptr->_stdout = (__FILE *)&__sf_fake_stdout;
 	_impure_ptr->_stderr = (__FILE *)&__sf_fake_stderr;
 
-	print_uart0("_impure_ptr: ");
-	to_hex(buf, (unsigned int)_impure_ptr);
-	print_uart0(buf);
-	print_uart0("\r\n");
+	printk("_impure_ptr: %p, _global_impure_ptr: %p, fake_stdout: %p\r\n",
+		(unsigned int)_impure_ptr, (unsigned int)_global_impure_ptr,
+		(unsigned int)(_impure_ptr->_stdout));
 
-	print_uart0("_global_impure_ptr: ");
-	to_hex(buf, (unsigned int)_global_impure_ptr);
-	print_uart0(buf);
-	print_uart0("\r\n");
-
-	print_uart0("fake_stdout: ");
-	to_hex(buf, (unsigned int)_impure_ptr->_stdout);
-	print_uart0(buf);
-	print_uart0("\r\n");
-
-
-	print_uart0("\r\n*** Checking malloc:\r\n");
-
+	printk("\r\n*** Checking malloc:\r\n");
 
 	for(int i = 0; i < 10; i++) {
-		char *mem = malloc(1024);
-		print_uart0("allocated mem at: ");
-		to_hex(buf, (unsigned int)mem);
-		print_uart0(buf);
-		print_uart0("\r\n");
+		char *mem = malloc(MALLOC_TEST_SIZE);
+		printk("allocated %d bytes of mem at: %p\r\n", MALLOC_TEST_SIZE, (unsigned int)mem);
+		printk("zeroing %d bytes of mem at: %p\r\n", MALLOC_TEST_SIZE, (unsigned int)mem);
+		memset(mem, 0, MALLOC_TEST_SIZE);
 	}
 
 
-	print_uart0("\r\n*** Calling LIBC function...\r\n");
+	printk("\r\n*** Calling LIBC function...\r\n");
 
-	printf("Hello from LIBC! Yoohoo!\r\n");
+	printk("Hello from LIBC! Yoohoo!\r\n");
 
-	print_uart0("\r\n= = = Returning to Monitor = = =\r\n\r\n");
+	printk("\r\n= = = Returning to Monitor = = =\r\n\r\n");
 
 	delay_us(2000000);
 
@@ -238,38 +195,11 @@ void crash(int cause) {
 		      addi t1,t1,16; \
 	      	      sw t1, (%0)" :  : "r"(&context.sp)); 
 
-	print_uart0("\r\n*** TRAP: ");
-	to_hex(context.crash_str, cause);
-	print_uart0(context.crash_str);
-	print_uart0(" at ");
-
-	to_hex(context.crash_str, context.mepc);
-	print(context.crash_str);
-	print(" = ");
-	to_hex(context.crash_str, *(uint32_t*)(context.mepc & 0xfffffffc));
-	print(context.crash_str);
-
-	print(", mtval = ");
-	to_hex(context.crash_str, context.mtval);
-	print(context.crash_str);
-
-	print(", sp = ");
-	to_hex(context.crash_str, context.sp);
-	print(context.crash_str);
-
-	print(", gp = ");
-	to_hex(context.crash_str, context.gp);
-	print(context.crash_str);
-
-	print(", tp = ");
-	to_hex(context.crash_str, context.tp);
-	print(context.crash_str);
-
-	print(", heap_end = ");
-	to_hex(context.crash_str, (uint32_t)sbrk_heap_end);
-	print(context.crash_str);
-
-	print("\r\n");
+	printk("\r\n*** TRAP: %p at %p = %p, mtval = %p\r\n"
+	       "*** CONTEXT: sp = %p, gp = %p, tp = %p, heap_end = %p\r\n",
+		cause, context.mepc, *(uint32_t*)(context.mepc & 0xfffffffc),
+		context.mtval, context.sp, context.gp, context.tp,
+		(uint32_t)sbrk_heap_end);
 
 	for(;;);
 }
