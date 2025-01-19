@@ -17,22 +17,22 @@ MEMORY {
   /* Synthesized RAM */
   RAM      (rwx): ORIGIN = 0x80000000, LENGTH = 72k
 
-  /* Synthesized RAM with 1K offset for bootloader/monitor */
-  /* RAM      (rwx): ORIGIN = 0x80001000, LENGTH = 71k */
+  /* Synthesized RAM with 8K offset for bootloader/monitor */
+  /* RAM      (rwx): ORIGIN = 0x80002000, LENGTH = 64k */
 
   /* SRAM */
   /* RAM      (rwx): ORIGIN = 0x90000000, LENGTH = 512k */
 }
 
-_stack_size = DEFINED(_stack_size) ? _stack_size : 4096;
+_stack_size = DEFINED(_stack_size) ? _stack_size : 2k;
 _ram_heap_size = DEFINED(_ram_heap_size) ? _ram_heap_size : 0;
 
 
 SECTIONS {
 
   ._vector ORIGIN(RAM): {
-    *crt.o(.start_jump);
-    *crt.o(.text);
+    *crt*.o(.start_jump);
+    *crt*.o(.text);
   } > RAM
 
   .text : {

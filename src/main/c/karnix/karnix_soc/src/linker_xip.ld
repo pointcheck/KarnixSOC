@@ -11,27 +11,36 @@ OUTPUT_ARCH(riscv)
 ENTRY(crtStart)
 
 MEMORY {
-  RAM      (rwx): ORIGIN = 0x80000000, LENGTH = 72k
-  FLASH    (rwx): ORIGIN = 0xA00E0000, LENGTH = 128k
+
+  /* Winbond W25Q128 (18MB) NOR Flash has the follwing region available for user */
+  /* FLASH    (rwx): ORIGIN = 0xA00E0000, LENGTH = 15488k */
+
+  /* NOR flash with 128K offset reserved for Bootloader or Monitor */ 
+  FLASH    (rwx): ORIGIN = 0xA0100000, LENGTH = 15360k
+
+  /* Synthesized RAM with offset for Bootloader/Monitor data and stack */
+  RAM      (rwx): ORIGIN = 0x80002000, LENGTH = 64k
+
 }
 
-_stack_size = DEFINED(_stack_size) ? _stack_size : 4096;
+_stack_size = DEFINED(_stack_size) ? _stack_size : 2k; 
 _ram_heap_size = DEFINED(_ram_heap_size) ? _ram_heap_size : 0;
 
 
 SECTIONS {
 
   ._vector ORIGIN(FLASH): {
-    *crt.o(.start_jump);
-    *crt.o(.text);
-  } > FLASH
+    *crt*.o(.start_jump);
+    *crt*.o(.text);
+  } > FLASH 
 
   .text : {
     . = ALIGN(4);
+    *(.start_jump);
     *(.text);
     *(.text.*);
     end = .;
-  } > FLASH
+  } > FLASH 
 
   .ctors :
   {
@@ -43,40 +52,48 @@ SECTIONS {
     . = ALIGN(4);
     _ctors_end = .;
     PROVIDE ( END_OF_SW_IMAGE = . );
-  } > FLASH
+  } > FLASH 
 
   .rodata :
   {
     . = ALIGN(4);
+    PROVIDE (_rodata_start = .);
     *(.rdata)
     *(.rodata)
     *(.rodata.*)
     *(.gnu.linkonce.r.*)
-    *(.eh_frame .eh_frame.*) /* C++ exception handling and backtrace */
-    . = ALIGN(8);
-    PROVIDE( __global_pointer$ = . + 0x800 );
-    *(.got) /* global offset pointers for dynamic linker */
-    *(.got.plt) /* global function pointers for dynamic linker */
-  } > FLASH
-
-  .data :
-  {
-    . = ALIGN(4);
-    PROVIDE (_data_start = .);
-    *(.data)
-    *(.data.*)
-    *(.gnu.linkonce.d.*)
-    *(.sdata .sdata.*)
-    *(.sdata2 .sdata2.*)
-    *(.gnu.linkonce.s.*)
     *(.srodata.cst16)
     *(.srodata.cst8)
     *(.srodata.cst4)
     *(.srodata.cst2)
     *(.srodata .srodata.*)
+    *(.eh_frame .eh_frame.*) /* C++ exception handling and backtrace */
+    . = ALIGN(4);
+    PROVIDE(_GOT = .);
+    *(.got) /* global offset pointers for dynamic linker */
+    *(.got.plt) /* global function pointers for dynamic linker */
+    . = ALIGN(4);
+    PROVIDE (_rodata_end = .);
+  } > FLASH
+
+  .data :
+  {
+    . = ALIGN(4);
+    /* Provide pointer to reference impure_data (struct _reent) used in LIBC */
+    PROVIDE (_data_start = .);
+    PROVIDE (_IMPURE_DATA = .);
+    *(.data.impure_data)
+    *(.data)
+    *(.data.*)
+    . = ALIGN(8);
+    PROVIDE( __global_pointer$ = . + 0x800 );
+    *(.gnu.linkonce.d.*)
+    *(.sdata .sdata.*)
+    *(.sdata2 .sdata2.*)
+    *(.gnu.linkonce.s.*)
     . = ALIGN(4);
     PROVIDE(_data_end = .);
-  } > RAM AT > FLASH
+  } > RAM AT>FLASH 
 
   .bss (NOLOAD) : {
     . = ALIGN(4);
@@ -116,6 +133,5 @@ SECTIONS {
     /* PROVIDE ( _heap_end = ALIGN(ORIGIN(RAM) + LENGTH(RAM) - 8 ,8) ); */
     PROVIDE ( _ram_heap_end = ALIGN(ORIGIN(RAM) + LENGTH(RAM) ,8) );
   } > RAM
-
 
 }
