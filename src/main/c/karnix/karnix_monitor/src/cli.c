@@ -479,7 +479,7 @@ void cli_cmd_call(char *argv[], int argn) {
 void cli_cmd_ihex(char *argv[], int argn) {
 
 	uint8_t *addr = (uint8_t*) current_address;
-	uint32_t base = 0, offset = 0, start16 = 0, start32 = 0;
+	uint32_t base = 0, offset = 0, origin = 0, start16 = 0, start32 = 0;
 	
 	if(argv[1] && argv[1][0] != '*')
 		addr = (uint8_t*) strtoul(argv[1], NULL, 0);
@@ -576,7 +576,7 @@ void cli_cmd_ihex(char *argv[], int argn) {
 				for(int i = 0; i < data_size; i ++) 
 					*(addr + base + offset + i) = strntoul(str+(i*2)+8, 2, 16);
 
-				crc = crc32((const void*)(addr + base + offset), data_size, crc, CRC32_POLYNOMIAL);
+				crc = crc32((const void*)(addr + base), data_size, crc, CRC32_POLYNOMIAL);
 
 				bytes_read += data_size;
 			}
@@ -603,16 +603,21 @@ void cli_cmd_ihex(char *argv[], int argn) {
 			// by combining the upper 16 address bits of the most recent 04 record with the low 16 address
 			// bits of the 00 record. If a type 00 record is not preceded by any type 04 records then its upper
 			// 16 address bits default to 0000. 
-			if(type == 4)
-				base = strntoul(str+8, 4, 16) << 16;
+			if(type == 4) {
+				uint32_t tmp = strntoul(str+8, 4, 16) << 16;
+			       	if(origin == 0)
+					origin = tmp;
+				base = tmp - origin;
+			}
+
 
 			// Extended Segment Address
 			// The byte count is always 02, the address field (typically 0000) is ignored and the data field
 			// contains a 16-bit segment base address. This is multiplied by 16 and added to each subsequent
 			// data record address to form the starting address for the data. This allows addressing up to one
 			// mebibyte (1048576 bytes) of address space.
-			if(type == 2)
-				base = strntoul(str+8, 4, 16) << 4;
+			//if(type == 2)
+			//	base = strntoul(str+8, 4, 16) << 4;
 
 			#if(DEBUG_CLI>1)
 			printf("/// ihex tp: %d, sz: %d, addr: %p\r\n",
@@ -633,8 +638,10 @@ void cli_cmd_ihex(char *argv[], int argn) {
 		}
 	}
 
-	printf("/// ihex: bytes_read = %u, addr = %p, entry = %p, crc32 = %p (cksum -o 3)\r\n",
-			bytes_read, addr, addr + start32, crc);
+	printf("/// ihex: bytes_read = %u, location = %p, crc32 = %p (cksum -o 3)\r\n",
+			bytes_read, addr, crc);
+	printf("/// ihex: data from file: origin = %p, entry = %p\r\n",
+			origin, start32);
 
 }
 
