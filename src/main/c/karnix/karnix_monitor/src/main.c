@@ -40,7 +40,6 @@ volatile uint32_t reg_irq_counter = 0;
 volatile uint32_t reg_sys_print_stats = 3;
 volatile uint32_t reg_cga_vblank_irqs = 0;
 volatile uint32_t reg_audiodac0_irqs = 0;
-volatile uint32_t reg_boot = 1;
 
 __attribute__ ((section (".noinit"))) uint32_t deadbeef;	// If equal to 0xdeadbeef - we are in soft-start mode
 
@@ -238,13 +237,13 @@ void main() {
 	// Setup CGA: set text mode and load color palette
 	cga_set_video_mode(CGA_MODE_TEXT);
 
-	static uint32_t rgb_palette[16] = {
+	static const uint32_t rgb_palette[16] = {
 			0x00000000, 0x000000f0, 0x0000f000, 0x00f00000,
 			0x0000f0f0, 0x00f000f0, 0x00f0f000, 0x00f0f0f0,
 			0x000f0f0f, 0x000f0fff, 0x000fff0f, 0x00ff0f0f,
 			0x000fffff, 0x00ff0fff, 0x00ffff0f, 0x00ffffff,
 			};
-	cga_set_palette(rgb_palette);
+	cga_set_palette((uint32_t*)rgb_palette);
 
 	// Clear video framebuffer
 	memset(CGA->FB, 0, CGA_FRAMEBUFFER_SIZE);
