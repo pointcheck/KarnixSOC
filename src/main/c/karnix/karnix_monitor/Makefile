@@ -12,23 +12,10 @@ COMPRESSED=yes
 #DEFS = -DCONFIG_HAS_MODBUS -DCONFIG_HAS_MAC -DDEBUG_SBRK
 DEFS = -DCONFIG_HAS_MODBUS -DCONFIG_HAS_MAC
 
-ifeq ($(MODEL),ram)
-	CRT = $(CRT_RAM)
-	LDSCRIPT = $(LDSCRIPT_RAM)
-	PROJ_NAME_M = $(PROJ_NAME)_ram
-else
-ifeq ($(MODEL),xip)
-	CRT = $(CRT_XIP)
-	LDSCRIPT = $(LDSCRIPT_XIP)
-	PROJ_NAME_M = $(PROJ_NAME)_xip
-else
-	echo "Unsupported software model: " $(MODEL)
-	exit 0
-endif
-endif
-
+# LwIP support
 LWIPDIR=../karnix_lwip/src
 SOCDIR=../karnix_soc/src
+include $(LWIPDIR)/Filelists.mk
 
 CRT_RAM=src/crt_monitor_ram.S
 LDSCRIPT_RAM=src/linker_monitor_ram.ld -Wl
@@ -36,12 +23,11 @@ LDSCRIPT_RAM=src/linker_monitor_ram.ld -Wl
 CRT_XIP=src/crt_monitor_xip.S
 LDSCRIPT_XIP=src/linker_monitor_xip.ld -Wl
 
-include $(LWIPDIR)/Filelists.mk
 
-SRCS = 	$(wildcard src/*.c) $(wildcard src/*.cpp) \
-       	$(wildcard $(SOCDIR)/*.c) $(wildcard $(SOCDIR)/*.cpp) \
-	$(COREFILES) $(CORE4FILES) $(LWIPDIR)/netif/ethernet.c \
-	$(CRT)
+SRCS += $(wildcard src/*.c) $(wildcard src/*.cpp)
+SRCS += $(wildcard $(SOCDIR)/*.c) $(wildcard $(SOCDIR)/*.cpp)
+SRCS += $(COREFILES) $(CORE4FILES) $(LWIPDIR)/netif/ethernet.c
+SRCS += $(CRT)
 
 
 OBJDIR = build
@@ -100,10 +86,6 @@ LDFLAGS += -march=$(MARCH)  -mabi=$(MABI) -specs=nano.specs -lnosys -lc_nano
 #LDFLAGS += -march=rv32im -mabi=ilp32 -specs=nano.specs -lnosys -lc_nano
 
 
-
-#include ../../../resources/subproject.mk
-
-
 ifeq ($(DEBUG),yes)
 	CFLAGS += -g3 -O0
 endif
@@ -123,7 +105,19 @@ else
 endif
 
 
-
+ifeq ($(MODEL),ram)
+	CRT = $(CRT_RAM)
+	LDSCRIPT = $(LDSCRIPT_RAM)
+	PROJ_NAME_M = $(PROJ_NAME)_ram
+else
+ifeq ($(MODEL),xip)
+	CRT = $(CRT_XIP)
+	LDSCRIPT = $(LDSCRIPT_XIP)
+	PROJ_NAME_M = $(PROJ_NAME)_xip
+else
+	#
+endif
+endif
 
 
 RISCV_OBJCOPY = $(RISCV_PATH)/bin/$(RISCV_NAME)-objcopy
@@ -143,9 +137,18 @@ OBJS := $(subst ..,__,$(OBJS))
 OBJS := $(addprefix $(OBJDIR)/,$(OBJS))
 
 
-all: check_build_num_file
+all:
+	$(MAKE) ram
+	$(MAKE) xip
+
+ram: check_build_num_file
+	@echo "*** Building for RAM ***"
 	$(MAKE) MODEL=ram build_sources $(OBJDIR)/$(PROJ_NAME).hexx
+
+xip: check_build_num_file
+	@echo "*** Building for XIP ***"
 	$(MAKE) MODEL=xip build_sources
+
 
 build_sources: $(OBJDIR)/$(PROJ_NAME_M).elf $(OBJDIR)/$(PROJ_NAME_M).hex $(OBJDIR)/$(PROJ_NAME_M).bin $(OBJDIR)/$(PROJ_NAME_M).asm $(OBJDIR)/$(PROJ_NAME_M).v
 

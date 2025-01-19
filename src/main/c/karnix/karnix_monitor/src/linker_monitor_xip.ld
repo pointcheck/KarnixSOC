@@ -20,7 +20,7 @@ MEMORY {
 
 }
 
-_stack_size = DEFINED(_stack_size) ? _stack_size : 2k; 
+_stack_size = DEFINED(_stack_size) ? _stack_size : 1800; 
 _ram_heap_size = DEFINED(_ram_heap_size) ? _ram_heap_size : 0;
 
 
