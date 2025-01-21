@@ -10,6 +10,7 @@
 #include "mac.h"
 #include "i2c.h"
 #include "uart.h"
+#include "sram.h"
 #include "utils.h"
 #include "modbus.h"
 #include "modbus_udp.h"
@@ -23,11 +24,10 @@
 #include "context.h"
 #include "cli.h"
 
-#define SRAM_SIZE       (512*1024)
-#define SRAM_ADDR_BEGIN 0x90000000
-#define SRAM_ADDR_END   (0x90000000 + SRAM_SIZE)
-
 #define	WELCOME_TEXT "Welcome to Karnix SoC Monitor. Copyright (C) 2024-2025, Fabmicro, LLC.\r\nBuild #%04u at %s %s. Main addr: %p\r\n\r\n"
+
+extern void __sinit(void *);
+extern unsigned int _IMPURE_DATA;
 
 extern struct netif default_netif;
 
@@ -39,9 +39,10 @@ volatile uint32_t reg_sys_counter = 0;
 volatile uint32_t reg_irq_counter = 0;
 volatile uint32_t reg_sys_print_stats = 3;
 volatile uint32_t reg_cga_vblank_irqs = 0;
-volatile uint32_t reg_audiodac0_irqs = 0;
 
+#if(RESET_ON_SOFT_START)
 __attribute__ ((section (".noinit"))) uint32_t deadbeef;	// If equal to 0xdeadbeef - we are in soft-start mode
+#endif
 
 
 void process_and_wait(uint32_t us) {
@@ -89,63 +90,11 @@ void process_and_wait(uint32_t us) {
 }
 
 
-int sram_test_write_random_ints(int interations) {
-	volatile unsigned int *mem;
-	unsigned int fill;
-	int fails = 0;
-
-	for(int i = 0; i < interations; i++) {
-		fill = 0xdeadbeef + i;
-		mem = (unsigned int*) SRAM_ADDR_BEGIN;
-
-		printf("Filling SRAM at: %p, size: %d bytes...\r\n", mem, SRAM_SIZE);
-
-		while((unsigned int)mem < SRAM_ADDR_END) {
-			*mem++ = fill;
-			fill += 0xdeadbeef; // generate pseudo-random data
-		}
-
-		fill = 0xdeadbeef + i;
-		mem = (unsigned int*) SRAM_ADDR_BEGIN;
-
-		printf("Checking SRAM at: %p, size: %d bytes...\r\n", mem, SRAM_SIZE);
-
-		while((unsigned int)mem < SRAM_ADDR_END) {
-			unsigned int tmp = *mem;
-			if(tmp != fill) {
-				printf("SRAM check failed at: %p, expected: %p, got: %p\r\n", mem, fill, tmp);
-				fails++;
-			} else {
-				//printf("\r\nMem check OK     at: %p, expected: %p, got: %p\r\n", mem, fill, *mem);
-			}
-			mem++;
-			fill += 0xdeadbeef; // generate pseudo-random data
-			break;
-		}
-
-		if((unsigned int)mem == SRAM_ADDR_END)
-			printf("SRAM Fails: %d\r\n", fails);
-
-		if(fails)
-			break;
-	}
-
-	return fails++;
-}
-
-extern void __sinit(void *);
-extern unsigned int _IMPURE_DATA;
-
 void main() {
 
 	csr_clear(mstatus, MSTATUS_MIE); // Disable Machine interrupts during hardware init
 
 	delay_us(2000000); // Wait for FCLK to settle
-
-	init_sbrk(NULL, 0); // Initialize heap for malloc to use on-chip RAM
-	__sinit(&_IMPURE_DATA);
-
-	printf(WELCOME_TEXT, BUILD_NUMBER, __DATE__, __TIME__, &main);
 
 	#if(RESET_ON_SOFT_START)
 	if(deadbeef == 0xdeadbeef) {
@@ -156,6 +105,11 @@ void main() {
 		deadbeef = 0xdeadbeef;
 	}
 	#endif
+
+	init_sbrk(NULL, 0); // Initialize heap for malloc to use on-chip RAM
+	__sinit(&_IMPURE_DATA); // Init LIBC impure_data structure
+
+	printf(WELCOME_TEXT, BUILD_NUMBER, __DATE__, __TIME__, &main);
 
 	GPIO->OUTPUT |= GPIO_OUT_LED0; // LED0 is ON - indicate we are not yet ready
 
@@ -292,9 +246,9 @@ void main() {
 
 	// Setup interrupt controller 
 	PLIC->POLARITY = 0x0000007f; // Configure PLIC IRQ polarity for UART0, UART1, MAC, I2C and AUDIODAC0 to Active High 
-	PLIC->EDGE = 0xfffffff8; // All by MAC and UARTs are Falling Edge
+	PLIC->EDGE = 0xfffffff8; // MAC, UARTs and TIMERs are Fixed Level IRQs
 	PLIC->PENDING = 0; // Clear all pending IRQs
-	PLIC->ENABLE = 0xffffffff; // Configure PLIC to enable interrupts from all possible IRQ lines
+	PLIC->ENABLE = 0x0000001f; // Enable IRQ lines for: UART0, UART1, TIMER0, TIMER1 and MAC
 	printf("PLIC configred: ENABLE: %p, POLARITY: %p, EDGE: %p\r\n",
 			PLIC->ENABLE, PLIC->POLARITY, PLIC->EDGE);
 
@@ -394,12 +348,6 @@ void externalInterrupt(void){
 		PLIC->PENDING &= ~PLIC_IRQ_TIMER1;
 	}
 
-	if(PLIC->PENDING & PLIC_IRQ_AUDIODAC0) { // AUDIODAC is pending
-		//printk("AUDIODAC IRQ\r\n");
-		reg_audiodac0_irqs++;
-		//audiodac0_samples_sent += audiodac0_isr();
-		PLIC->PENDING &= ~PLIC_IRQ_AUDIODAC0;
-	}
 
 	if(PLIC->PENDING & PLIC_IRQ_CGA_VBLANK) { // CGA vertical blanking 
 		//printk("VBLANK IRQ\r\n");
@@ -454,4 +402,5 @@ void irqCallback() {
 
 	// Interrupt state will be restored by MRET further in trap_entry.
 }
+
 
