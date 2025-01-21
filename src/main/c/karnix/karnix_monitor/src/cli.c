@@ -496,7 +496,7 @@ void cli_cmd_call(char *argv[], int argn) {
 	// so restore context completely.
 	context_restore();
 
-	printf("/// call: ret = %p, exec time = %lu millisecs\r\n", rc, t1 - t0);
+	printf("/// call: ret = %p (%d), exec time = %lu millisecs\r\n", rc, rc, t1 - t0);
 }
 
 void cli_cmd_ihex(char *argv[], int argn) {
