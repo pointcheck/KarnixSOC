@@ -105,7 +105,7 @@ void audiodac0_start_playback(short *ring_buffer, int ring_buffer_size) {
 	if(!ring_buffer || ring_buffer_size < 1)
 		return;
 
-	csr_clear(mstatus, MSTATUS_MIE); // Disable Machine interrupts
+	//csr_clear(mstatus, MSTATUS_MIE); // Disable Machine interrupts
 
 	AUDIODAC0->status &= ~(AUDIO_DAC_STATUS_CMD_INT_HALF_ENABLE | AUDIO_DAC_STATUS_CMD_INT_ENABLE); 
 
@@ -120,7 +120,7 @@ void audiodac0_start_playback(short *ring_buffer, int ring_buffer_size) {
 
 	printf("audiodac0_start_playback: done\r\n");
 
-	csr_set(mstatus, MSTATUS_MIE); // Enable Machine interrupts
+	//csr_set(mstatus, MSTATUS_MIE); // Enable Machine interrupts
 }
 
 void audiodac0_stop_playback(void) {
