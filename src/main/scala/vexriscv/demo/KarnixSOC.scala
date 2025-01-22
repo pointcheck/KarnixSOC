@@ -115,8 +115,8 @@ object KarnixSOCConfig{
           timerWidth     = 16,
           ssWidth        = 1 // only one CS line
         ),
-        cmdFifoDepth = 256, // CMD is same as TX FIFO
-        rspFifoDepth = 256  // RSP is same as RX FIFO
+        cmdFifoDepth = 1024, // CMD is same as TX FIFO
+        rspFifoDepth = 16  // RSP is same as RX FIFO
       ),
 
       spi0Config = SpiMasterCtrlMemoryMappedConfig(
@@ -595,7 +595,7 @@ case class KarnixSOCTopLevel() extends Component{
     }
 
     val briey = new KarnixSOC(KarnixSOCConfig.default.copy(
-		axiFrequency = 58.3 MHz, 
+		axiFrequency = 59.0 MHz, 
 		onChipRamSize = 72 kB , 
 		onChipRamHexFile = "KarnixSOCTopLevel_random.hex"
 	))
