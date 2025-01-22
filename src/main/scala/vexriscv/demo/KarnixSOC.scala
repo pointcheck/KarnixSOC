@@ -115,7 +115,7 @@ object KarnixSOCConfig{
           timerWidth     = 16,
           ssWidth        = 1 // only one CS line
         ),
-        cmdFifoDepth = 1024, // CMD is same as TX FIFO
+        cmdFifoDepth = 2048, // CMD is same as TX FIFO
         rspFifoDepth = 16  // RSP is same as RX FIFO
       ),
 
