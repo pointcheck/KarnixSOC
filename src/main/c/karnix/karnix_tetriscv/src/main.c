@@ -8,60 +8,54 @@
 #include "plic.h"
 #include "i2c.h"
 #include "uart.h"
+#include "sram.h"
 #include "utils.h"
 #include "eeprom.h"
 #include "cga.h"
 #include "tetris.h"
 #include "config.h"
 
-/* Below is some linker specific stuff */
-extern unsigned int   _stack_start; /* Set by linker.  */
-extern unsigned int   _stack_size; /* Set by linker.  */
-extern unsigned int   trap_entry;
-extern unsigned int   heap_start; /* programmer defined heap start */
-extern unsigned int   heap_end; /* programmer defined heap end */
+#define	AUDIO_ENABLED	1
+#define	USE_SRAM	1	// If set, test and use SRAM for Heap, otherwise use RAM.
 
-#define SRAM_SIZE       (512*1024)
-#define SRAM_ADDR_BEGIN 0x90000000
-#define SRAM_ADDR_END   (0x90000000 + SRAM_SIZE)
-
-void println(const char*str);
+// LIBC stuff
+extern void __sinit(void *);
+extern unsigned int _IMPURE_DATA;
 
 volatile uint32_t uart_config_reset_counter = 0;
 volatile uint32_t reg_irq_counter = 0;
 volatile uint32_t reg_sys_counter = 0;
 
+#if(AUDIO_ENABLED)
+#define	AUDIO_RING_BUFFER_SIZE	(4000*2)		// Audio playback ring buffer
 volatile uint32_t audiodac0_irqs = 0;
 volatile uint32_t audiodac0_samples_sent = 0;
+#endif
+
 volatile uint32_t cga_vblank_irqs = 0;
 
-uint32_t deadbeef = 0;		// If not zero - we are in soft-start mode
+uint32_t console_config_reset_counter = 0;
 
-void println(const char*str){
-	print_uart0(str);
-	print_uart0("\r\n");
-}
+#if(RESET_ON_SOFT_START)
+__attribute__ ((section (".noinit"))) uint32_t deadbeef;	// If equal to 0xdeadbeef - we are in soft-start mode
+#endif
 
-char to_hex_nibble(char n)
-{
-	n &= 0x0f;
+#define	VIDEO_BUFFER_SIZE	(20*1024)		// Size of double buffer
+static unsigned char *videobuf_for_text = 0;		// Double buffer for text
+static unsigned char *videobuf_for_graphics = 0;	// Double buffer for graphics
 
-	if(n > 0x09)
-		return n + 'A' - 0x0A;
-	else
-		return n + '0';
-}
-
-void to_hex(char*s , unsigned int n)
-{
-	for(int i = 0; i < 8; i++) {
-		s[i] = to_hex_nibble(n >> (28 - i*4));
-	}
-	s[8] = 0;
-}
-
-static unsigned char *videobuf_for_text = (unsigned char*)0x90001000;
-static unsigned char *videobuf_for_graphics = (unsigned char*)0x90006000;
+static const uint32_t colorfx_rainbow[] = {
+	// Straight
+	0x000000ff, 0x000055ff, 0x0000aaff, 0x0000ffff,
+	0x0000ffaa, 0x0000ff2a, 0x002bff00, 0x0080ff00,
+	0x00d4ff00, 0x00ffd400, 0x00ffaa00, 0x00ff5500,
+	0x00ff0000, 0x00ff0055, 0x00ff00aa, 0x00ff00ff,
+	// Reversed
+	0x00ff00ff, 0x00ff00aa, 0x00ff0055, 0x00ff0000,
+	0x00ff5500, 0x00ffaa00, 0x00ffd400, 0x00d4ff00,
+	0x0080ff00, 0x002bff00, 0x0000ff2a, 0x0000ffaa,
+	0x0000ffff, 0x0000aaff, 0x000055ff, 0x000000ff,
+};
 
 float my_sine(float x)
 {
@@ -83,7 +77,7 @@ int _sprite_idx;
 
 void show_greetings(void) {
 
-	char *greetings = 
+	const char *greetings = 
 		ESC_FG "15;\t######  ######  ######  " ESC_FG "5;#####    ####   ####    ####         ##  ##\r\n"
 		ESC_FG "15;\t  ##    ##        ##    " ESC_FG "5;##  ##    ##   ##      ##  ##        ##  ##\r\n"
 		ESC_FG "15;\t  ##    ####      ##    " ESC_FG "5;#####     ##    ####   ##      ####  ##  ##\r\n"
@@ -133,11 +127,11 @@ void show_greetings(void) {
 		"\n"
 		"\t\t*\t*\t*\n\n\n\n";
 	       
-	memset(videobuf_for_text, 0, 20*1024);
-	cga_text_print(videobuf_for_text, 0,  0, 15, 0, greetings);
+	memset(videobuf_for_text, 0, VIDEO_BUFFER_SIZE);
+	cga_text_print(videobuf_for_text, 0,  0, 15, 0, (char*)greetings);
 	cga_set_cursor_xy(48, 22);
 
-	memset(videobuf_for_graphics, 0, 20*1024);
+	memset(videobuf_for_graphics, 0, VIDEO_BUFFER_SIZE);
 
 	for(int y = 0; y < 240; y += 48)
 		for(int x = 0; x < 320; x += 48)
@@ -149,193 +143,201 @@ void show_greetings(void) {
 	_sprite_idx++;
 }
 
-int sram_test_write_random_ints(int interations) {
-	volatile unsigned int *mem;
-	unsigned int fill;
-	int fails = 0;
 
-	for(int i = 0; i < interations; i++) {
-		fill = 0xdeadbeef + i;
-		mem = (unsigned int*) SRAM_ADDR_BEGIN;
-
-		printf("Filling SRAM at: %p, size: %d bytes...\r\n", mem, SRAM_SIZE);
-
-		while((unsigned int)mem < SRAM_ADDR_END) {
-			*mem++ = fill;
-			fill += 0xdeadbeef; // generate pseudo-random data
-		}
-
-		fill = 0xdeadbeef + i;
-		mem = (unsigned int*) SRAM_ADDR_BEGIN;
-
-		printf("Checking SRAM at: %p, size: %d bytes...\r\n", mem, SRAM_SIZE);
-
-		while((unsigned int)mem < SRAM_ADDR_END) {
-			unsigned int tmp = *mem;
-			if(tmp != fill) {
-				printf("SRAM check failed at: %p, expected: %p, got: %p\r\n", mem, fill, tmp);
-				fails++;
-			} else {
-				//printf("\r\nMem check OK     at: %p, expected: %p, got: %p\r\n", mem, fill, *mem);
-			}
-			mem++;
-			fill += 0xdeadbeef; // generate pseudo-random data
-			break;
-		}
-
-		if((unsigned int)mem == SRAM_ADDR_END)
-			printf("SRAM Fails: %d\r\n", fails);
-
-		if(fails)
-			break;
-	}
-
-	return fails++;
-}
-
-void main() {
+int main(void) {
 
 	csr_clear(mstatus, MSTATUS_MIE); // Disable Machine interrupts during hardware init
 
-	init_sbrk(NULL, 0); // Initialize heap for malloc to use on-chip RAM
-
-	delay_us(2000000); // Allow user to connect to debug uart
-
-	if(deadbeef != 0) {
-		print("Soft-start, performing hard reset!\r\n");
+	#if(RESET_ON_SOFT_START)
+	if(deadbeef == 0xdeadbeef) {
+		printk("Soft-start, performing hard reset!\r\n");
+		delay_us(200000);
 		hard_reboot();
 	} else {
 		deadbeef = 0xdeadbeef;
 	}
+	#endif
+
+	init_sbrk(NULL, 0); // Initialize heap for malloc to use RAM above stack
+	__sinit(&_IMPURE_DATA); // Init LIBC impure_data structure
 
 	printf("\r\n"
-		"Karnix ASB-254. Tetris. Build %05d, date/time: " __DATE__ " " __TIME__ "\r\n"
-		"Copyright (C) 2024 Fabmicro, LLC., Tyumen, Russia.\r\n\r\n",
+		"Tetris for Karnix SoC. Build %05d on " __DATE__ " at " __TIME__ "\r\n"
+		"Copyright (C) 2024-2025 Fabmicro, LLC., Tyumen, Russia.\r\n\r\n",
 		BUILD_NUMBER
 	);
 
 	GPIO->OUTPUT |= GPIO_OUT_LED0; // LED0 is ON - indicate we are not yet ready
 
-	printf("Hardware init\r\n");
+	// Enable I2C for EEPROM
+	i2c_init(I2C0);
 
+        printf("=== Configuring ===\r\n");
+
+        // Reset to Factory Defaults if "***" sequence received from UART0
+        fpurge(stdout);
+        printf("\r\nPress '*' to reset config");
+        fflush(stdout);
+
+        console_config_reset_counter = 0;
+
+        for(int i = 0; i < 5; i++) {
+                if(uart_readOccupancy(UART0)) {
+                        char c = UART0->DATA;
+
+                        if(c == '*') {
+                                uart_write(UART0, c);
+                                console_config_reset_counter++;
+                        } else {
+                                console_config_reset_counter = 0;
+                        }
+                }
+
+                if(console_config_reset_counter > 2) // has user typed *** on the console ?
+                        break;
+
+                if((GPIO->INPUT & GPIO_IN_CONFIG_PIN) == 0) // is CONFIG pin tied to ground ?
+                        break;
+
+                putchar('.');
+                fflush(stdout);
+                delay_us(500000);
+        }
+
+        printf("\r\n");
+
+        active_config = default_config;
+
+        if(console_config_reset_counter > 2) {
+                console_config_reset_counter = 0;
+                printf("Defaults loaded by %s!\r\n", "user request");
+        } else if((GPIO->INPUT & GPIO_IN_CONFIG_PIN) == 0) {
+                printf("Defaults loaded by %s!\r\n", "CONFIG pin");
+        } else {
+                if(eeprom_probe(I2C0) == 0) {
+                        if(config_load(&active_config) == 0) {
+                                printf("Config loaded from EEPROM\r\n");
+                        } else {
+                                active_config = default_config;
+                                printf("Defaults loaded by %s!\r\n", "EEPROM CRC ERROR");
+                        }
+                } else {
+                        printf("Defaults loaded by %s!\r\n", "EEPROM malfunction");
+                }
+        }
+
+        printf("=== Hardware init ===\r\n");
+
+	#if(USE_SRAM)
 	// Test SRAM and initialize heap for malloc to use SRAM if tested OK
-	if(sram_test_write_random_ints(10) == 0) {
+	if(sram_test_write_random_ints(1) == 0) {
 		printf("Enabling SRAM...\r\n");
 		init_sbrk((unsigned int*)SRAM_ADDR_BEGIN, SRAM_SIZE);
-		printf("SRAM %s!\r\n", "enabled"); 
+		printf("SRAM at %p is %s!\r\n", SRAM_ADDR_BEGIN, "enabled"); 
 		// If this prints, we are running with new heap all right
 		// Note, that some garbage can be printed along, that's ok!
-
-		//test_byte_access();
 	} else {
-		printf("SRAM %s!\r\n", "disabled"); 
+		printf("SRAM at %p is %s!\r\n", SRAM_ADDR_BEGIN, "disabled"); 
 	}
+	#endif
+
 
 	// Init CGA: enable graphics mode and load color palette
 	cga_set_video_mode(CGA_MODE_GRAPHICS1);
 
-	static uint32_t rgb_palette[16] = {
+	static const uint32_t rgb_palette[16] = {
 			0x00000000, 0x000000f0, 0x0000f000, 0x00f00000,
 			0x0000f0f0, 0x00f000f0, 0x00f0f000, 0x00f0f0f0,
 			0x000f0f0f, 0x000f0fff, 0x000fff0f, 0x00ff0f0f,
 			0x000fffff, 0x00ff0fff, 0x00ffff0f, 0x00ffffff,
 			};
-	cga_set_palette(rgb_palette);
+	cga_set_palette((uint32_t*)rgb_palette);
 
-	csr_clear(mstatus, MSTATUS_MIE); // Disable Machine interrupts during hardware init 
+	printf("CGA init done\r\n");
 
-	// Enable writes to EEPROM
-	GPIO->OUTPUT &= ~GPIO_OUT_EEPROM_WP; 
-
-	// Configure interrupt controller 
-	PLIC->POLARITY = 0x0000007f; // Configure PLIC IRQ polarity for UART0, UART1, MAC, I2C and AUDIODAC0 to Active High 
-	PLIC->PENDING = 0; // Clear all pending IRQs
-	PLIC->ENABLE = 0xffffffff; // Configure PLIC to enable interrupts from all possible IRQ lines
+	// Reset PLIC interrupt controller and disable all IRQ lines 
+	PLIC->ENABLE = 0;
+	PLIC->POLARITY = 0;
+	PLIC->EDGE = 0;
+	PLIC->PENDING = 0;
 
 	// Configure UART0 IRQ sources: bit(0) - TX interrupts, bit(1) - RX interrupts 
-	UART0->STATUS = (UART0->STATUS | UART_STATUS_RX_IRQ_EN); // Allow only RX interrupts 
-
-	// Configure UART1 IRQ sources: bit(0) - TX interrupts, bit(1) - RX interrupts 
-	UART1->STATUS = (UART1->STATUS | UART_STATUS_RX_IRQ_EN); // Allow only RX interrupts 
-
-	// Configure RISC-V IRQ stuff
-	//csr_write(mtvec, ((unsigned long)&trap_entry)); // Set IRQ handling vector
+	UART0->STATUS |= UART_STATUS_RX_IRQ_EN; // Allow only RX interrupts 
+	PLIC->EDGE &= ~PLIC_IRQ_UART0;
+	PLIC->POLARITY |= PLIC_IRQ_UART0;
+	PLIC->ENABLE |= PLIC_IRQ_UART0;
+		
+	printf("UART0 init done\r\n");
 
 	// Setup TIMER0 to 100 ms timer for Mac: 25 MHz / 25 / 10000
 	timer_prescaler(TIMER0, SYSTEM_CLOCK_HZ / 1000000);
 	timer_run(TIMER0, 100000);
+	PLIC->EDGE |= PLIC_IRQ_TIMER0;
+	PLIC->POLARITY |= PLIC_IRQ_TIMER0;
+	PLIC->ENABLE |= PLIC_IRQ_TIMER0;
+
+	printf("TIMER0 init done\r\n");
 
 	// Setup TIMER0 to 50 ms timer for Modbus: 25 MHz / 25 / 10000
 	timer_prescaler(TIMER1, SYSTEM_CLOCK_HZ / 1000000);
 	timer_run(TIMER1, 50000);
+	PLIC->EDGE |= PLIC_IRQ_TIMER1;
+	PLIC->POLARITY |= PLIC_IRQ_TIMER1;
+	PLIC->ENABLE |= PLIC_IRQ_TIMER1;
 
-
-	// I2C and EEPROM
-	i2c_init(I2C0);
-	
-
-	// Reset to Factory Defaults if "***" sequence received from UART0
-
-	csr_set(mstatus, MSTATUS_MIE); // Enable Machine interrupts during user input 
-
-	fpurge(stdout);
-	printf("Press '*' to reset config");
-	fflush(stdout);
-
-	for(int i = 0; i < 5; i++) {
-		if(uart_config_reset_counter > 2) // has user typed *** on the console ?
-			break;
-
-		if((GPIO->INPUT & GPIO_IN_CONFIG_PIN) == 0) // is CONFIG pin tied to ground ?
-			break;
-
-		putchar('.');
-		fflush(stdout);
-		delay_us(500000);
-	}
-
-	printf("\r\n");
-
-	active_config = default_config; 
-
-	if(uart_config_reset_counter > 2) {
-		uart_config_reset_counter = 0;
-		printf("Defaults loaded by %s!\r\n", "user request");
- 	} else if((GPIO->INPUT & GPIO_IN_CONFIG_PIN) == 0) {
-		printf("Defaults loaded by %s!\r\n", "CONFIG pin");
-	} else {
-		if(eeprom_probe(I2C0) == 0) {
-			if(config_load(&active_config) == 0) {
-				printf("Config loaded from EEPROM\r\n");
-			} else {
-				active_config = default_config;
-				printf("Defaults loaded by %s!\r\n", "EEPROM CRC ERROR");
-			}
-		} else {
-			printf("Defaults loaded by %s!\r\n", "EEPROM malfunction");
-		}
-	} 
-
-
-	csr_clear(mstatus, MSTATUS_MIE); // Disable Machine interrupts during hardware init
+	printf("TIMER1 init done\r\n");
 
 	// AUDIO DAC
-	audiodac_init(AUDIODAC0, 16000);
+	#if(AUDIO_ENABLED)
+	audiodac_init(AUDIODAC0, 8000);
 
-	short *ring_buffer = (short *)malloc(30000*2);
+	short *audio_ring_buffer = (short *)malloc(AUDIO_RING_BUFFER_SIZE);
 
-	if(ring_buffer) {
-		audiodac0_start_playback(ring_buffer, 30000);
+	if(audio_ring_buffer) {
+		audiodac0_start_playback(audio_ring_buffer, AUDIO_RING_BUFFER_SIZE/2);
 	} else {
-		printf("Failed to allocate ring_buffer!\r\n");
+		printf("Failed to allocate %d bytes for audio_ring_buffer, sbrk_heap_end = %p\r\n",
+			AUDIO_RING_BUFFER_SIZE, sbrk_heap_end);
+		return -1;
 	}
 
+	// Configure AUDIOCAD0 IRQ source
+	PLIC->EDGE |= PLIC_IRQ_AUDIODAC0;
+	PLIC->POLARITY |= PLIC_IRQ_AUDIODAC0;
+	PLIC->ENABLE |= PLIC_IRQ_AUDIODAC0;
 
-	printf("Hardware init done\r\n");
+	printf("AUDIODAC0 init done\r\n");
+	#endif
+
+
+	// Init video double buffers
+	videobuf_for_text = malloc(VIDEO_BUFFER_SIZE);
+
+	if(videobuf_for_text == NULL) {
+		printf("Failed to allocate %d bytes for videobuf_for_text, sbrk_heap_end = %p\r\n",
+			VIDEO_BUFFER_SIZE, sbrk_heap_end);
+		return -1;
+	}
+	
+	videobuf_for_graphics = malloc(VIDEO_BUFFER_SIZE);
+
+	if(videobuf_for_graphics == NULL) {
+		printf("Failed to allocate %d bytes for videobuf_for_graphics, sbrk_heap_end = %p\r\n",
+			VIDEO_BUFFER_SIZE, sbrk_heap_end);
+		return -1;
+	}
+	
+	printf("Video double-buffers allocated\r\n");
+
+	// Enable writes to EEPROM
+	GPIO->OUTPUT &= ~GPIO_OUT_EEPROM_WP; 
 
 	GPIO->OUTPUT &= ~(GPIO_OUT_LED0 | GPIO_OUT_LED1 | GPIO_OUT_LED2 | GPIO_OUT_LED3);
 
+	printf("=== Hardware init done ===\r\n");
+
 	csr_set(mstatus, MSTATUS_MIE); // Enable Machine interrupts
+
 
 	// Tetris init
 
@@ -368,36 +370,26 @@ void main() {
 
 		GPIO->OUTPUT &= ~(GPIO_OUT_LED1 | GPIO_OUT_LED2 | GPIO_OUT_LED3);
 
-
-		// PLIC
-		if(0) {
+		// Print resource usage statistics 
+		#if(1)
+	       	if(reg_sys_counter % 128 == 0) {
 			printf("Build %05d: irqs = %d, sys_cnt = %d, sbrk_heap_end = %p, "
-				"audiodac0_samples_sent = %d, audiodac0_irqs = %d, vblank_irqs = %d\r\n",
+				"audiodac0_samples_sent = %d, audiodac0_irqs = %d, audiodac0_tx_fifo_empty = %d, "
+				"audiodac0_tx_buffer_empty = %d, vblank_irqs = %d\r\n",
 				BUILD_NUMBER,
 				reg_irq_counter, reg_sys_counter, sbrk_heap_end,
-				audiodac0_samples_sent, audiodac0_irqs, cga_vblank_irqs);
+				audiodac0_samples_sent, audiodac0_irqs,
+				audiodac0_tx_fifo_empty, audiodac0_tx_buffer_empty,
+				cga_vblank_irqs);
 
-			plic_print_stats();
+			//plic_print_stats();
 
 		}
-
+		#endif
 
 		// Tetris Game screen
 
 		if(gameOver == 0) {
-
-			static uint32_t colorfx_rainbow[] = {
-				// Straight
-				0x000000ff, 0x000055ff, 0x0000aaff, 0x0000ffff,
-				0x0000ffaa, 0x0000ff2a, 0x002bff00, 0x0080ff00,
-				0x00d4ff00, 0x00ffd400, 0x00ffaa00, 0x00ff5500,
-				0x00ff0000, 0x00ff0055, 0x00ff00aa, 0x00ff00ff,
-				// Reversed
-				0x00ff00ff, 0x00ff00aa, 0x00ff0055, 0x00ff0000,
-				0x00ff5500, 0x00ffaa00, 0x00ffd400, 0x00d4ff00,
-				0x0080ff00, 0x002bff00, 0x0000ff2a, 0x0000ffaa,
-				0x0000ffff, 0x0000aaff, 0x000055ff, 0x000000ff,
-			};
 
 			static int colorfx_offset = 6;
 
@@ -464,19 +456,6 @@ void main() {
 				continue;
 			}
 
-			static uint32_t colorfx_rainbow[] = {
-				// Straight
-				0x000000ff, 0x000055ff, 0x0000aaff, 0x0000ffff,
-				0x0000ffaa, 0x0000ff2a, 0x002bff00, 0x0080ff00,
-				0x00d4ff00, 0x00ffd400, 0x00ffaa00, 0x00ff5500,
-				0x00ff0000, 0x00ff0055, 0x00ff00aa, 0x00ff00ff,
-				// Reversed
-				0x00ff00ff, 0x00ff00aa, 0x00ff0055, 0x00ff0000,
-				0x00ff5500, 0x00ffaa00, 0x00ffd400, 0x00d4ff00,
-				0x0080ff00, 0x002bff00, 0x0000ff2a, 0x0000ffaa,
-				0x0000ffff, 0x0000aaff, 0x000055ff, 0x000000ff,
-			};
-
 			static int colorfx_offset = 6;
 
 			int colorfx_idx = colorfx_offset;
@@ -505,14 +484,14 @@ void main() {
 
 			memset(videobuf_for_text, 0, 20*1024);
 
-			char *game_over_text =
+			const char *game_over_text =
 				"\t ###     ##    #    #  ######     #####   #    #  ######  ##### \r\n"
 				"\t#       #  #   ##  ##  #         #     #  #    #  #       #    #\r\n"
 				"\t#  ##   ####   # ## #  ###       #     #  #    #  ###     ##### \r\n"
 				"\t#   #  #    #  #    #  #         #     #   #  #   #       #   # \r\n" 
 				"\t ####  #    #  #    #  ######     #####     ##    ######  #    #\r\n"
 				;
-			cga_text_print(videobuf_for_text, 0, 10, 5, 0, game_over_text);
+			cga_text_print(videobuf_for_text, 0, 10, 5, 0, (char*)game_over_text);
 
 			char score_text[32];
 			snprintf(score_text, 32, ESC_FG "15;Last score: %u", score);
@@ -533,19 +512,6 @@ void main() {
 				newGame();
 				continue;
 			}
-
-			static uint32_t colorfx_rainbow[] = {
-				// Straight
-				0x000000ff, 0x000055ff, 0x0000aaff, 0x0000ffff,
-				0x0000ffaa, 0x0000ff2a, 0x002bff00, 0x0080ff00,
-				0x00d4ff00, 0x00ffd400, 0x00ffaa00, 0x00ff5500,
-				0x00ff0000, 0x00ff0055, 0x00ff00aa, 0x00ff00ff,
-				// Reversed
-				0x00ff00ff, 0x00ff00aa, 0x00ff0055, 0x00ff0000,
-				0x00ff5500, 0x00ffaa00, 0x00ffd400, 0x00d4ff00,
-				0x0080ff00, 0x002bff00, 0x0000ff2a, 0x0000ffaa,
-				0x0000ffff, 0x0000aaff, 0x000055ff, 0x000000ff,
-			};
 
 			static int colorfx_offset = 6;
 
@@ -570,7 +536,7 @@ void main() {
 			cga_wait_vblank();
 			cga_set_video_mode(CGA_MODE_GRAPHICS1);
 			cga_set_scroll(0);
-			memcpy(CGA->FB, videobuf_for_graphics, 20*1024); 
+			memcpy(CGA->FB, videobuf_for_graphics, VIDEO_BUFFER_SIZE); 
 			cga_wait_vblank_end();
 
 			show_greetings();
@@ -579,23 +545,26 @@ void main() {
 
 		// Audio
 
-		#ifdef	AUDIO
-		if(0) {
-			int audio_idx = 0;
+		#if(AUDIO_ENABLED)
+		{
+			static unsigned int t = 0;
+			unsigned short buf[120];
 
-			for(int i = 0; i < 30000 / SINE_TABLE_SIZE; i++) {
+			int processed;
 
-				short audio_buf[SINE_TABLE_SIZE];
-				int a;
+			// Synthesize audio effect using formulae:
+			
+			for(int j = 0; j < AUDIO_RING_BUFFER_SIZE / 2 / 120; j++) {
 
-				for(int j = 0; j < SINE_TABLE_SIZE; j++) {
-					audio_buf[j] = sine_table[audio_idx];
-					audio_idx++;
-					audio_idx %= SINE_TABLE_SIZE;
-				}
+				for(int i = 0; i < 120; i++,t++)
+					buf[i] = t*(t^t+(t>>15|1)^(t-1280^t)>>10); 
+					//buf[i] = (t*5&t>>7)|(t*3&t>>10);
+					//buf[i] = (t&t%255)-(t*3&t>>13&t>>6);
 
-				if((a = audiodac0_submit_buffer(audio_buf, SINE_TABLE_SIZE, DAC_NOT_ISR)) != SINE_TABLE_SIZE) {
-				       	//printf("main: audiodac0_submit_buffer partial: %d (%d), i = %d\r\n", a, SINE_TABLE_SIZE, i);
+				if((processed = audiodac0_submit_buffer(buf, 120, DAC_NOT_ISR)) != 120) {
+				       	//printf("audiodac0_submit_buffer partial: %d of %d\r\n", processed, 120);
+
+					t -= (120 - processed); // Rollback t if partially loaded
 					break;
 				}
 			}
@@ -661,12 +630,14 @@ void externalInterrupt(void){
 		PLIC->PENDING &= ~PLIC_IRQ_TIMER1;
 	}
 
+	#if(AUDIO_ENABLED)
 	if(PLIC->PENDING & PLIC_IRQ_AUDIODAC0) { // AUDIODAC is pending
 		//print("AUDIODAC IRQ\r\n");
 		audiodac0_irqs++;
 		audiodac0_samples_sent += audiodac0_isr();
 		PLIC->PENDING &= ~PLIC_IRQ_AUDIODAC0;
 	}
+	#endif
 
 	if(PLIC->PENDING & PLIC_IRQ_CGA_VBLANK) { // CGA vertical blanking 
 		//print("VBLANK IRQ\r\n");
@@ -676,18 +647,11 @@ void externalInterrupt(void){
 }
 
 
-static char crash_str[16];
-
 void crash(int cause) {
 	
-	print("\r\n*** TRAP: ");
-	to_hex(crash_str, cause);
-	print(crash_str);
-	print(" at ");
+	printk("\r\n*** TRAP: %p at %p\r\n", cause, csr_read(mepc), csr_read(mtval));
 
-	to_hex(crash_str, csr_read(mepc));
-	print(crash_str);
-	print("\r\n");
+	for(;;);
 
 }
 
