@@ -88,9 +88,11 @@ void audiodac0_start_playback(short *ring_buffer, int ring_buffer_size);
 int audiodac0_submit_buffer(short *audio_buffer, int audio_buffer_fill, int isr_flag);
 
 extern short *audiodac0_tx_ring_buffer; 
-extern int audiodac0_tx_ring_buffer_size;
-extern int audiodac0_tx_ring_buffer_playback_ptr;
-extern int audiodac0_tx_ring_buffer_fill_ptr;
+extern volatile int audiodac0_tx_ring_buffer_size;
+extern volatile int audiodac0_tx_ring_buffer_playback_ptr;
+extern volatile int audiodac0_tx_ring_buffer_fill_ptr;
+extern volatile int audiodac0_tx_fifo_empty;
+extern volatile int audiodac0_tx_buffer_empty;
 
 #endif // _AUDIODAC_H_
 
