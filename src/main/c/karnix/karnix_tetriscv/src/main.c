@@ -17,6 +17,7 @@
 
 #define	AUDIO_ENABLED	1
 #define	USE_SRAM	1	// If set, test and use SRAM for Heap, otherwise use RAM.
+//#define	PRINT_STATS	1	// If set, prints IRQ and buffer statistics once a second
 
 // LIBC stuff
 extern void __sinit(void *);
@@ -381,7 +382,7 @@ int main(void) {
 		GPIO->OUTPUT &= ~(GPIO_OUT_LED1 | GPIO_OUT_LED2 | GPIO_OUT_LED3);
 
 		// Print resource usage statistics 
-		#if(1)
+		#if(PRINT_STATS)
 		uint64_t timestamp = get_mtime();
 		if(timestamp - reg_sys_timestamp >= 1000000) {
 
