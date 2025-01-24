@@ -32,38 +32,28 @@ int audiodac0_submit_buffer(short *audio_buffer, int audio_buffer_fill, int isr_
 		csr_clear(mstatus, MSTATUS_MIE); // Disable Machine interrupts
 
 	if(audiodac0_tx_ring_buffer_fill_ptr >= audiodac0_tx_ring_buffer_playback_ptr) {
+
 		int low_part_size  = MIN(audio_buffer_fill, audiodac0_tx_ring_buffer_size - audiodac0_tx_ring_buffer_fill_ptr);
 		int high_part_size = audio_buffer_fill - low_part_size; 
 
 		//printk("audiodac0_submit_buffer: low_part_size = %d, high_part_size = %d\r\n", low_part_size, high_part_size);
 
-		if(!isr_flag)
-			csr_set(mstatus, MSTATUS_MIE); // Temporarily enable interrupts while copying 
-
-		for(int i = 0; i < low_part_size; i++) 
-			audiodac0_tx_ring_buffer[audiodac0_tx_ring_buffer_fill_ptr + i] = *audio_buffer++;
-
-		if(!isr_flag)
-			csr_clear(mstatus, MSTATUS_MIE); // Disable interrupts 
+		memcpy(audiodac0_tx_ring_buffer + audiodac0_tx_ring_buffer_fill_ptr, audio_buffer, low_part_size*2);
+		audio_buffer += low_part_size;
 
 		audiodac0_tx_ring_buffer_fill_ptr += low_part_size;
 		audiodac0_tx_ring_buffer_fill_ptr %= audiodac0_tx_ring_buffer_size;
 
 		processed += low_part_size;
 
+		high_part_size = MIN(high_part_size, audiodac0_tx_ring_buffer_playback_ptr);
+
 		if(high_part_size) {
-			high_part_size = MIN(high_part_size, audiodac0_tx_ring_buffer_playback_ptr);
 
-			if(!isr_flag)
-				csr_set(mstatus, MSTATUS_MIE); // Temporarily enable interrupts while copying 
+			memcpy(audiodac0_tx_ring_buffer, audio_buffer, high_part_size*2);
+			audio_buffer++;
 
-			for(int i = 0; i < high_part_size; i++) 
-				audiodac0_tx_ring_buffer[i] = *audio_buffer++;
-
-			if(!isr_flag)
-				csr_clear(mstatus, MSTATUS_MIE); // Disable interrupts 
-
-			audiodac0_tx_ring_buffer_fill_ptr += high_part_size;
+			audiodac0_tx_ring_buffer_fill_ptr = high_part_size;
 
 			processed += high_part_size;
 		}
@@ -71,15 +61,8 @@ int audiodac0_submit_buffer(short *audio_buffer, int audio_buffer_fill, int isr_
 		int low_part_size = MIN(audio_buffer_fill, audiodac0_tx_ring_buffer_playback_ptr -
 				audiodac0_tx_ring_buffer_fill_ptr - 1); 
 
-		if(!isr_flag)
-			csr_set(mstatus, MSTATUS_MIE); // Temporarily enable interrupts while copying 
-
-		for(int i = 0; i < low_part_size; i++) 
-			audiodac0_tx_ring_buffer[audiodac0_tx_ring_buffer_fill_ptr + i] = *audio_buffer++;
+		memcpy(audiodac0_tx_ring_buffer + audiodac0_tx_ring_buffer_fill_ptr, audio_buffer, low_part_size*2);
 		
-		if(!isr_flag)
-			csr_clear(mstatus, MSTATUS_MIE); // Disable interrupts 
-
 		audiodac0_tx_ring_buffer_fill_ptr += low_part_size;
 
 		processed += low_part_size;
@@ -104,10 +87,12 @@ int audiodac0_submit_buffer(short *audio_buffer, int audio_buffer_fill, int isr_
 
 void audiodac0_start_playback(short *ring_buffer, int ring_buffer_size) {
 
-	if(!ring_buffer || ring_buffer_size < 1)
+	if(!ring_buffer || ring_buffer_size < 10)
 		return;
 
 	//csr_clear(mstatus, MSTATUS_MIE); // Disable Machine interrupts
+
+	int avail = audiodac_get_tx_avail(AUDIODAC0);
 
 	AUDIODAC0->status &= ~(AUDIO_DAC_STATUS_CMD_INT_HALF_ENABLE | AUDIO_DAC_STATUS_CMD_INT_ENABLE); 
 
@@ -120,7 +105,7 @@ void audiodac0_start_playback(short *ring_buffer, int ring_buffer_size) {
 
 	AUDIODAC0->status |= AUDIO_DAC_STATUS_CMD_INT_HALF_ENABLE | AUDIO_DAC_STATUS_CMD_INT_ENABLE; 
 
-	printk("audiodac0_start_playback: done\r\n");
+	printk("audiodac0_start_playback: done, fifo depth is %d samples\r\n", avail);
 
 	//csr_set(mstatus, MSTATUS_MIE); // Enable Machine interrupts
 }
@@ -129,12 +114,40 @@ void audiodac0_stop_playback(void) {
 	AUDIODAC0->status &= ~(AUDIO_DAC_STATUS_CMD_INT_HALF_ENABLE | AUDIO_DAC_STATUS_CMD_INT_ENABLE); 
 }
 
-int audiodac0_isr(void) {
-	int samples_to_send = 0, samples_sent = 0;
+int audiodac0_isr_test_saw(void) {
+	int samples_to_send = 0, samples_sent = 0, space_available = 0;
+
+	static int t = 0;
 
 	if(AUDIODAC0->status & AUDIO_DAC_STATUS_CMD_INT) {
-		//printk("audiodac0_isr: tx FIFO is empty!\r\n");
+		printk("audiodac0_isr: tx FIFO is empty!\r\n");
 		audiodac0_tx_fifo_empty++;
+	}
+
+	while((space_available = audiodac_get_tx_avail(AUDIODAC0)/3) > 1) {
+		int buf_size = MIN(space_available, 128); // one sample takes three FIFO slots
+		short zero_buf[buf_size];
+		for(int i = 0; i < buf_size; i++) {
+			zero_buf[i] = t;
+			t = (t + 64) & 0xffff;
+		}
+		samples_sent += audiodac_xmit(AUDIODAC0, zero_buf, buf_size, 1000);
+	}
+
+	return samples_sent;
+}
+
+int audiodac0_isr(void) {
+	int samples_to_send = 0, samples_sent = 0, space_available = 0;
+
+	if(AUDIODAC0->status & AUDIO_DAC_STATUS_CMD_INT) {
+		printk("audiodac0_isr: tx FIFO is empty!\r\n");
+		audiodac0_tx_fifo_empty++;
+	}
+
+	if((space_available = audiodac_get_tx_avail(AUDIODAC0)/3) < 1) { // one sample takes three FIFO slots
+		printk("audiodac0_isr: tx FIFO is full!\r\n");
+		goto end;
 	}
 
 	if(audiodac0_tx_ring_buffer_fill_ptr == audiodac0_tx_ring_buffer_playback_ptr) {
@@ -142,35 +155,38 @@ int audiodac0_isr(void) {
 		audiodac0_tx_buffer_empty++;
 
 		// HACK: Send zeros if no data in ring buffer to send
-		int avail = audiodac_get_tx_avail(AUDIODAC0);
-		short zero_buf[avail/3];
-		memset(zero_buf, 0, avail/3);
-		audiodac_xmit(AUDIODAC0, zero_buf, avail/3, 1000);
+		int buf_size = MIN(space_available, 128); // one sample takes three FIFO slots
+		short zero_buf[buf_size];
+		memset(zero_buf, 0x7f, buf_size*2); // 0x7f7f is close to mean value
+		audiodac_xmit(AUDIODAC0, zero_buf, buf_size, 1000);
 
 		printk("audiodac0_isr: tx ring buffer underrun!\r\n");
 		goto end;
 	}
 
-	if((samples_to_send = audiodac_get_tx_avail(AUDIODAC0)/3) < 1) {
-		printk("audiodac0_isr: tx FIFO is full!\r\n");
-		goto end;
-	}
+	if(audiodac0_tx_ring_buffer_fill_ptr > audiodac0_tx_ring_buffer_playback_ptr) {
+		samples_to_send = audiodac0_tx_ring_buffer_fill_ptr - audiodac0_tx_ring_buffer_playback_ptr;
+		samples_to_send = MIN(space_available, samples_to_send);
+		samples_sent = audiodac_xmit(AUDIODAC0, audiodac0_tx_ring_buffer + audiodac0_tx_ring_buffer_playback_ptr,
+			samples_to_send, 1000);
+	} else { 
+		samples_to_send = audiodac0_tx_ring_buffer_size - audiodac0_tx_ring_buffer_playback_ptr;
+		samples_to_send = MIN(space_available, samples_to_send);
 
-
-	if(audiodac0_tx_ring_buffer_fill_ptr > audiodac0_tx_ring_buffer_playback_ptr)
-		samples_to_send = MIN(samples_to_send, audiodac0_tx_ring_buffer_fill_ptr -
-				audiodac0_tx_ring_buffer_playback_ptr);
-	else 
-		// audiodac0_tx_ring_buffer_fill_ptr < audiodac0_tx_ring_buffer_playback_ptr
-		samples_to_send = MIN(samples_to_send, audiodac0_tx_ring_buffer_size -
-				audiodac0_tx_ring_buffer_playback_ptr);
-
-
-
-	samples_sent = audiodac_xmit(AUDIODAC0, audiodac0_tx_ring_buffer + audiodac0_tx_ring_buffer_playback_ptr,
+		// First part
+		samples_sent = audiodac_xmit(AUDIODAC0, audiodac0_tx_ring_buffer + audiodac0_tx_ring_buffer_playback_ptr,
 			samples_to_send, 1000);
 
-		
+		// Second part
+		if(samples_sent == samples_to_send &&		// make sure FIFO not overflown
+		  (space_available - samples_sent) > 0 &&	// and there is room for more samples
+		   audiodac0_tx_ring_buffer_fill_ptr > 0) {     // and we have something to send
+			samples_to_send = MIN(space_available - samples_sent, audiodac0_tx_ring_buffer_fill_ptr);
+			samples_sent += audiodac_xmit(AUDIODAC0, audiodac0_tx_ring_buffer, samples_to_send, 1000);
+		}
+
+	}
+
 	//printk("audiodac0_isr: playback_ptr = %d, fill_ptr = %d, samples_to_send = %d, samples_sent = %d\r\n",
 	//		audiodac0_tx_ring_buffer_playback_ptr, audiodac0_tx_ring_buffer_fill_ptr,
 	//		samples_to_send, samples_sent);

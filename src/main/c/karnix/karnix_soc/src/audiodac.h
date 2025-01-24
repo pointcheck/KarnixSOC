@@ -94,5 +94,23 @@ extern volatile int audiodac0_tx_ring_buffer_fill_ptr;
 extern volatile int audiodac0_tx_fifo_empty;
 extern volatile int audiodac0_tx_buffer_empty;
 
+
+// Returns how many samples currently in the ring buffer pending playback
+static inline int audiodac0_samples_filled(void)
+{
+	if(audiodac0_tx_ring_buffer_fill_ptr >= audiodac0_tx_ring_buffer_playback_ptr)
+		return audiodac0_tx_ring_buffer_fill_ptr - audiodac0_tx_ring_buffer_playback_ptr;
+	else 
+		return audiodac0_tx_ring_buffer_size - audiodac0_tx_ring_buffer_playback_ptr
+		       	+ audiodac0_tx_ring_buffer_fill_ptr;
+}
+
+
+// Returns how many samples can be submitted (put) to ring buffer
+static inline int audiodac0_samples_available(void)
+{
+	return audiodac0_tx_ring_buffer_size - audiodac0_samples_filled() - 1;
+}
+
 #endif // _AUDIODAC_H_
 
