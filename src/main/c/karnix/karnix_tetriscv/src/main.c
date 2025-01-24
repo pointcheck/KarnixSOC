@@ -25,9 +25,10 @@ extern unsigned int _IMPURE_DATA;
 volatile uint32_t uart_config_reset_counter = 0;
 volatile uint32_t reg_irq_counter = 0;
 volatile uint32_t reg_sys_counter = 0;
+volatile uint64_t reg_sys_timestamp = 0;
 
 #if(AUDIO_ENABLED)
-#define	AUDIO_RING_BUFFER_SIZE	(4000*2)		// Audio playback ring buffer
+#define	AUDIO_RING_BUFFER_SIZE	(2048*2)		// Audio playback ring buffer
 volatile uint32_t audiodac0_irqs = 0;
 volatile uint32_t audiodac0_samples_sent = 0;
 #endif
@@ -57,14 +58,15 @@ static const uint32_t colorfx_rainbow[] = {
 	0x0000ffff, 0x0000aaff, 0x000055ff, 0x000000ff,
 };
 
+#define	PI	3.1415926535
 float my_sine(float x)
 {
 	
-	x = ((int)(x * 57.297469) % 360) * 0.017452; // fmod(x, 2*PI)
+	x = ((int)(x * 57.2957795147) % 360) * 0.0174532925194; // fmod(x, 2*PI)
 
 	float res = 0, pow = x, fact = 1;
 
-	for(int i = 0; i < 5; ++i) {
+	for(int i = 0; i < 5; ++i) { // increase to 9 for smooth sine wave
 		res+=pow/fact;
 		pow*=-1*x*x;
 		fact*=(2*(i+1))*(2*(i+1)+1);
@@ -102,7 +104,7 @@ void show_greetings(void) {
 		"\t\tKudos to you dear old-time hacker fellows!\r\n"
 		"\n"
 		ESC_FG "14;"
-		"\t\tBy @checkpoint <rz@fabmicro.ru>\r\n"
+		"\t\tBy @checkpoint <rz@fabmicro.ru> // Tyumen, 2025\r\n"
 		"\n"
 		"\n"
 		ESC_FG "5;"
@@ -162,7 +164,7 @@ int main(void) {
 	__sinit(&_IMPURE_DATA); // Init LIBC impure_data structure
 
 	printf("\r\n"
-		"Tetris for Karnix SoC. Build %05d on " __DATE__ " at " __TIME__ "\r\n"
+		"TetRISC-V for Karnix SoC. Build %05d on " __DATE__ " at " __TIME__ "\r\n"
 		"Copyright (C) 2024-2025 Fabmicro, LLC., Tyumen, Russia.\r\n\r\n",
 		BUILD_NUMBER
 	);
@@ -301,8 +303,16 @@ int main(void) {
 		return -1;
 	}
 
+	// Test pattern: SAW
+	static int q = 0;
+	for(int i = 0; i < AUDIO_RING_BUFFER_SIZE/2; i++) {
+		audio_ring_buffer[i] = q;
+		q = (q + 64) & 0xffff;
+	}
+
 	// Configure AUDIOCAD0 IRQ source
-	PLIC->EDGE |= PLIC_IRQ_AUDIODAC0;
+	//PLIC->EDGE |= PLIC_IRQ_AUDIODAC0;
+	PLIC->EDGE &= ~PLIC_IRQ_AUDIODAC0;
 	PLIC->POLARITY |= PLIC_IRQ_AUDIODAC0;
 	PLIC->ENABLE |= PLIC_IRQ_AUDIODAC0;
 
@@ -372,7 +382,9 @@ int main(void) {
 
 		// Print resource usage statistics 
 		#if(1)
-	       	if(reg_sys_counter % 128 == 0) {
+		uint64_t timestamp = get_mtime();
+		if(timestamp - reg_sys_timestamp >= 1000000) {
+
 			printf("Build %05d: irqs = %d, sys_cnt = %d, sbrk_heap_end = %p, "
 				"audiodac0_samples_sent = %d, audiodac0_irqs = %d, audiodac0_tx_fifo_empty = %d, "
 				"audiodac0_tx_buffer_empty = %d, vblank_irqs = %d\r\n",
@@ -384,6 +396,7 @@ int main(void) {
 
 			//plic_print_stats();
 
+			reg_sys_timestamp = timestamp;
 		}
 		#endif
 
@@ -545,29 +558,62 @@ int main(void) {
 
 		// Audio
 
+		#if(AUDIO_ENABLED_2)
+		{
+			csr_clear(mstatus, MSTATUS_MIE); // Disable Machine interrupts during hardware init
+			if(audiodac0_tx_ring_buffer_playback_ptr > 0)
+				audiodac0_tx_ring_buffer_fill_ptr = audiodac0_tx_ring_buffer_playback_ptr - 1;
+			else
+				audiodac0_tx_ring_buffer_fill_ptr = audiodac0_tx_ring_buffer_size - 1;
+			csr_set(mstatus, MSTATUS_MIE); // Enable Machine interrupts
+		}
+		#endif
+
 		#if(AUDIO_ENABLED)
 		{
 			static unsigned int t = 0;
-			unsigned short buf[120];
+			short buf[128];
 
 			int processed;
 
+			int a1 = audiodac0_samples_filled();
+			int samples_left_to_send = audiodac0_samples_available();
+
 			// Synthesize audio effect using formulae:
 			
-			for(int j = 0; j < AUDIO_RING_BUFFER_SIZE / 2 / 120; j++) {
+			while(samples_left_to_send) {
 
-				for(int i = 0; i < 120; i++,t++)
-					buf[i] = t*(t^t+(t>>15|1)^(t-1280^t)>>10); 
-					//buf[i] = (t*5&t>>7)|(t*3&t>>10);
-					//buf[i] = (t&t%255)-(t*3&t>>13&t>>6);
+				int samples_to_send = MIN(128, samples_left_to_send);
 
-				if((processed = audiodac0_submit_buffer(buf, 120, DAC_NOT_ISR)) != 120) {
-				       	//printf("audiodac0_submit_buffer partial: %d of %d\r\n", processed, 120);
+				for(int i = 0; i < samples_to_send; i++) {
 
-					t -= (120 - processed); // Rollback t if partially loaded
+					// 560Hz sine wave
+					//buf[i] = (my_sine(t*560.0*6.28318530698/8000.0) * 32767);
+					//t = (t + 1) % 360;
+
+					if(gameOver == 1 || gameOver == 2)
+						buf[i] = t*(t^t+(t>>15|1)^(t-1280^t)>>10) << 8; 
+					else
+						buf[i] = ((t*9&t>>4|t*5&t>>7|t*3&t/1024)-1) << 8;
+					t++;
+				}
+
+				processed = audiodac0_submit_buffer(buf, samples_to_send, DAC_NOT_ISR);
+
+				if(processed != samples_to_send) {
+			      		printk("audiodac0_submit_buffer partial: %d of %d\r\n", processed, samples_to_send);
+					t -= (samples_to_send - processed); // rollback t for a number of unprocessed samples 
 					break;
 				}
+
+				samples_left_to_send -= samples_to_send;
 			}
+
+			int a2 = audiodac0_samples_filled();
+
+			if(a1 < 20)
+				printk("audiodac0 samples available: %d -> %d\r\n", a1, a2);
+
 		}
 		#endif
 
@@ -649,7 +695,7 @@ void externalInterrupt(void){
 
 void crash(int cause) {
 	
-	printk("\r\n*** TRAP: %p at %p\r\n", cause, csr_read(mepc), csr_read(mtval));
+	printk("\r\n*** TRAP: %p at %p, mtval: %p\r\n", cause, csr_read(mepc), csr_read(mtval));
 
 	for(;;);
 
