@@ -5,6 +5,8 @@
 
     .section	.start_jump,"ax",@progbits
 crtStart:
+  addi x0, x0, 0x123 // Magic word expected by bootloader, compiled to 0x12300013
+
   csrc mstatus, 0x8 // Disable interrupts
 
   // take address of trap_entry relative to PC and store it to mtvec
