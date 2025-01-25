@@ -87,8 +87,8 @@ void cli_cmd_help(char *argv[], int argn) {
 void cli_cmd_nor_help(char *argv[], int argn) {
 	printf(
 "/// List of NOR flash commands:\r\n"
-"nor	erase <addr> <len>	- Erase sectors beginnign at 'addr', ending at 'addr+len'.\r\n"
-"nor	cp <addr1> <addr2> <len>	- Copy data 'len' bytes of data from memory 'addr2' to NOR flash at 'addr1'\r\n"
+"nor erase <addr> <len>		- Erase sectors beginnign at 'addr', ending at 'addr+len'.\r\n"
+"nor cp <addr1> <addr2> <len>	- Copy data 'len' bytes of data from memory 'addr2' to NOR flash at 'addr1'\r\n"
 	);
 }
 
