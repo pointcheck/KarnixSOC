@@ -15,10 +15,10 @@ MEMORY {
   /* Uncomment one of the below RAM regions: */
 
   /* Synthesized RAM */
-  /* RAM      (rwx): ORIGIN = 0x80000000, LENGTH = 72k */
+  RAM      (rwx): ORIGIN = 0x80000000, LENGTH = 72k
 
   /* Synthesized RAM with 12K offset for bootloader/monitor */
-  RAM      (rwx): ORIGIN = 0x80003000, LENGTH = 60k
+  /* RAM      (rwx): ORIGIN = 0x80003000, LENGTH = 60k */
 
   /* SRAM */
   /* RAM      (rwx): ORIGIN = 0x90000000, LENGTH = 512k */
