@@ -146,6 +146,10 @@ void show_greetings(void) {
 	_sprite_idx++;
 }
 
+extern const struct __sFILE_fake __sf_fake_stdin;
+extern const struct __sFILE_fake __sf_fake_stdout;
+extern const struct __sFILE_fake __sf_fake_stderr;
+extern unsigned int _IMPURE_DATA; /* reference to .data.impure_data section */
 
 int main(void) {
 
@@ -161,8 +165,29 @@ int main(void) {
 	}
 	#endif
 
-	init_sbrk(NULL, 0); // Initialize heap for malloc to use RAM above stack
-	__sinit(&_IMPURE_DATA); // Init LIBC impure_data structure
+        /* Initialize heap for malloc to use free RAM right above the stack */
+        printk("\r\n*** Init heap:\r\n");
+        init_sbrk(NULL, 0);
+        printk("init_sbrk done!\r\n");
+
+        printk("heap_start: %p, heap_end: %p, sbrk_heap_end: %p\r\n",
+                (unsigned int)heap_start, (unsigned int)heap_end,
+                (unsigned int)sbrk_heap_end);
+
+
+        printk("\r\n*** Adjusting global REENT structure:\r\n");
+
+        *(uint32_t*)&_impure_ptr = (uint32_t)&_IMPURE_DATA;
+        *(uint32_t*)&_global_impure_ptr = (uint32_t)_impure_ptr;
+        _impure_ptr->_stdin = (__FILE *)&__sf_fake_stdin;
+        _impure_ptr->_stdout = (__FILE *)&__sf_fake_stdout;
+        _impure_ptr->_stderr = (__FILE *)&__sf_fake_stderr;
+
+        printk("_impure_ptr: %p, _global_impure_ptr: %p, fake_stdout: %p\r\n",
+                (unsigned int)_impure_ptr, (unsigned int)_global_impure_ptr,
+                (unsigned int)(_impure_ptr->_stdout));
+
+	// Can use printf() from here
 
 	printf("\r\n"
 		"TetRISC-V for Karnix SoC. Build %05d on " __DATE__ " at " __TIME__ "\r\n"
