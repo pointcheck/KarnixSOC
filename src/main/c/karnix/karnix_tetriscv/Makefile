@@ -11,8 +11,6 @@ MODEL ?= xip
 
 # Set defines as appropriate
 #DEFS += -DDEBUG_SBRK	# Enable mamory allocations, sbrk() and init_sbrk() debug
-#DEFS += -DCONFIG_HAS_MODBUS	# Enable Modbus
-#DEFS += -DCONFIG_HAS_MAC	# Enable Ethernet
 
 SOCDIR=../karnix_soc/src
 
