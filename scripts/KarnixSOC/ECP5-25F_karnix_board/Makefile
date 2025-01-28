@@ -1,4 +1,5 @@
-RAMPROG = karnix_monitor
+RAMPROG = karnix_bootloader
+#RAMPROG = karnix_monitor
 #RAMPROG = karnix_xip_test
 #RAMPROG = karnix_tetriscv
 #RAMPROG = karnix_cga_test
@@ -40,7 +41,7 @@ hexx2bin: hexx2bin.c
 
 
 ../../../src/main/c/karnix/$(RAMPROG)/build/$(RAMPROG).hexx:
-	(cd ../../../src/main/c/karnix/$(RAMPROG); MODEL=ram $(MAKE))
+	(cd ../../../src/main/c/karnix/$(RAMPROG); $(MAKE) ram)
 
 
 ../../../KarnixSOCTopLevel.v*.bin: ../../../src/main/c/karnix/$(RAMPROG)/build/$(RAMPROG).hexx

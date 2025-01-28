@@ -4,3 +4,5 @@ To generate and synthesize Karnix SoCs, use the following command:
 
 ```make generate compile```
 
+More details in main README.md.
+
