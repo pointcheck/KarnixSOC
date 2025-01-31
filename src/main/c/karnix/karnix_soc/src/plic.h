@@ -24,6 +24,8 @@ typedef struct
 #define	PLIC_IRQ_I2C		(1 << 5)
 #define	PLIC_IRQ_AUDIODAC0	(1 << 6)	
 #define	PLIC_IRQ_CGA_VBLANK	(1 << 7)
+#define	PLIC_IRQ_SPI0		(1 << 8)
+#define	PLIC_IRQ_USB0		(1 << 9)
 
 void plic_print_stats(void);
 
