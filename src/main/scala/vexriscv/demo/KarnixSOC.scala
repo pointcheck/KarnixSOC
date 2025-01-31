@@ -761,7 +761,7 @@ case class KarnixSOCTopLevel() extends Component{
 
       usb_clk_div := usb_clk_div + 1
 
-      when(usb_clk_div === 9) {
+      when(usb_clk_div === 10) {
         usb_clk := True
       }
 
