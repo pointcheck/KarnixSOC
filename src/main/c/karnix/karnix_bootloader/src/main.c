@@ -18,7 +18,7 @@
 #include "utils.h"
 #include "qspi.h"
 
-#define APPS_NUM	17		// How many applications can be in NOR flash to look for
+#define APPS_NUM	16		// How many applications can be in NOR flash to look for
 #define	MAGIC		0x12300013	// Magic number to check for
 
 // Where in NOR flash to look for applications, defines offsets relative to QSPI_MEMORY_ADDRESS 
@@ -31,7 +31,6 @@ extern unsigned int trap_entry; /* Trap entry point provided by crt.S */
 /* Context saving structure */
 
 struct _context {
-	char crash_str[16];
 	uint32_t sp;
 	uint32_t gp;
 	uint32_t tp;
