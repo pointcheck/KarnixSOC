@@ -280,7 +280,6 @@ IOBUF PORT "io_hdmi_tmds_clk_p" IO_TYPE=LVCMOS33;
 LOCATE COMP "io_hdmi_tmds_clk_n" SITE "C12";
 IOBUF PORT "io_hdmi_tmds_clk_n" IO_TYPE=LVCMOS33;
 
-
 LOCATE COMP "io_qspi0_cs" SITE "N8";
 IOBUF PORT "io_qspi0_cs" IO_TYPE=LVCMOS33;
 LOCATE COMP "io_qspi0_sclk" SITE "N1"; // GPIO_08, should be M9
@@ -293,4 +292,14 @@ LOCATE COMP "io_qspi0_io2" SITE "M7";
 IOBUF PORT "io_qspi0_io2" IO_TYPE=LVCMOS33;
 LOCATE COMP "io_qspi0_io3" SITE "N7";
 IOBUF PORT "io_qspi0_io3" IO_TYPE=LVCMOS33;
+
+LOCATE COMP "io_usb0_usb_dm" SITE "R4";	# USB0_DM/GPIO_22 
+IOBUF PORT "io_usb0_usb_dm" IO_TYPE=LVCMOS33;
+LOCATE COMP "io_usb0_usb_dp" SITE "T3";	# USB0_DP/GPIO_23 
+IOBUF PORT "io_usb0_usb_dp" IO_TYPE=LVCMOS33;
+
+LOCATE COMP "io_clkcore" SITE "N4";	# GPIO_16 
+IOBUF PORT "io_clkcore" IO_TYPE=LVCMOS33;
+LOCATE COMP "io_clkusb" SITE "D16";	# GPIO_17 
+IOBUF PORT "io_clkusb" IO_TYPE=LVCMOS33;
 

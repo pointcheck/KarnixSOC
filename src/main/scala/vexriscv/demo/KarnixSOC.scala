@@ -28,6 +28,7 @@ import mylib.{QSPILayout, QSPIInterface, Axi4SharedToQSPI}
 import mylib.{Pwm,Apb3PwmCtrl}
 import mylib.{Apb3MicroI2CCtrl, MicroI2CInterface}
 import mylib.{HDMIInterface, Apb3CGA4HDMICtrl}
+import mylib.{USBInterface, Apb3USBCtrl}
 import mylib.Apb3MachineTimer
 import mylib.Apb3HubCtrl
 import mylib.Apb3MicroPLICCtrl
@@ -115,7 +116,7 @@ object KarnixSOCConfig{
           timerWidth     = 16,
           ssWidth        = 1 // only one CS line
         ),
-        cmdFifoDepth = 2048, // CMD is same as TX FIFO
+        cmdFifoDepth = 1024, // CMD is same as TX FIFO
         rspFifoDepth = 16  // RSP is same as RX FIFO
       ),
 
@@ -289,6 +290,8 @@ class KarnixSOC(val config: KarnixSOCConfig) extends Component{
     val qspi0 = master(QSPIInterface(QSPILayout(addressWidth = 22, dataWidth = 32)))
     val hdmi = master(HDMIInterface())
     val pixclk_x10 = in Bool()
+    val usb0 = master(USBInterface())
+    val usbclk_12mhz = in Bool()
   }
 
   val resetCtrlClockDomain = ClockDomain(
@@ -427,6 +430,11 @@ class KarnixSOC(val config: KarnixSOCConfig) extends Component{
     cgaCtrl.io.pixclk_x10 := io.pixclk_x10
     plic.setIRQ(cgaCtrl.io.vblank_interrupt, 7)
 
+    val usb0Ctrl = new Apb3USBCtrl()
+    io.usb0 <> usb0Ctrl.io.usb
+    usb0Ctrl.io.usbclk_12mhz := io.usbclk_12mhz
+    plic.setIRQ(usb0Ctrl.io.interrupt, 9)
+
 
     val machineTimer = Apb3MachineTimer(axiFrequency.toInt / 1000000)
 
@@ -531,7 +539,8 @@ class KarnixSOC(val config: KarnixSOCConfig) extends Component{
         machineTimer.io.apb -> (0xB0000, 4 kB),
         spiAudioDACCtrl.io.apb -> (0xC0000, 4 kB),
         spi0Ctrl.io.apb -> (0xC1000, 4 kB),
-        qspi0.io.apb -> (0xC2000, 4 kB)
+        qspi0.io.apb -> (0xC2000, 4 kB),
+        usb0Ctrl.io.apb -> (0xD0000, 4 kB)
       )
     )
   }
@@ -591,11 +600,14 @@ case class KarnixSOCTopLevel() extends Component{
         */
 
         val hdmi = master(HDMIInterface())
+        val usb0 = master(USBInterface())
 
+	val clkcore = out Bool() // Core clock for analysis 
+	val clkusb = out Bool() // USB clock for analysis 
     }
 
-    val briey = new KarnixSOC(KarnixSOCConfig.default.copy(
-		axiFrequency = 59.0 MHz, 
+    val karnix_soc = new KarnixSOC(KarnixSOCConfig.default.copy(
+		axiFrequency = 60.0 MHz, 
 		onChipRamSize = 72 kB , 
 		onChipRamHexFile = "KarnixSOCTopLevel_random.hex"
 	))
@@ -606,27 +618,27 @@ case class KarnixSOCTopLevel() extends Component{
     io.lan_nrst := True
 
     // LAN PHY
-    briey.io.mii.TX.CLK := io.lan_txclk
-    io.lan_txen := briey.io.mii.TX.EN
-    io.lan_txd0 := briey.io.mii.TX.D(0)
-    io.lan_txd1 := briey.io.mii.TX.D(1)
-    io.lan_txd2 := briey.io.mii.TX.D(2)
-    io.lan_txd3 := briey.io.mii.TX.D(3)
+    karnix_soc.io.mii.TX.CLK := io.lan_txclk
+    io.lan_txen := karnix_soc.io.mii.TX.EN
+    io.lan_txd0 := karnix_soc.io.mii.TX.D(0)
+    io.lan_txd1 := karnix_soc.io.mii.TX.D(1)
+    io.lan_txd2 := karnix_soc.io.mii.TX.D(2)
+    io.lan_txd3 := karnix_soc.io.mii.TX.D(3)
 
-    briey.io.mii.RX.CLK := io.lan_rxclk
-    briey.io.mii.RX.D(0) := io.lan_rxd0
-    briey.io.mii.RX.D(1) := io.lan_rxd1
-    briey.io.mii.RX.D(2) := io.lan_rxd2
-    briey.io.mii.RX.D(3) := io.lan_rxd3
-    briey.io.mii.RX.DV := io.lan_rxdv
-    briey.io.mii.RX.ER := io.lan_rxer
-    briey.io.mii.RX.CRS := io.lan_crs
-    briey.io.mii.RX.COL := io.lan_col
+    karnix_soc.io.mii.RX.CLK := io.lan_rxclk
+    karnix_soc.io.mii.RX.D(0) := io.lan_rxd0
+    karnix_soc.io.mii.RX.D(1) := io.lan_rxd1
+    karnix_soc.io.mii.RX.D(2) := io.lan_rxd2
+    karnix_soc.io.mii.RX.D(3) := io.lan_rxd3
+    karnix_soc.io.mii.RX.DV := io.lan_rxdv
+    karnix_soc.io.mii.RX.ER := io.lan_rxer
+    karnix_soc.io.mii.RX.CRS := io.lan_crs
+    karnix_soc.io.mii.RX.COL := io.lan_col
 
 
 
-    briey.io.asyncReset := False 
-    io.rst_n := briey.io.hard_reset // Watch-dog is sitting there 
+    karnix_soc.io.asyncReset := False 
+    io.rst_n := karnix_soc.io.hard_reset // Watch-dog is sitting there 
 
     //val pll = new EHXPLLL(EHXPLLLConfig.singleOutput(25.0 MHz, 50.0 MHz, 0.02)) // This thing is buggy, gives incorrect dividers
 
@@ -636,8 +648,9 @@ case class KarnixSOCTopLevel() extends Component{
     //val core_pll = new EHXPLLL( EHXPLLLConfig(clkiFreq = 25.0 MHz, mDiv = 5, fbDiv = 13, opDiv = 9) ) // 65.0 MHz
     val core_pll = new EHXPLLL( EHXPLLLConfig(clkiFreq = 25.0 MHz, mDiv = 5, fbDiv = 12, opDiv = 10) ) // 60.0 MHz
     //val core_pll = new EHXPLLL( EHXPLLLConfig(clkiFreq = 25.0 MHz, mDiv = 6, fbDiv = 15, opDiv = 10) ) // 62.0 MHz
-    //val core_pll = new EHXPLLL( EHXPLLLConfig(clkiFreq = 25.0 MHz, mDiv = 3, fbDiv = 7, opDiv = 11) ) // 58.0 MHz
-
+    //val core_pll = new EHXPLLL( EHXPLLLConfig(clkiFreq = 25.0 MHz, mDiv = 3, fbDiv = 7, opDiv = 11) ) // 58.333 MHz
+    //val core_pll = new EHXPLLL( EHXPLLLConfig(clkiFreq = 25.0 MHz, mDiv = 8, fbDiv = 19, opDiv = 10) ) // 59.375 MHz
+    //val core_pll = new EHXPLLL( EHXPLLLConfig(clkiFreq = 25.0 MHz, mDiv = 7, fbDiv = 18, opDiv = 9) ) // 64.28 MHz
 
     core_pll.io.CLKI := io.clk25
     core_pll.io.CLKFB := core_pll.io.CLKOP
@@ -653,7 +666,9 @@ case class KarnixSOCTopLevel() extends Component{
     core_pll.io.PHASEDIR := False
     core_pll.io.PHASESTEP := False
     core_pll.io.PHASELOADREG := False
-    briey.io.mainClk := core_pll.io.CLKOP 
+    karnix_soc.io.mainClk := core_pll.io.CLKOP 
+
+    io.clkcore := core_pll.io.CLKOP
 
     val hdmi_pll = new EHXPLLL( EHXPLLLConfig(clkiFreq = 25.0 MHz, mDiv = 1, fbDiv = 10, opDiv = 2) ) // 250.0 MHz
     hdmi_pll.io.CLKI := io.clk25
@@ -670,7 +685,7 @@ case class KarnixSOCTopLevel() extends Component{
     hdmi_pll.io.PHASEDIR := False
     hdmi_pll.io.PHASESTEP := False
     hdmi_pll.io.PHASELOADREG := False
-    briey.io.pixclk_x10 := hdmi_pll.io.CLKOP 
+    karnix_soc.io.pixclk_x10 := hdmi_pll.io.CLKOP 
 
     /*
     case class DCCA() extends BlackBox{
@@ -682,51 +697,81 @@ case class KarnixSOCTopLevel() extends Component{
     var dcca_hdmi = DCCA()
     dcca_hdmi.CE := True
     dcca_hdmi.CLKI := hdmi_pll.io.CLKOP
-    briey.io.pixclk_x10 := dcca_hdmi.CLKO
+    karnix_soc.io.pixclk_x10 := dcca_hdmi.CLKO
     */
 
     /*
     val jtagClkBuffer = DCCA()
     jtagClkBuffer.setDefinitionName("DCCA");
     jtagClkBuffer.CLKI <> io.core_jtag_tck
-    jtagClkBuffer.CLKO <> briey.io.jtag.tck
+    jtagClkBuffer.CLKO <> karnix_soc.io.jtag.tck
     jtagClkBuffer.CE := True
-    briey.io.jtag.tdi <> io.core_jtag_tdi
-    briey.io.jtag.tdo <> io.core_jtag_tdo
-    briey.io.jtag.tms <> io.core_jtag_tms
+    karnix_soc.io.jtag.tdi <> io.core_jtag_tdi
+    karnix_soc.io.jtag.tdo <> io.core_jtag_tdo
+    karnix_soc.io.jtag.tms <> io.core_jtag_tms
     */
     /*
-    briey.io.jtag.tdi := False
-    briey.io.jtag.tck := False
-    briey.io.jtag.tms := False
+    karnix_soc.io.jtag.tdi := False
+    karnix_soc.io.jtag.tck := False
+    karnix_soc.io.jtag.tms := False
     io.core_jtag_tdo := False
     */
 
-    io.led := briey.io.gpioA.write.resized
+    io.led := karnix_soc.io.gpioA.write.resized
 
-    io.eeprom_wp := briey.io.gpioA.write(30) 
-    briey.io.gpioA.read(3 downto 0) := io.key 
-    briey.io.gpioA.read(30 downto 4) := 0
-    briey.io.gpioA.read(31) := io.config 
+    io.eeprom_wp := karnix_soc.io.gpioA.write(30) 
+    karnix_soc.io.gpioA.read(3 downto 0) := io.key 
+    karnix_soc.io.gpioA.read(30 downto 4) := 0
+    karnix_soc.io.gpioA.read(31) := io.config 
 
-    //io.gpio <> briey.io.hub
-    //io.gpio <> briey.io.gpioB
-    io.hdmi <> briey.io.hdmi
+    //io.gpio <> karnix_soc.io.hub
+    //io.gpio <> karnix_soc.io.gpioB
+    io.hdmi <> karnix_soc.io.hdmi
 
-    briey.io.uart0.txd <> io.uart_debug_txd
-    briey.io.uart0.rxd <> io.uart_debug_rxd
+    karnix_soc.io.uart0.txd <> io.uart_debug_txd
+    karnix_soc.io.uart0.rxd <> io.uart_debug_rxd
 
-    briey.io.uart1.txd <> io.rs485_txd
-    briey.io.uart1.rxd <> io.rs485_rxd
-    briey.io.uart1.de <> io.rs485_de
+    karnix_soc.io.uart1.txd <> io.rs485_txd
+    karnix_soc.io.uart1.rxd <> io.rs485_rxd
+    karnix_soc.io.uart1.de <> io.rs485_de
 
-    briey.io.sram <> io.sram
-    briey.io.spiAudioDAC <> io.spiAudioDAC
-    briey.io.spi0 <> io.spi0
-    briey.io.qspi0 <> io.qspi0
+    karnix_soc.io.sram <> io.sram
+    karnix_soc.io.spiAudioDAC <> io.spiAudioDAC
+    karnix_soc.io.spi0 <> io.spi0
+    karnix_soc.io.qspi0 <> io.qspi0
 
-    io.i2c_scl <> briey.io.i2c.scl
-    io.i2c_sda <> briey.io.i2c.sda
+    io.i2c_scl <> karnix_soc.io.i2c.scl
+    io.i2c_sda <> karnix_soc.io.i2c.sda
+
+    karnix_soc.io.usb0 <> io.usb0
+    io.clkusb := karnix_soc.io.usbclk_12mhz
+
+    /* Generate ~12 MHz USB1.x clock by dividing pixclk_x10 250MHz by 21 */
+
+    val pixclk_x10_ClockDomain = ClockDomain(
+      clock = karnix_soc.io.pixclk_x10,
+      config = ClockDomainConfig(resetKind = BOOT),
+      frequency = FixedFrequency(11.9 MHz)
+    )
+
+    val pixclk_x10_area = new ClockingArea(pixclk_x10_ClockDomain) {
+
+      val usb_clk_div = Reg(UInt(5 bits)) init(0)
+      val usb_clk = Reg(Bool()) init(False)
+
+      usb_clk_div := usb_clk_div + 1
+
+      when(usb_clk_div === 9) {
+        usb_clk := True
+      }
+
+      when(usb_clk_div === 20) {
+        usb_clk := False 
+        usb_clk_div := 0
+      }
+
+      karnix_soc.io.usbclk_12mhz := usb_clk 
+    }
 
 }
 

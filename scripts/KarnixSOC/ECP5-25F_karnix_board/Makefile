@@ -4,7 +4,9 @@ RAMPROG = karnix_bootloader
 #RAMPROG = karnix_tetriscv
 #RAMPROG = karnix_cga_test
 
-VERILOG = ../../../KarnixSOCTopLevel.v ../../../src/main/verilog/TMDS_encoder.sv ../../../src/main/verilog/OBUFDS.sv
+VERILOG += ../../../KarnixSOCTopLevel.v
+VERILOG += ../../../src/main/verilog/TMDS_encoder.sv ../../../src/main/verilog/OBUFDS.sv
+VERILOG += ../../../src/main/verilog/usb_hid_host.v ../../../src/main/verilog/usb_hid_host_rom.v
 
 generate: ../../../KarnixSOCTopLevel_random.hexx ../../../font8x16x256.hex
 	(cd ../../..; sbt "runMain vexriscv.demo.KarnixSOCVerilog")
