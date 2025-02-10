@@ -245,10 +245,12 @@ void main() {
 	printf("TIMER1 set to 25 ms\r\n");
 
 	// Enable USB0
+	#if(USB_ENABLE)
 	USB0->STATUS &= ~USB_STATUS_RESET_M;
 	delay_us(1000);
 	USB0->STATUS |= USB_STATUS_RESET_M;
 	printf("USB0 enabled\r\n");
+	#endif
 
 	// Setup interrupt controller 
 	PLIC->POLARITY = 0x0000037f; // Configure PLIC IRQ polarity for UART0, UART1, MAC, I2C and AUDIODAC0 to Active High 
@@ -284,7 +286,12 @@ void main() {
 				BUILD_NUMBER,
 				reg_irq_counter, reg_sys_counter, reg_scratch, sbrk_heap_end,
 				console_rx_buf_len,
-				USB0->STATUS, USB0->DBGLOW, USB0->GAMEPAD);
+				#if(USB_ENABLE)
+				USB0->STATUS, USB0->DBGLOW, USB0->GAMEPAD
+				#else
+				0, 0
+				#endif
+			);
 
 			plic_print_stats();
 
@@ -362,11 +369,14 @@ void externalInterrupt(void){
 		PLIC->PENDING &= ~PLIC_IRQ_CGA_VBLANK;
 	}
 
+	#if(USB_ENABLE)
 	if(PLIC->PENDING & PLIC_IRQ_USB0) { // USB0 is pending
-		printk("USB0 IRQ: type = %d, status = %p, keyboard = %p, keymod = %p, mouse = %p, gamepad = %p\r\n",
-			usbGetType(USB0), USB0->STATUS, USB0->KEYBOARD, USB0->KEYMOD, USB0->MOUSE, USB0->GAMEPAD);
+		printk("USB0 IRQ: type = %d, status = %p, keyboard = %p, keymod = %p, mouse = %p, gamepad = %p, dbg: %p:%p\r\n",
+			usbGetType(USB0), USB0->STATUS, USB0->KEYBOARD, USB0->KEYMOD, USB0->MOUSE, USB0->GAMEPAD,
+			USB0->DBGHIGH, USB0->DBGLOW);
 		PLIC->PENDING &= ~PLIC_IRQ_USB0;
 	}
+	#endif
 
 }
 
