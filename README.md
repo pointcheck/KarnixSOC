@@ -95,10 +95,10 @@ The following C code is currently available:
 
   * [karnix_soc/](src/main/c/karnix/karnix_soc/) - Hardware Abstraction Layer. A set of C headers and C code to ease hardware programming.
   * [karnix_monitor/](src/main/c/karnix/karnix_monitor/) - Monitor. A utility that allows debugging hardware and executing other programs.
-  * [example/](src/main/c/karnix/example/) - An example shows how to build for for RAM and XIP.
+  * [example/](src/main/c/karnix/example/) - An example shows how to build for RAM and XIP execution modes.
   * [karnix_tetriscv/](src/main/c/karnix/karnix_tetriscv/) - TetRISC-V classic Tetris game.
   * [karnix_xip_test/](src/main/c/karnix/karnix_xip_test/) - Test for QSPI/XiP controller.
-  * [karnix_lwip/](src/main/c/karnix/karnix_lwip/) - Adopted LiPW TCP/IP library.
+  * [karnix_lwip/](src/main/c/karnix/karnix_lwip/) - Adopted LwIP TCP/IP library.
 
 
 ## Karnix SoC address space
