@@ -8,6 +8,7 @@
 //
 // See https://github.com/nand2mario/usb_hid_host
 // 
+// CRC16 check added by Ruslan Zalata, rz@fabmicro.ru
 
 module USB_HID_host(
     input  usbclk,		            // 12MHz clock
@@ -33,7 +34,11 @@ module USB_HID_host(
     output reg game_a, game_b, game_x, game_y, game_sel, game_sta,  // buttons
 
     // debug
-    output [63:0] dbg_hid_report	// last HID report
+    output [63:0] dbg_hid_report,	// last HID report
+
+    output reg [15:0] crc16_received,	// last CRC16 received
+    output reg [15:0] crc16_calculated,	// CRC16 calculated
+    output reg [7:0] pid		// last PID 
 );
 
 wire data_rdy;          // data ready
@@ -49,7 +54,8 @@ ukp ukp(
     .usbrst_n(usbrst_n), .usbclk(usbclk),
     .usb_dp(usb_dp), .usb_dm(usb_dm), .usb_oe(),
     .ukprdy(data_rdy), .ukpstb(data_strobe), .ukpdat(ukpdat), .save(save), .save_r(save_r), .save_b(save_b),
-    .connected(connected), .conerr(conerr));
+    .connected(connected), .conerr(conerr), .crc16_received(crc16_received), .crc16_calculated(crc16_calculated),
+    .pid(pid), );
 
 reg  [3:0] rcvct;		// counter for recv data
 reg  data_strobe_r, data_rdy_r;	// delayed data_strobe and data_rdy
@@ -178,7 +184,10 @@ module ukp(
     output reg save,			// save: regs[save_r] <= dat[save_b]
     output reg [3:0] save_r, save_b,
     output reg connected,
-    output conerr
+    output conerr,
+    output reg [15:0] crc16_received,
+    output wire [15:0] crc16_calculated,
+    output reg [7:0] pid 
 );
 
     parameter S_OPCODE = 0;
@@ -230,10 +239,20 @@ module ukp(
 
     usb_hid_host_rom ukprom(.clk(usbclk), .adr(pc), .data(inst));
 
+    reg [15:0] crc16_sum;
+    wire [15:0] crc16_out;
+    usbf_crc16 usbf_crc16(.crc_in(crc16_sum), .din({data[0], data[1], data[2], data[3],
+						    data[4], data[5], data[6], data[7]}),
+			  .crc_out(crc16_out));
+    assign crc16_calculated = {~crc16_sum[0], ~crc16_sum[1], ~crc16_sum[2], ~crc16_sum[3],
+                             ~crc16_sum[4], ~crc16_sum[5], ~crc16_sum[6], ~crc16_sum[7],
+			     ~crc16_sum[8], ~crc16_sum[9], ~crc16_sum[10], ~crc16_sum[11],
+			     ~crc16_sum[12], ~crc16_sum[13], ~crc16_sum[14], ~crc16_sum[15]};
+
     always @(posedge usbclk) begin
         if(~usbrst_n) begin 
             pc <= 0; connected <= 0; cond <= 0; inst_ready <= 0; state <= S_OPCODE; timing <= 0; 
-            mbit <= 0; bitadr <= 0; nak <= 1; ug <= 0;
+            mbit <= 0; bitadr <= 0; nak <= 1; ug <= 0; crc16_sum <= 16'hffff;
         end else begin
             dpi <= usb_dp; dmi <= usb_dm;
             save <= 0;		// ensure pulse
@@ -320,7 +339,7 @@ module ukp(
             // start instruction
             dmid <= dmi;
             if (inst_ready & state == S_OPCODE & inst == 4'b0010) begin // op=start 
-                bitadr <= 0; nak <= 1; nrzrxct <= 0;
+                bitadr <= 0; nak <= 1; nrzrxct <= 0; crc16_sum <= 16'hffff;
             end else 
                 if(ug==0 && dmi!=dmid) timing <= 1;
                 else                   timing <= timing + 1;
@@ -336,6 +355,10 @@ module ukp(
                 if(dmis ~^ dmi) nrzrxct <= nrzrxct + 1;
                 else           nrzrxct <= 0;
                 if (~dmi && ~dpi) ukprdy <= 0;      // SE0: packet is finished. Mouses send length 4 reports.
+            	if(bitadr==16) pid <= data;			// store PID 
+            	if(bitadr==88) crc16_received[7:0] <= data;		// store crc16 low bits
+            	if(bitadr==96) crc16_received[15:8] <= data;		// store crc16 high bits
+	        if((bitadr>16 & bitadr[2:0] == 3'b000) & bitadr<88) crc16_sum <= crc16_out; // one setep of CRC
             end
             if (ug==0) begin
                 if(bitadr==24) ukprdy <= 1;			// ignore first 3 bytes
