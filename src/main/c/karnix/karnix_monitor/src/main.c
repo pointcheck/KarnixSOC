@@ -281,17 +281,20 @@ void main() {
 		if(reg_sys_print_stats &&
 			reg_sys_counter % (200*reg_sys_print_stats) == 0) { // T=1 sec * reg_sys_print_stats
 
+			#if(USB_ENABLE)
 			printf("\rSTATS: build %05d: irqs = %d, sys_cnt = %d, scratch = %p, sbrk_heap_end = %p, "
-					"console_rx_buf_len = %d, usb0_status = %p, usb0_dbg_low = %p, usb0_gamepad = %p\r\n",
+					"console_rx_buf_len = %d, usb0_status = %p, usb0_dbg_low = %p\r\n",
 				BUILD_NUMBER,
 				reg_irq_counter, reg_sys_counter, reg_scratch, sbrk_heap_end,
-				console_rx_buf_len,
-				#if(USB_ENABLE)
-				USB0->STATUS, USB0->DBGLOW, USB0->GAMEPAD
-				#else
-				0, 0
-				#endif
+				console_rx_buf_len, USB0->STATUS, USB0->DBGLOW
 			);
+			#else
+			printf("\rSTATS: build %05d: irqs = %d, sys_cnt = %d, scratch = %p, sbrk_heap_end = %p, "
+					"console_rx_buf_len = %d\r\n",
+				BUILD_NUMBER,
+				reg_irq_counter, reg_sys_counter, reg_scratch, sbrk_heap_end, console_rx_buf_len
+			);
+			#endif
 
 			plic_print_stats();
 
@@ -371,9 +374,9 @@ void externalInterrupt(void){
 
 	#if(USB_ENABLE)
 	if(PLIC->PENDING & PLIC_IRQ_USB0) { // USB0 is pending
-		printk("USB0 IRQ: type = %d, status = %p, keyboard = %p, keymod = %p, mouse = %p, gamepad = %p, dbg: %p:%p\r\n",
+		printk("USB0 IRQ: type = %d, status = %p, keyboard = %p, keymod = %p, mouse = %p, gamepad = %p, dbg = %p:%p, crc16 = %p\r\n",
 			usbGetType(USB0), USB0->STATUS, USB0->KEYBOARD, USB0->KEYMOD, USB0->MOUSE, USB0->GAMEPAD,
-			USB0->DBGHIGH, USB0->DBGLOW);
+			USB0->DBGHIGH, USB0->DBGLOW, USB0->CRC16);
 		PLIC->PENDING &= ~PLIC_IRQ_USB0;
 	}
 	#endif

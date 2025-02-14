@@ -58,6 +58,10 @@ case class USB_HID_host() extends BlackBox{
 
         // debug
         val dbg_hid_report = out Bits(64 bits)  // last HID report
+
+        val crc16_received = out Bits(16 bits)  // last HID report received CRC16
+        val crc16_calculated = out Bits(16 bits)  // last HID report calculated CRC16
+        val pid = out Bits(8 bits)  // last PID 
 }
 
 case class USBInterface() extends Bundle with IMasterSlave{
@@ -85,6 +89,7 @@ case class Apb3USBCtrl(
   val conerr = usbStatusWord(31).addTag(crossClockDomain) 
   val report = usbStatusWord(30).addTag(crossClockDomain) 
   val typ = usbStatusWord(29 downto 28).addTag(crossClockDomain)
+  val pid = usbStatusWord(27 downto 24).addTag(crossClockDomain)
   val soft_reset = usbStatusWord(0).addTag(crossClockDomain)
 
   val usbKeyboardWord = busCtrl.createReadOnly(Bits(32 bits), address = 4) init(0)
@@ -117,6 +122,10 @@ case class Apb3USBCtrl(
   val dbg_hid_report_low = usbDbgWord1(31 downto 0).addTag(crossClockDomain) 
   val usbDbgWord2 = busCtrl.createReadOnly(Bits(32 bits), address = 24) init(0)
   val dbg_hid_report_high = usbDbgWord2(31 downto 0).addTag(crossClockDomain) 
+
+  val usbCRCWord = busCtrl.createReadOnly(Bits(32 bits), address = 28) init(0)
+  val crc16_received = usbCRCWord(15 downto 0).addTag(crossClockDomain)
+  val crc16_calculated = usbCRCWord(31 downto 16).addTag(crossClockDomain)
 
   val usbClockDomain = ClockDomain(
     clock = io.usbclk_12mhz,
@@ -160,8 +169,12 @@ case class Apb3USBCtrl(
 
     dbg_hid_report_low := usb_hid_host.dbg_hid_report(31 downto 0) 
     dbg_hid_report_high := usb_hid_host.dbg_hid_report(63 downto 32) 
+    crc16_received := usb_hid_host.crc16_received
+    crc16_calculated := usb_hid_host.crc16_calculated
+    pid := usb_hid_host.pid(3 downto 0)
 
-    io.interrupt := usb_hid_host.report 
+    //io.interrupt := usb_hid_host.report & crc16_received === crc16_calculated
+    io.interrupt := usb_hid_host.report & (crc16_received === crc16_calculated)
   }
 
 }

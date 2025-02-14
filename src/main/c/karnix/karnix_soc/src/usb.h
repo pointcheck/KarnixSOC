@@ -80,6 +80,7 @@ typedef struct
   volatile uint32_t GAMEPAD;
   volatile uint32_t DBGLOW;
   volatile uint32_t DBGHIGH;
+  volatile uint32_t CRC16;
 } USB_Reg;
 #pragma pack(0)
 
