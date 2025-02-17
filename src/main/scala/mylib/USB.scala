@@ -173,8 +173,8 @@ case class Apb3USBCtrl(
     crc16_calculated := usb_hid_host.crc16_calculated
     pid := usb_hid_host.pid(3 downto 0)
 
-    //io.interrupt := usb_hid_host.report & crc16_received === crc16_calculated
     io.interrupt := usb_hid_host.report & (crc16_received === crc16_calculated)
+    //io.interrupt := usb_hid_host.report
   }
 
 }
