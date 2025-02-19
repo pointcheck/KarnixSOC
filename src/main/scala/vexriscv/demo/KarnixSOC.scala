@@ -28,7 +28,7 @@ import mylib.{QSPILayout, QSPIInterface, Axi4SharedToQSPI}
 import mylib.{Pwm,Apb3PwmCtrl}
 import mylib.{Apb3MicroI2CCtrl, MicroI2CInterface}
 import mylib.{HDMIInterface, Apb3CGA4HDMICtrl}
-import mylib.{USBInterface, Apb3USBCtrl}
+import mylib.{USBInterface, Apb3USB10Ctrl}
 import mylib.Apb3MachineTimer
 import mylib.Apb3HubCtrl
 import mylib.Apb3MicroPLICCtrl
@@ -292,6 +292,7 @@ class KarnixSOC(val config: KarnixSOCConfig) extends Component{
     val pixclk_x10 = in Bool()
     val usb0 = master(USBInterface())
     val usbclk_12mhz = in Bool()
+    val test = out Bool()
   }
 
   val resetCtrlClockDomain = ClockDomain(
@@ -430,10 +431,12 @@ class KarnixSOC(val config: KarnixSOCConfig) extends Component{
     cgaCtrl.io.pixclk_x10 := io.pixclk_x10
     plic.setIRQ(cgaCtrl.io.vblank_interrupt, 7)
 
-    val usb0Ctrl = new Apb3USBCtrl()
+    val usb0Ctrl = new Apb3USB10Ctrl()
     io.usb0 <> usb0Ctrl.io.usb
     usb0Ctrl.io.usbclk_12mhz := io.usbclk_12mhz
     plic.setIRQ(usb0Ctrl.io.interrupt, 9)
+
+    io.test := usb0Ctrl.io.test
 
 
     val machineTimer = Apb3MachineTimer(axiFrequency.toInt / 1000000)
@@ -604,10 +607,12 @@ case class KarnixSOCTopLevel() extends Component{
 
 	val clkcore = out Bool() // Core clock for analysis 
 	val clkusb = out Bool() // USB clock for analysis 
+
+	val test = out Bool() // Test pin 
     }
 
     val karnix_soc = new KarnixSOC(KarnixSOCConfig.default.copy(
-		axiFrequency = 60.0 MHz, 
+		axiFrequency = 59.0 MHz, 
 		onChipRamSize = 72 kB , 
 		onChipRamHexFile = "KarnixSOCTopLevel_random.hex"
 	))
@@ -746,6 +751,8 @@ case class KarnixSOCTopLevel() extends Component{
     karnix_soc.io.usb0 <> io.usb0
     io.clkusb := karnix_soc.io.usbclk_12mhz
 
+    io.test := karnix_soc.io.test
+
     /* Generate ~12 MHz USB1.x clock by dividing pixclk_x10 250MHz by 21 */
 
     val pixclk_x10_ClockDomain = ClockDomain(
@@ -770,7 +777,7 @@ case class KarnixSOCTopLevel() extends Component{
         usb_clk_div := 0
       }
 
-      karnix_soc.io.usbclk_12mhz := usb_clk 
+      karnix_soc.io.usbclk_12mhz := usb_clk
     }
 
 }
