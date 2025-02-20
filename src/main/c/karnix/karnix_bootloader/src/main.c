@@ -42,6 +42,8 @@ int main(void) {
 
 	PLIC->ENABLE = 0; /* Disable all PLIC IRQ lines, jsut in case */
 
+begin:
+
 	/* Wait for CPU clocks to settle, needed only if running stand-alone. */
 	delay_us(2000000);
 
@@ -63,7 +65,9 @@ int main(void) {
 
 	printk("No apps found in Flash!\r\n");
 
-	return -1; // Do we need ot return anything to nowhere ? 
+	goto begin;
+
+	return -1; // Do we need to return anything to nowhere ? 
 }
 
 void timerInterrupt(void) {
