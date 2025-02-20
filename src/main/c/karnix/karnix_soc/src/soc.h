@@ -14,6 +14,7 @@
 #include "audiodac.h"
 #include "cga.h"
 #include "usb.h"
+#include "usb10.h"
 
 #define TIMER_PRESCALER	((Prescaler_Reg*)0xF0020000)
 #define TIMER_INTERRUPT	((InterruptCtrl_Reg*)0xF0020010)
@@ -31,6 +32,7 @@
 #define MTIME		(*(volatile unsigned long long*)(0xF00B0000))
 #define AUDIODAC0	((AUDIODAC_Reg*)(0xF00C0000))
 #define USB0		((USB_Reg*)(0xF00D0000))
+#define USB1		((USB10_Reg*)(0xF00D1000))
 
 inline volatile unsigned long long get_mtime(void) { return MTIME; }
 
