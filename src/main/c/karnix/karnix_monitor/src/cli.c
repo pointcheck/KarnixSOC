@@ -22,6 +22,8 @@
 #define	OHEX_BYTES_PER_LINE	16		// num of bytes in IHEX line, should be power of 2
 #define	PATHLEN			257		// Max file name len in 4.2BSD.
 
+void welcome(void);
+
 volatile uint32_t console_rx_buf_len = 0;
 volatile uint8_t console_rx_buf[CONSOLE_RX_BUF_SIZE];
 
@@ -63,6 +65,7 @@ void cli_prompt(void) {
 }
 
 void cli_cmd_help(char *argv[], int argn) {
+	welcome();
 	printf(
 "/// List of general commands:\r\n"
 "stats	[period]		- Enable printing statistics each 'period' sec, use 0 to disable.\r\n"
@@ -260,6 +263,8 @@ void cli_cmd_copy(char *argv[], int argn) {
 	#endif
 
 	memcpy(to, from, len);
+
+	current_address = (uint32_t) to; // remember last address used
 }
 
 void cli_cmd_dump(char *argv[], int argn) {

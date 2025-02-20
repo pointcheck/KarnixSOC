@@ -24,8 +24,8 @@
 #include "context.h"
 #include "cli.h"
 
-#define	WELCOME_TEXT "Welcome to Karnix SoC Monitor. Copyright (C) 2024-2025, Fabmicro, LLC.\r\nBuild #%04u at %s %s. Main addr: %p\r\n\r\n"
-
+const char *WELCOME_TEXT = "Welcome to Karnix SoC Monitor. Copyright (C) 2024-2025, Fabmicro, LLC.\r\nBuild #%04u at %s %s. Main addr: %p\r\n\r\n";
+	
 extern void __sinit(void *);
 extern unsigned int _IMPURE_DATA;
 
@@ -44,6 +44,7 @@ volatile uint32_t reg_cga_vblank_irqs = 0;
 __attribute__ ((section (".noinit"))) uint32_t deadbeef;	// If equal to 0xdeadbeef - we are in soft-start mode
 #endif
 
+void welcome(void); 
 
 void process_and_wait(uint32_t us) {
 
@@ -109,7 +110,7 @@ void main() {
 	init_sbrk(NULL, 0); // Initialize heap for malloc to use on-chip RAM
 	__sinit(&_IMPURE_DATA); // Init LIBC impure_data structure
 
-	printf(WELCOME_TEXT, BUILD_NUMBER, __DATE__, __TIME__, &main);
+	welcome();
 
 	GPIO->OUTPUT |= GPIO_OUT_LED0; // LED0 is ON - indicate we are not yet ready
 
@@ -310,6 +311,10 @@ void main() {
 			reg_config_write--;
 
 	}
+}
+
+void welcome(void) { 
+	printf(WELCOME_TEXT, BUILD_NUMBER, __DATE__, __TIME__, &main);
 }
 
 
