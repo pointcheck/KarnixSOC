@@ -250,7 +250,7 @@ void cli_cmd_copy(char *argv[], int argn) {
 		to = (uint8_t*) strtoul(argv[1], NULL, 0);
 
 	if(argv[2] && argv[2][0] != '*')
-		from = (uint8_t*) strtoul(argv[1], NULL, 0);
+		from = (uint8_t*) strtoul(argv[2], NULL, 0);
 
 	if(argv[3])
 		len = strtoul(argv[3], NULL, 0);
