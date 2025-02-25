@@ -613,7 +613,7 @@ case class KarnixSOCTopLevel() extends Component{
     }
 
     val karnix_soc = new KarnixSOC(KarnixSOCConfig.default.copy(
-		axiFrequency = 59.0 MHz, 
+		axiFrequency = 60.0 MHz, 
 		onChipRamSize = 72 kB , 
 		onChipRamHexFile = "KarnixSOCTopLevel_random.hex"
 	))

@@ -67,7 +67,7 @@ case class USB_HID_host() extends BlackBox{
 case class Apb3USBCtrl(
       ) extends Component {
   val io = new Bundle {
-    val apb       = slave(Apb3(addressWidth = 12, dataWidth = 32))
+    val apb       = slave(Apb3(addressWidth = 16, dataWidth = 32))
     val usb       = master(USBInterface())
     val interrupt = out Bool()
     val usbclk_12mhz = in Bool()
