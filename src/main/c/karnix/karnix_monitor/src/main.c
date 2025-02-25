@@ -247,9 +247,9 @@ void main() {
 
 	// Enable USB1
 	#if(USB_ENABLE)
-	USB1->STATUS &= ~USB10_STATUS_RESET_M;
+	USB1->STATUS &= ~USB10_STATUS_ENABLE_BIT;
 	delay_us(1000);
-	USB1->STATUS |= USB10_STATUS_RESET_M;
+	USB1->STATUS |= USB10_STATUS_ENABLE_BIT;
 	printf("USB1 enabled\r\n");
 	#endif
 
@@ -284,10 +284,10 @@ void main() {
 
 			#if(USB_ENABLE)
 			printf("\rSTATS: build %05d: irqs = %d, sys_cnt = %d, scratch = %p, sbrk_heap_end = %p, "
-					"console_rx_buf_len = %d, usb1_status = %p, usb1_recv_low = %p\r\n",
+					"console_rx_buf_len = %d, usb1_status = %p, usb1_cmd = %p, usb1_recv_low = %p\r\n",
 				BUILD_NUMBER,
 				reg_irq_counter, reg_sys_counter, reg_scratch, sbrk_heap_end,
-				console_rx_buf_len, USB1->STATUS, USB1->RECV_DATA_LOW
+				console_rx_buf_len, USB1->STATUS, USB1->COMMAND, USB1->RECV_DATA_LOW
 			);
 			#else
 			printf("\rSTATS: build %05d: irqs = %d, sys_cnt = %d, scratch = %p, sbrk_heap_end = %p, "
@@ -306,7 +306,51 @@ void main() {
 		}
 
 		if(reg_sys_counter % 20 == 0) { // Send USB command every 100ms 
-			USB1->COMMAND = USB10_CMD_SEND_TOKEN | USB10_CMD_START_M;
+
+/*
+getdesc:                        ; get device descriptor of (0,0)
+        outb 0x80               ; SYNC
+        outb 0x2d               ; PID
+        outb 0x00               ; ADDR:ENDP = 0:0
+        outb 0x10               ; + CRC5
+        out4 0x03               ; EOP
+        ; outb 0x01             ; ADDR:ENDP = 1:0
+        ; outb 0xe8             ; + CRC5
+        ; out4 0x03             ; EOP
+
+        outb 0x80               ; SYNC
+        outb 0xc3               ; PID=DATA0
+        outb 0x80               ; bmRequestType: 80
+        outb 0x06               ; bRequest=6 Get_Descriptor
+        outb 0x00               ; Desc Index: 0
+        outb 0x01               ; Desc Type: 1 device
+        outb 0x00               ; Language ID: 0
+        outb 0x00               ; 
+        outb 0x12               ; wLength = 18
+        outb 0x00
+        outb 0xE0               ; CRC16
+        outb 0xF4
+        out4 0x03               ; EOP
+*/
+			
+			USB1->COMMAND = USB10_CMD_START_BIT |
+					USB10_CMD_SET_PID(USB10_PID_SETUP) |
+					USB10_CMD_SET_ADDR(0) |
+					USB10_CMD_SET_ENDP(0) |
+					USB10_CMD_SET(USB10_CMD_SEND_TOKEN);
+					
+			while(USB1->COMMAND & USB10_CMD_START_BIT);
+
+
+			USB1->SEND_DATA_LOW = 0; //0x01000680;
+			USB1->SEND_DATA_HIGH = 0; //0x00120000;
+			USB1->COMMAND = USB10_CMD_START_BIT |
+					USB10_CMD_SET_LEN(8*8-1) |
+					USB10_CMD_SET_PID(USB10_PID_DATA0) |
+					USB10_CMD_SET(USB10_CMD_SEND_DATA);
+
+			while(USB1->COMMAND & USB10_CMD_START_BIT);
+
 		}
 
 		reg_sys_counter++;
@@ -383,8 +427,8 @@ void externalInterrupt(void){
 
 	#if(USB_ENABLE)
 	if(PLIC->PENDING & PLIC_IRQ_USB1) { // USB1 is pending
-		printk("USB1 IRQ: status = %p, recv = %p:%p, crc5 = %p, crc16 = %p\r\n",
-			USB1->STATUS, USB1->RECV_DATA_HIGH, USB1->RECV_DATA_LOW, USB1->CRC5, USB1->CRC16);
+		//printk("USB1 IRQ: status = %p, cmd = %p, recv = %p:%p, crc5 = %p, crc16 = %p\r\n",
+		//	USB1->STATUS, USB1->COMMAND, USB1->RECV_DATA_HIGH, USB1->RECV_DATA_LOW, USB1->CRC5, USB1->CRC16);
 		PLIC->PENDING &= ~PLIC_IRQ_USB1;
 	}
 	#endif

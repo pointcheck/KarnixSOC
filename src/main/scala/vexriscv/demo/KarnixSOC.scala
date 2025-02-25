@@ -290,7 +290,7 @@ class KarnixSOC(val config: KarnixSOCConfig) extends Component{
     val qspi0 = master(QSPIInterface(QSPILayout(addressWidth = 22, dataWidth = 32)))
     val hdmi = master(HDMIInterface())
     val pixclk_x10 = in Bool()
-    val usb0 = master(USBInterface())
+    val usb1 = master(USBInterface())
     val usbclk_12mhz = in Bool()
     val test = out Bool()
   }
@@ -431,12 +431,12 @@ class KarnixSOC(val config: KarnixSOCConfig) extends Component{
     cgaCtrl.io.pixclk_x10 := io.pixclk_x10
     plic.setIRQ(cgaCtrl.io.vblank_interrupt, 7)
 
-    val usb0Ctrl = new Apb3USB10Ctrl()
-    io.usb0 <> usb0Ctrl.io.usb
-    usb0Ctrl.io.usbclk_12mhz := io.usbclk_12mhz
-    plic.setIRQ(usb0Ctrl.io.interrupt, 9)
+    val usb1Ctrl = new Apb3USB10Ctrl()
+    io.usb1 <> usb1Ctrl.io.usb
+    usb1Ctrl.io.usbclk_12mhz := io.usbclk_12mhz
+    plic.setIRQ(usb1Ctrl.io.interrupt, 10)
 
-    io.test := usb0Ctrl.io.test
+    io.test := usb1Ctrl.io.test
 
 
     val machineTimer = Apb3MachineTimer(axiFrequency.toInt / 1000000)
@@ -543,7 +543,8 @@ class KarnixSOC(val config: KarnixSOCConfig) extends Component{
         spiAudioDACCtrl.io.apb -> (0xC0000, 4 kB),
         spi0Ctrl.io.apb -> (0xC1000, 4 kB),
         qspi0.io.apb -> (0xC2000, 4 kB),
-        usb0Ctrl.io.apb -> (0xD0000, 4 kB)
+        //usb0Ctrl.io.apb -> (0xD0000, 4 kB) // USB 1.0 HID implemented in Verilog implementation
+        usb1Ctrl.io.apb -> (0xD1000, 4 kB) // USB 1.0 implemented in SpinalHDL
       )
     )
   }
@@ -603,7 +604,7 @@ case class KarnixSOCTopLevel() extends Component{
         */
 
         val hdmi = master(HDMIInterface())
-        val usb0 = master(USBInterface())
+        val usb1 = master(USBInterface())
 
 	val clkcore = out Bool() // Core clock for analysis 
 	val clkusb = out Bool() // USB clock for analysis 
@@ -692,13 +693,13 @@ case class KarnixSOCTopLevel() extends Component{
     hdmi_pll.io.PHASELOADREG := False
     karnix_soc.io.pixclk_x10 := hdmi_pll.io.CLKOP 
 
-    /*
     case class DCCA() extends BlackBox{
 	val CLKI = in  Bool()
 	val CLKO = out  Bool()
 	val CE = in  Bool()
     }
 
+    /*
     var dcca_hdmi = DCCA()
     dcca_hdmi.CE := True
     dcca_hdmi.CLKI := hdmi_pll.io.CLKOP
@@ -748,7 +749,7 @@ case class KarnixSOCTopLevel() extends Component{
     io.i2c_scl <> karnix_soc.io.i2c.scl
     io.i2c_sda <> karnix_soc.io.i2c.sda
 
-    karnix_soc.io.usb0 <> io.usb0
+    karnix_soc.io.usb1 <> io.usb1
     io.clkusb := karnix_soc.io.usbclk_12mhz
 
     io.test := karnix_soc.io.test
@@ -777,7 +778,10 @@ case class KarnixSOCTopLevel() extends Component{
         usb_clk_div := 0
       }
 
-      karnix_soc.io.usbclk_12mhz := usb_clk
+      var dcca_usb = DCCA()
+      dcca_usb.CE := True
+      dcca_usb.CLKI := usb_clk 
+      karnix_soc.io.usbclk_12mhz := dcca_usb.CLKO 
     }
 
 }

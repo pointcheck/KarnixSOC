@@ -8,7 +8,9 @@
 #define ABS(X)          ((X) > 0 ? (X) : (-1 * (X)))
 #define MIN(X,Y)        ((X) < (Y) ? (X) : (Y))
 #define	SWAP32(X)	__builtin_bswap32((X))
+#ifndef CHAR_BIT
 #define	CHAR_BIT	8
+#endif
 #define BitsCount( val ) ( sizeof( val ) * CHAR_BIT )
 #define Shift( val, steps ) ( steps % BitsCount( val ) )
 #define ROL( val, steps ) ( ( val << Shift( val, steps ) ) | ( val >> ( BitsCount( val ) - Shift( val, steps ) ) ) )

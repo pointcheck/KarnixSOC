@@ -6,8 +6,8 @@ RAMPROG = karnix_bootloader
 
 VERILOG += ../../../KarnixSOCTopLevel.v
 VERILOG += ../../../src/main/verilog/TMDS_encoder.sv ../../../src/main/verilog/OBUFDS.sv
-VERILOG += ../../../src/main/verilog/usb_hid_host.v ../../../src/main/verilog/usb_hid_host_rom.v
-VERILOG += ../../../src/main/verilog/usbf_crc16.v
+#VERILOG += ../../../src/main/verilog/usb_hid_host.v ../../../src/main/verilog/usb_hid_host_rom.v
+#VERILOG += ../../../src/main/verilog/usbf_crc16.v
 
 generate: ../../../KarnixSOCTopLevel_random.hexx ../../../font8x16x256.hex
 	(cd ../../..; sbt "runMain vexriscv.demo.KarnixSOCVerilog")
