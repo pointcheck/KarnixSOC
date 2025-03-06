@@ -249,6 +249,7 @@ void main() {
 	#if(USB_ENABLE)
 	USB1->STATUS &= ~USB10_STATUS_ENABLE_BIT;
 	delay_us(1000);
+	USB1->STATUS |= USB10_STATUS_KEEPALIVE_BIT;
 	USB1->STATUS |= USB10_STATUS_ENABLE_BIT;
 	printf("USB1 enabled\r\n");
 	#endif
@@ -331,25 +332,84 @@ getdesc:                        ; get device descriptor of (0,0)
         outb 0xE0               ; CRC16
         outb 0xF4
         out4 0x03               ; EOP
+
+
+getconfig:                      ; get config descriptor of (0,0)
+        outb 0x80               ; SYNC
+        outb 0x2d               ; PID
+        outb 0x00               ; ADDR:ENDP = 0:0
+        outb 0x10               ; + CRC5
+        out4 0x03               ; EOP
+
+        outb 0x80               ; SYNC
+        outb 0xc3               ; PID=DATA0
+        outb 0x80               ; bmRequestType: 0
+        outb 0x06               ; bRequest=6 Get_Descriptor
+        outb 0x00               ; Desc Index: 0
+        outb 0x02               ; Desc Type: 2 configuration
+        outb 0x00               ; Language ID: 0
+        outb 0x00               ; 
+        outb 0x18               ; wLength = 24 (9 for config, 15 for first interface)
+        outb 0x00
+        outb 0xa2               ; CRC16
+        outb 0x54
+        out4 0x03               ; EOP
+        ret
+
+
 */
-			
+
+			// RESET
+			//
+			USB1->COMMAND = USB10_CMD_START_BIT |
+					USB10_CMD_SET(USB10_CMD_BUS_RESET);
+					
+			while(USB1->COMMAND & USB10_CMD_START_BIT);
+	
+			delay_us(40000); // Wait for 40 ms for device to reset 
+
+			// Get Description: SETUP
 			USB1->COMMAND = USB10_CMD_START_BIT |
 					USB10_CMD_SET_PID(USB10_PID_SETUP) |
 					USB10_CMD_SET_ADDR(0) |
 					USB10_CMD_SET_ENDP(0) |
 					USB10_CMD_SET(USB10_CMD_SEND_TOKEN);
-					
 			while(USB1->COMMAND & USB10_CMD_START_BIT);
 
+			
+			// Get Description: DATA0
 
-			USB1->SEND_DATA_LOW = 0; //0x01000680;
-			USB1->SEND_DATA_HIGH = 0; //0x00120000;
+			USB1->SEND_DATA_LOW = 0x01000680;
+			USB1->SEND_DATA_HIGH = 0x00120000;
 			USB1->COMMAND = USB10_CMD_START_BIT |
 					USB10_CMD_SET_LEN(8*8-1) |
 					USB10_CMD_SET_PID(USB10_PID_DATA0) |
 					USB10_CMD_SET(USB10_CMD_SEND_DATA);
-
 			while(USB1->COMMAND & USB10_CMD_START_BIT);
+
+			delay_us(1000); // Wait for 1 ms
+
+			#if(0)
+			// Get Config
+			USB1->SEND_DATA_LOW = 0x02000680;
+			USB1->SEND_DATA_HIGH = 0x00180000;
+			USB1->COMMAND = USB10_CMD_START_BIT |
+					USB10_CMD_SET_LEN(8*8-1) |
+					USB10_CMD_SET_PID(USB10_PID_DATA0) |
+					USB10_CMD_SET(USB10_CMD_SEND_DATA);
+			while(USB1->COMMAND & USB10_CMD_START_BIT);
+
+
+			USB1->COMMAND = USB10_CMD_START_BIT |
+					USB10_CMD_SET_PID(USB10_PID_IN) |
+					USB10_CMD_SET_ADDR(0) |
+					USB10_CMD_SET_ENDP(0) |
+					USB10_CMD_SET(USB10_CMD_SEND_TOKEN);
+					
+			while(USB1->COMMAND & USB10_CMD_START_BIT);
+			#endif
+
+			// RCV 
 
 		}
 
