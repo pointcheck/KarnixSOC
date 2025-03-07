@@ -40,6 +40,20 @@ void memcpy_rev(void* dst, void* src, uint32_t count);
 uint32_t strntoul(const char * buf, int size, int base); // string to unsigned long with size
 void printk(const char *fmt, ...);
 
+static inline int wait_bit_set_timeout(volatile void* reg, uint32_t mask, uint32_t timeout) {
+	for(uint32_t i = 0; i < timeout; i++)
+		if(*(volatile uint32_t*)reg & mask)
+			return 1;
+	return 0;
+}
+
+static inline int wait_bit_clear_timeout(volatile void* reg, uint32_t mask, uint32_t timeout) {
+	for(uint32_t i = 0; i < timeout; i++)
+		if(!(*(volatile uint32_t*)reg & mask))
+			return 1;
+	return 0;
+}
+
 #define print print_uart0
 
 #endif // _UTILS_H_
