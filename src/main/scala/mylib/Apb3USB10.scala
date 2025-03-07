@@ -437,13 +437,11 @@ case class Apb3USB10Ctrl(
 
   val busCtrl = Apb3SlaveFactory(io.apb)
 
-  val usbStatusWord = busCtrl.createReadWrite(Bits(32 bits), address = 0) init(0)
-  val enable = usbStatusWord(31).addTag(crossClockDomain)
-  val error = usbStatusWord(30).addTag(crossClockDomain)
-  val report = usbStatusWord(29).addTag(crossClockDomain)
-  val busy = usbStatusWord(28).addTag(crossClockDomain)
-  val received = usbStatusWord(27).addTag(crossClockDomain)
-  val keepalive = usbStatusWord(26).addTag(crossClockDomain)
+  val usbStatusWord = busCtrl.createReadOnly(Bits(32 bits), address = 0) init(0)
+  val error_flag = usbStatusWord(30).addTag(crossClockDomain)
+  val report_flag = usbStatusWord(29).addTag(crossClockDomain)
+  val busy_flag = usbStatusWord(28).addTag(crossClockDomain)
+  val received_flag = usbStatusWord(27).addTag(crossClockDomain)
   // ... more flags here
   val pid = usbStatusWord(23 downto 16).addTag(crossClockDomain)
   // ... reserved for FSM states
@@ -477,7 +475,12 @@ case class Apb3USB10Ctrl(
   val crc5_received = usbCRC5Word(4 downto 0).addTag(crossClockDomain)
   val crc5_calculated = usbCRC5Word(11 downto 8).addTag(crossClockDomain)
 
-  io.interrupt := report
+  val usbControlWord = busCtrl.createReadWrite(Bits(32 bits), address = 32) init(22500) // 15 ms at 1.5 MHz
+  val enable = usbControlWord(31).addTag(crossClockDomain)
+  val keepalive = usbControlWord(30).addTag(crossClockDomain)
+  val reset_delay = usbControlWord(15 downto 0).asUInt.addTag(crossClockDomain)
+
+  io.interrupt := report_flag
 
 
   val usbClockDomain = ClockDomain(
@@ -486,6 +489,8 @@ case class Apb3USB10Ctrl(
     config = ClockDomainConfig(resetKind = SYNC, resetActiveLevel = LOW),
     frequency = FixedFrequency(12.0 MHz)
   )
+
+io.test := busy_flag 
 
   val usb_area = new ClockingArea(usbClockDomain) {
 
@@ -500,15 +505,25 @@ case class Apb3USB10Ctrl(
     USBLowSpeedKeepAliveClocks := (ClockDomain.current.frequency.getValue * low_speed_keepalive).toBigInt - 1
 
     val state = RegInit(StateUnconnected).addTag(crossClockDomain)
-    val T1 = Reg(UInt(20 bits)).addTag(crossClockDomain) // Guard timer
-    val T2 = Reg(UInt(16 bits)).addTag(crossClockDomain) // Low-Speed Keep-Alive timer
+    val T1 = Reg(UInt(24 bits)).addTag(crossClockDomain) init(0) // Guard timer
+    val T2 = Reg(UInt(16 bits)).addTag(crossClockDomain) init(0) // Low-Speed Keep-Alive timer
     
+    val error = Reg(Bool()).addTag(crossClockDomain) init(False)
+    val report = Reg(Bool()).addTag(crossClockDomain) init(False)
+    val busy = Reg(Bool()).addTag(crossClockDomain) init(False)
+    val received = Reg(Bool()).addTag(crossClockDomain) init(False)
+
+    error_flag := error
+    report_flag := report
+    received_flag := received
+    busy_flag := busy
+
     fsm_state := state.asBits
 
     // Check device presence
     when(!io.usb.usb_dm && !io.usb.usb_dp) {
       T1 := T1 + 1
-      when(T1 === 1000000) { // DM/DP is low for quite some time ?
+      when(T1 === 6000000) { // DM/DP is low for quite some time ?
         T1 := 0
         state := StateUnconnected 
         error := True
@@ -544,25 +559,24 @@ case class Apb3USB10Ctrl(
     send_data.io.clock_div := USBSlowSpeedClockDiv
 
     val bus_reset = new USBBusReset()
-    val wait_time = 15 ms;
     bus_reset.io.valid := False
-    bus_reset.io.delay := (low_speed_baudrate * wait_time).toBigInt // reset duration - 15 ms
+    bus_reset.io.delay := reset_delay
     bus_reset.io.clock_div := USBSlowSpeedClockDiv
 
     val send_keepalive = new USBKeepAlive() // this is for Slow Speed bus only
     send_keepalive.io.valid := False
     send_keepalive.io.clock_div := USBSlowSpeedClockDiv
 
-    io.test := cmd_start //send_data.io.test // bus_reset.io.test //cmd_start //busy //send_token.io.test
+    //io.test := bus_reset.io.test|send_token.io.test|send_data.io.test
 
     switch(state) {
 
       is(StateUnconnected) { // Unconnected
-        report := False 
-        busy := False
-        cmd_start := False
+        report := False
 
         when(io.usb.usb_dm && !io.usb.usb_dp) {
+          busy := False
+          cmd_start := False
           error := False 
           report := True
           state := StateWaitCMDorSYNC // Low Speed device just connected
@@ -570,8 +584,7 @@ case class Apb3USB10Ctrl(
       }
 
       is(StateWaitCMDorSYNC) { // Wait command or SYNC 
-        report := False 
-        busy := False
+        report := False
 
         when(cmd_start) {
           switch(cmd) {
@@ -594,7 +607,7 @@ case class Apb3USB10Ctrl(
           }
         }
 
-        when(keepalive) {
+        when(keepalive && !(!io.usb.usb_dm && !io.usb.usb_dp)) { // DP/DM down is error state
           T2 := T2 + 1
 
           when(T2 === USBLowSpeedKeepAliveClocks) {
@@ -616,6 +629,7 @@ case class Apb3USB10Ctrl(
           state := StateWaitCMDorSYNC 
           report := True
           cmd_start := False
+          busy := False
           T2 := 0
         } 
       }
@@ -631,6 +645,7 @@ case class Apb3USB10Ctrl(
           state := StateWaitCMDorSYNC 
           report := True
           cmd_start := False
+          busy := False
           T2 := 0
         } 
       }
@@ -643,6 +658,7 @@ case class Apb3USB10Ctrl(
           state := StateWaitCMDorSYNC 
           report := True
           cmd_start := False
+          busy := False
           T2 := 0
         } 
       }

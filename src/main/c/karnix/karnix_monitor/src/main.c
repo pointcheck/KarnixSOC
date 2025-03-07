@@ -247,10 +247,11 @@ void main() {
 
 	// Enable USB1
 	#if(USB_ENABLE)
-	USB1->STATUS &= ~USB10_STATUS_ENABLE_BIT;
+	USB1->CONTROL &= ~USB10_CONTROL_ENABLE_BIT;
 	delay_us(1000);
-	USB1->STATUS |= USB10_STATUS_KEEPALIVE_BIT;
-	USB1->STATUS |= USB10_STATUS_ENABLE_BIT;
+	USB1->CONTROL |= USB10_CONTROL_RESET_DELAY_SET(1500000 / 1000 * 11); // Set reset duration to 11ms (num of ticks as 1.5 MHz
+	USB1->CONTROL |= USB10_CONTROL_KEEPALIVE_BIT;
+	USB1->CONTROL |= USB10_CONTROL_ENABLE_BIT;
 	printf("USB1 enabled\r\n");
 	#endif
 
@@ -359,14 +360,23 @@ getconfig:                      ; get config descriptor of (0,0)
 
 */
 
+			if(USB1->STATUS & USB10_STATUS_ERROR_BIT) {
+				printf("usb10: not device connected!\r\n");
+				goto usb10_error;
+			}
+
 			// RESET
-			//
+
 			USB1->COMMAND = USB10_CMD_START_BIT |
 					USB10_CMD_SET(USB10_CMD_BUS_RESET);
 					
-			while(USB1->COMMAND & USB10_CMD_START_BIT);
+			if(!usb10_wait_cmd_complete(USB1, 300000)) { // ~30ms timeout
+				printf("usb10: hung in RESET!\r\n");
+				goto usb10_error;
+			}
+
 	
-			delay_us(40000); // Wait for 40 ms for device to reset 
+			delay_us(20000); // Wait for 20 ms for device to settle 
 
 			// Get Description: SETUP
 			USB1->COMMAND = USB10_CMD_START_BIT |
@@ -374,10 +384,16 @@ getconfig:                      ; get config descriptor of (0,0)
 					USB10_CMD_SET_ADDR(0) |
 					USB10_CMD_SET_ENDP(0) |
 					USB10_CMD_SET(USB10_CMD_SEND_TOKEN);
-			while(USB1->COMMAND & USB10_CMD_START_BIT);
+
+			if(!usb10_wait_cmd_complete(USB1, 20000)) { // ~2ms timeout
+				printf("usb10: hang after SETUP token!\r\n");
+				goto usb10_error;
+			}
+
 
 			
-			// Get Description: DATA0
+			#if(1)
+			// Send DATA0: Get Description
 
 			USB1->SEND_DATA_LOW = 0x01000680;
 			USB1->SEND_DATA_HIGH = 0x00120000;
@@ -385,9 +401,12 @@ getconfig:                      ; get config descriptor of (0,0)
 					USB10_CMD_SET_LEN(8*8-1) |
 					USB10_CMD_SET_PID(USB10_PID_DATA0) |
 					USB10_CMD_SET(USB10_CMD_SEND_DATA);
-			while(USB1->COMMAND & USB10_CMD_START_BIT);
 
-			delay_us(1000); // Wait for 1 ms
+			if(!usb10_wait_cmd_complete(USB1, 20000)) { // ~2ms timeout
+				printf("usb10: hang after DATA0 packet!\r\n");
+				goto usb10_error;
+			}
+			#endif
 
 			#if(0)
 			// Get Config
@@ -397,9 +416,22 @@ getconfig:                      ; get config descriptor of (0,0)
 					USB10_CMD_SET_LEN(8*8-1) |
 					USB10_CMD_SET_PID(USB10_PID_DATA0) |
 					USB10_CMD_SET(USB10_CMD_SEND_DATA);
-			while(USB1->COMMAND & USB10_CMD_START_BIT);
+
+			if(!usb10_wait_cmd_complete(USB1, 20000)) { // 2ms timeout
+				printf("usb10: hang after DATA0 packet!\r\n");
+				goto usb10_error;
+			}
+			#endif
 
 
+			if(!wait_bit_set_timeout(&USB1->STATUS, USB10_STATUS_RECEIVED_BIT, 20000)) { /// 2ms
+				printf("usb10: No ACK after SETUP/DATA0!\r\n");
+				goto usb10_error;
+			}
+
+			printf("usb10: packet received, PID = %02X\r\n", USB10_STATUS_PID(USB1->STATUS));
+
+			/*
 			USB1->COMMAND = USB10_CMD_START_BIT |
 					USB10_CMD_SET_PID(USB10_PID_IN) |
 					USB10_CMD_SET_ADDR(0) |
@@ -407,9 +439,13 @@ getconfig:                      ; get config descriptor of (0,0)
 					USB10_CMD_SET(USB10_CMD_SEND_TOKEN);
 					
 			while(USB1->COMMAND & USB10_CMD_START_BIT);
-			#endif
+			*/
 
 			// RCV 
+
+			usb10_error:
+
+			;
 
 		}
 
