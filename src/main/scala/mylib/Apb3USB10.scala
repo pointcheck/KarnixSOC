@@ -541,7 +541,7 @@ case class USBReceiver() extends Component {
 
 object USBPhase extends SpinalEnum{
   val StateUnconnected, StateWaitCMDorSYNC, StateKeepAlive, StateSendToken, StateSendData,
-      StateBusReset, StateReceive
+      StateSendReset, StateReceive
       = newElement()
 }
 
@@ -630,11 +630,15 @@ io.test := busy_flag
     USBSlowSpeedClockDiv := (ClockDomain.current.frequency.getValue / low_speed_baudrate).toBigInt - 1
 
     val USBLowSpeedKeepAliveClocks = UInt(16 bits)
-    val low_speed_keepalive : TimeNumber = 1 ms;
+    val low_speed_keepalive : TimeNumber = 1 ms; // Send KeepAlive interval
     USBLowSpeedKeepAliveClocks := (ClockDomain.current.frequency.getValue * low_speed_keepalive).toBigInt - 1
 
+    val USBLowSpeedErrorClocks = UInt(16 bits)
+    val low_speed_error : TimeNumber = 0.9 ms; // Tiee to detect disconnect or error
+    USBLowSpeedErrorClocks := (ClockDomain.current.frequency.getValue * low_speed_error).toBigInt - 1
+
     val state = RegInit(StateUnconnected).addTag(crossClockDomain)
-    val T1 = Reg(UInt(24 bits)).addTag(crossClockDomain) init(0) // Guard timer
+    val T1 = Reg(UInt(16 bits)).addTag(crossClockDomain) init(0) // Guard timer
     val T2 = Reg(UInt(16 bits)).addTag(crossClockDomain) init(0) // Low-Speed Keep-Alive timer
     
     val error = Reg(Bool()).addTag(crossClockDomain) init(False)
@@ -650,9 +654,9 @@ io.test := busy_flag
     fsm_state := state.asBits
 
     // Check device presence
-    when(!io.usb.usb_dm && !io.usb.usb_dp) {
+    when(!io.usb.usb_dm && !io.usb.usb_dp && state =/= StateSendReset) {
       T1 := T1 + 1
-      when(T1 === 6000000) { // DM/DP is low for quite some time ?
+      when(T1 === USBLowSpeedErrorClocks) { // DM/DP is low for quite some time ?
         T1 := 0
         state := StateUnconnected 
         error := True
@@ -730,7 +734,7 @@ io.test := busy_flag
               received := False
             }
             is(CMDBusReset.asBits.resize(4)) {
-              state := StateBusReset
+              state := StateSendReset
               busy := True
               received := False
             }
@@ -791,7 +795,7 @@ io.test := busy_flag
         } 
       }
 
-      is(StateBusReset) { // Bus Reset condition (D+ and D- are low for 11ms) 
+      is(StateSendReset) { // Bus Reset condition (D+ and D- are low for 11ms) 
         bus_reset.io.valid := True
         bus_reset.io.usb_dm <> io.usb.usb_dm
         bus_reset.io.usb_dp <> io.usb.usb_dp
