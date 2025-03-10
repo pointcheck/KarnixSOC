@@ -437,6 +437,7 @@ case class USBReceiver() extends Component {
     val pid = Reg(Bits(8 bits)).addTag(crossClockDomain) init(0)
     val crc5 = Reg(Bits(5 bits)) init(0)
     val crc16 = Reg(Bits(16 bits)) init(0)
+    val last_dp = Reg(Bool()) init(True)
 
     io.data := data
     io.ready := ready
@@ -455,6 +456,7 @@ case class USBReceiver() extends Component {
           when(io.usb_dp && !io.usb_dm) { // First 'K' - start calibration
             state := 1
             bit_count := 0
+            last_dp := True
             T0 := 0
             T1 := 0
           }
@@ -512,8 +514,9 @@ case class USBReceiver() extends Component {
               state := 7
             }
           }
-          when(T0 === bit_len(7 downto 1).resized) { // sample one bit in the middle
-            pid := pid(6 downto 0) ## io.usb_dp
+          when(T0 === bit_len(7 downto 1).resized) { // sample and convert one bit in the middle of tick
+            pid := (io.usb_dp === last_dp) ## pid(7 downto 1)
+            last_dp := io.usb_dp 
           }
         }
 
