@@ -411,8 +411,137 @@ case class USBKeepAlive() extends Component {
     }
 }
 
+case class USBReceiver() extends Component {
+    val io = new Bundle {
+	val usb_dm    = inout(Analog(Bool()))
+	val usb_dp    = inout(Analog(Bool()))
+	val valid     = in Bool()
+	val ready     = out Bool()
+        val data      = out Bits(64 bits)
+        val pid       = out Bits(8 bits)
+        val crc5      = out Bits(5 bits)
+        val crc16     = out Bits(16 bits)
+        val bits_recv = out UInt(15 bits)
+
+        val test = out Bool()
+    }
+
+    val bit_count = Reg(UInt(15 bits)).addTag(crossClockDomain) init(0)
+    val bit_len = Reg(UInt(8 bits)) init(0)
+    val state = Reg(UInt(3 bits)) init(0)
+    val T0 = Reg(UInt(8 bits)) init(0) // Bit timer
+    val T1 = Reg(UInt(8 bits)) init(0) // Guard timer
+
+    val ready = Reg(Bool()) init(False)
+    val data = Reg(Bits(64 bits)) init(0)
+    val pid = Reg(Bits(8 bits)).addTag(crossClockDomain) init(0)
+    val crc5 = Reg(Bits(5 bits)) init(0)
+    val crc16 = Reg(Bits(16 bits)) init(0)
+
+    io.data := data
+    io.ready := ready
+    io.crc5 := crc5
+    io.crc16 := crc16
+    io.bits_recv := bit_count
+    io.pid := pid 
+
+    io.test := io.valid
+
+    when(io.valid) {
+
+      switch(state) {
+
+        is(0) { // SYNC: begin calibration
+          when(io.usb_dp && !io.usb_dm) { // First 'K' - start calibration
+            state := 1
+            bit_count := 0
+            T0 := 0
+            T1 := 0
+          }
+        }
+
+        is(1) { // SYNC: 'K' is going, waiting for 'J'
+          T0 := T0 + 1
+          when(!io.usb_dp && io.usb_dm) { // 'J' received
+            bit_count := bit_count + 1
+            state := 2
+          }
+          when(T0 === 255) { // Too much, error
+            state := 7
+          }
+        }
+
+        is(2) { // SYNC: 'J' is going, waiting for 'K'
+          T0 := T0 + 1
+          when(io.usb_dp && !io.usb_dm) { // 'K' received
+            bit_count := bit_count + 1
+            state := 1
+            when(bit_count === 3) { // Two 'KJ' received
+              bit_len := (T0 >> 2).resized // calculate bit duration: div by 4
+              state := 3
+              T0 := 0
+            }
+          }
+          when(T0 === 255) { // Too much, error
+            state := 7
+          }
+        }
+
+        is(3) { // Wait for end of SYNC: two 'K's
+          when(io.usb_dp && !io.usb_dm) { // 'K' received
+            T0 := T0 + 1
+            when(T0.asBits === bit_len(6 downto 0) ## B"0") { // T0 = bit_len * 2
+              T0 := 0
+              state := 4
+              bit_count := 0
+            }
+          } otherwise {
+            T0 := 0
+          }
+          when(T0 === 255) { // Too much, error
+            state := 7
+          }
+        }
+
+        is(4) { // Receiving PID
+          T0 := T0 + 1
+          when(T0 === bit_len) {
+            T0 := 0
+            bit_count := bit_count + 1
+            when(bit_count === 7) { // end of PID
+              state := 7
+            }
+          }
+          when(T0 === bit_len(7 downto 1).resized) { // sample one bit in the middle
+            pid := pid(6 downto 0) ## io.usb_dp
+          }
+        }
+
+        is(7) { // Error
+          ready := True
+          io.bits_recv := bit_count
+        }
+
+      }
+
+      when((!io.usb_dp && !io.usb_dm) || (!io.usb_dp && io.usb_dm)) {
+        T1 := T1 + 1
+        when(T1 === 255) { // SE0 or 'J' for a lot many clocks - report error! 
+          state := 7
+        }
+      } otherwise {
+        T1 := 0
+      }
+
+    } otherwise {
+      state := 0
+      ready := False
+    }
+}
+
 object USBPhase extends SpinalEnum{
-  val StateUnconnected, StateWaitCMDorSYNC, StateKeepAlive, StateSendToken, StateSendData, StateBusReset
+  val StateUnconnected, StateWaitCMDorSYNC, StateKeepAlive, StateSendToken, StateSendData,
+      StateBusReset, StateReceive
       = newElement()
 }
 
@@ -532,12 +661,6 @@ io.test := busy_flag
         busy := False
         cmd := CMDNone.asBits.resized // clear last cmd
         cmd_start := False
-        received_data_low := 0
-        received_data_high := 0
-        crc16_received := 0
-        crc16_calculated := 0
-        crc5_received := 0
-        crc5_calculated := 0
       }
     } otherwise {
       T1 := 0
@@ -567,6 +690,14 @@ io.test := busy_flag
     send_keepalive.io.valid := False
     send_keepalive.io.clock_div := USBSlowSpeedClockDiv
 
+    val receiver = new USBReceiver()
+    receiver.io.valid := False
+    crc16_received := receiver.io.crc16
+    crc5_received := receiver.io.crc5
+    received_data_low := receiver.io.data(31 downto 0)
+    received_data_high := receiver.io.data(63 downto 32)
+    pid := receiver.io.pid
+
     //io.test := bus_reset.io.test|send_token.io.test|send_data.io.test
 
     switch(state) {
@@ -591,23 +722,33 @@ io.test := busy_flag
             is(CMDSendToken.asBits.resize(4)) {
               state := StateSendToken
               busy := True
+              received := False
             }
             is(CMDSendData.asBits.resize(4)) {
               state := StateSendData
               busy := True
+              received := False
             }
             is(CMDBusReset.asBits.resize(4)) {
               state := StateBusReset
               busy := True
+              received := False
             }
             default {
               cmd_start := False
               report := True
+              received := False
             }
           }
         }
 
-        when(keepalive && !(!io.usb.usb_dm && !io.usb.usb_dp)) { // DP/DM down is error state
+        when(!io.usb.usb_dm && io.usb.usb_dp) { // Activity on the bus ?
+          state := StateReceive
+          busy := True
+          received := False
+        }
+
+        when(keepalive && !(!io.usb.usb_dm && !io.usb.usb_dp)) { // Keepalive enabled and not Error state ?
           T2 := T2 + 1
 
           when(T2 === USBLowSpeedKeepAliveClocks) {
@@ -672,6 +813,18 @@ io.test := busy_flag
           cmd_start := False
           busy := False
           T2 := 0
+        } 
+      }
+
+      is(StateReceive) { // Receive data piece 
+        receiver.io.valid := True
+        receiver.io.usb_dm <> io.usb.usb_dm
+        receiver.io.usb_dp <> io.usb.usb_dp
+        when(receiver.io.ready) {
+          state := StateWaitCMDorSYNC
+          received := True
+          busy := False
+          report := True
         } 
       }
 
