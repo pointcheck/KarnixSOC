@@ -101,8 +101,7 @@ typedef struct {
 	volatile uint32_t RECV_DATA_HIGH;
 	volatile uint32_t SEND_DATA_LOW;
 	volatile uint32_t SEND_DATA_HIGH;
-	volatile uint32_t CRC16;
-	volatile uint32_t CRC5;
+	volatile uint32_t RX_STATUS;
 	volatile uint32_t CONTROL;
 } USB10_Reg;
 #pragma pack(0)

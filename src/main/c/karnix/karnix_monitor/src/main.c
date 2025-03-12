@@ -286,7 +286,7 @@ void main() {
 
 			#if(USB_ENABLE)
 			printf("\rSTATS: build %05d: irqs = %d, sys_cnt = %d, scratch = %p, sbrk_heap_end = %p, "
-					"console_rx_buf_len = %d, usb1_status = %p, usb1_cmd = %p, usb1_recv_low = %p\r\n",
+					"console_rx_buf_len = %d, usb1_status = 0x%08x, usb1_cmd = 0x%08x, usb1_recv_low = 0x%08x\r\n",
 				BUILD_NUMBER,
 				reg_irq_counter, reg_sys_counter, reg_scratch, sbrk_heap_end,
 				console_rx_buf_len, USB1->STATUS, USB1->COMMAND, USB1->RECV_DATA_LOW
@@ -425,21 +425,29 @@ getconfig:                      ; get config descriptor of (0,0)
 
 
 			if(!wait_bit_set_timeout(&USB1->STATUS, USB10_STATUS_RECEIVED_BIT, 20000)) { /// 2ms
-				printf("usb10: No ACK after SETUP/DATA0!\r\n");
+				printf("usb10: No response after SETUP/DATA0!\r\n");
 				goto usb10_error;
 			}
 
-			printf("usb10: packet received, PID = %02X\r\n", USB10_STATUS_PID(USB1->STATUS));
+			printf("usb10: packet received, PID = 0x%02X, RX_STATUS = 0x%08X, DATA = %08X:%08X\r\n", USB10_STATUS_PID(USB1->STATUS), USB1->RX_STATUS, USB1->RECV_DATA_HIGH, USB1->RECV_DATA_LOW);
 
-			/*
+			if(USB10_STATUS_PID(USB1->STATUS) != 0xd2) {
+				printf("usb10: No ACK!\r\n");
+				goto usb10_error;	
+			}
+
 			USB1->COMMAND = USB10_CMD_START_BIT |
 					USB10_CMD_SET_PID(USB10_PID_IN) |
 					USB10_CMD_SET_ADDR(0) |
 					USB10_CMD_SET_ENDP(0) |
 					USB10_CMD_SET(USB10_CMD_SEND_TOKEN);
 					
-			while(USB1->COMMAND & USB10_CMD_START_BIT);
-			*/
+			if(!wait_bit_set_timeout(&USB1->STATUS, USB10_STATUS_RECEIVED_BIT, 20000)) { /// 2ms
+				printf("usb10: No response after IN(0:0)!\r\n");
+				goto usb10_error;
+			}
+
+			printf("usb10: packet received, PID = 0x%02X, RX_STATUS = 0x%08X, DATA = %08X:%08X\r\n", USB10_STATUS_PID(USB1->STATUS), USB1->RX_STATUS, USB1->RECV_DATA_HIGH, USB1->RECV_DATA_LOW);
 
 			// RCV 
 

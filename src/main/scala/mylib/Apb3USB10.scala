@@ -417,36 +417,30 @@ case class USBReceiver() extends Component {
 	val usb_dp    = inout(Analog(Bool()))
 	val valid     = in Bool()
 	val ready     = out Bool()
-        val data      = out Bits(64 bits)
-        val pid       = out Bits(8 bits)
-        val crc5      = out Bits(5 bits)
-        val crc16     = out Bits(16 bits)
-        val bits_recv = out UInt(15 bits)
+        val packet    = out Bits(128 bits) // PID(8) + DATA(64) + CRC16(16) + ALIGN
+        val bits_recv = out UInt(7 bits)
 
         val test = out Bool()
     }
 
-    val bit_count = Reg(UInt(15 bits)).addTag(crossClockDomain) init(0)
-    val bit_len = Reg(UInt(8 bits)) init(0)
-    val state = Reg(UInt(3 bits)) init(0)
-    val T0 = Reg(UInt(8 bits)) init(0) // Bit timer
-    val T1 = Reg(UInt(8 bits)) init(0) // Guard timer
+    val bit_count = Reg(UInt(7 bits)).addTag(crossClockDomain) init(0)
+    val bit_len = Reg(UInt(8 bits)).addTag(crossClockDomain) init(0)
+    val state = Reg(UInt(3 bits)).addTag(crossClockDomain) init(0)
+    val T0 = Reg(UInt(8 bits)).addTag(crossClockDomain) init(0) // Bit timer
+    val T1 = Reg(UInt(8 bits)) init(0) // EOP timer
+    val T2 = Reg(UInt(8 bits)) init(0) // Guard timer
 
-    val ready = Reg(Bool()) init(False)
-    val data = Reg(Bits(64 bits)) init(0)
-    val pid = Reg(Bits(8 bits)).addTag(crossClockDomain) init(0)
-    val crc5 = Reg(Bits(5 bits)) init(0)
-    val crc16 = Reg(Bits(16 bits)) init(0)
+    val ready = Reg(Bool()).addTag(crossClockDomain) init(False)
+    val packet = Reg(Bits(128 bits)).addTag(crossClockDomain) init(0)
     val last_dp = Reg(Bool()) init(True)
+    val last_symbol = Reg(Bool()) init(True)
 
-    io.data := data
+    io.packet := packet 
     io.ready := ready
-    io.crc5 := crc5
-    io.crc16 := crc16
     io.bits_recv := bit_count
-    io.pid := pid 
 
-    io.test := io.valid
+//    io.test := io.valid
+io.test := False
 
     when(io.valid) {
 
@@ -456,9 +450,14 @@ case class USBReceiver() extends Component {
           when(io.usb_dp && !io.usb_dm) { // First 'K' - start calibration
             state := 1
             bit_count := 0
+            bit_len := 7 // default is 8 clocks
+            packet := 0
+            ready := False
             last_dp := True
+            last_symbol := True
             T0 := 0
             T1 := 0
+            T2 := 0
           }
         }
 
@@ -479,7 +478,7 @@ case class USBReceiver() extends Component {
             bit_count := bit_count + 1
             state := 1
             when(bit_count === 3) { // Two 'KJ' received
-              bit_len := (T0 >> 2).resized // calculate bit duration: div by 4
+              bit_len := ((T0 + 1) >> 2).resized // calculate bit duration: div by 4
               state := 3
               T0 := 0
             }
@@ -505,40 +504,66 @@ case class USBReceiver() extends Component {
           }
         }
 
-        is(4) { // Receiving PID
-          T0 := T0 + 1
-          when(T0 === bit_len) {
-            T0 := 0
-            bit_count := bit_count + 1
-            when(bit_count === 7) { // end of PID
-              state := 7
+        is(4) { // Receiving data 
+          when(io.usb_dp =/= io.usb_dm) { // Valid data are only when DP != DM
+            T0 := T0 + 1
+            last_dp := io.usb_dp
+            when(last_dp =/= io.usb_dp) { // sync on each edge
+              T0 := 0
             }
-          }
-          when(T0 === bit_len(7 downto 1).resized) { // sample and convert one bit in the middle of tick
-            pid := (io.usb_dp === last_dp) ## pid(7 downto 1)
-            last_dp := io.usb_dp 
+            when(T0 === bit_len) { // end of symbol ? 
+              T0 := 0
+            }
+            when(T0 === bit_len(7 downto 1).resized) { // sample one symbol in the middle of tick
+              last_symbol := io.usb_dp 
+              packet(bit_count) := (io.usb_dp === last_symbol) // convert to bit and save to packet
+              bit_count := bit_count + 1
+              when(bit_count === 127) { // max data size achieved 
+                state := 7
+              }
+              io.test := True
+            }
           }
         }
 
         is(7) { // Error
           ready := True
           io.bits_recv := bit_count
+          io.test := True
+        }
+
+        default {
+          state := 7
+          packet(87 downto 80) := state.asBits.resized
+          io.test := True
         }
 
       }
 
-      when((!io.usb_dp && !io.usb_dm) || (!io.usb_dp && io.usb_dm)) {
+      // Check for EOP (SE0)
+      when(!io.usb_dp && !io.usb_dm) {
         T1 := T1 + 1
-        when(T1 === 255) { // SE0 or 'J' for a lot many clocks - report error! 
+        when(T1 === ((bit_len << 1) - U(2))) { // is SE0 for two bit intervals - report EOP
           state := 7
+          //io.test := True
         }
       } otherwise {
         T1 := 0
       }
 
+      // Check for hung state ('J')
+      when(!io.usb_dp && io.usb_dm) {
+        T2 := T2 + 1
+        when(T2 === (bit_len << 3)) { // is 'J' for more than 8 clocks - report error! 
+          state := 7
+          //io.test := True
+        }
+      } otherwise {
+        T2 := 0
+      }
+
     } otherwise {
       state := 0
-      ready := False
     }
 }
 
@@ -575,7 +600,7 @@ case class Apb3USB10Ctrl(
   val busy_flag = usbStatusWord(28).addTag(crossClockDomain)
   val received_flag = usbStatusWord(27).addTag(crossClockDomain)
   // ... more flags here
-  val pid = usbStatusWord(23 downto 16).addTag(crossClockDomain)
+  val received_pid = usbStatusWord(23 downto 16).addTag(crossClockDomain)
   // ... reserved for FSM states
   val fsm_state = usbStatusWord(2 downto 0).addTag(crossClockDomain)
 
@@ -599,15 +624,12 @@ case class Apb3USB10Ctrl(
   val usbSendHighWord = busCtrl.createReadWrite(Bits(32 bits), address = 20) init(0)
   val send_data_high = usbSendHighWord(31 downto 0).addTag(crossClockDomain)
 
-  val usbCRC16Word = busCtrl.createReadOnly(Bits(32 bits), address = 24) init(0)
-  val crc16_received = usbCRC16Word(15 downto 0).addTag(crossClockDomain)
-  val crc16_calculated = usbCRC16Word(31 downto 16).addTag(crossClockDomain)
+  val usbReceiverStatusWord = busCtrl.createReadOnly(Bits(32 bits), address = 24) init(0)
+  //val received_bits = usbReceiverStatusWord(15 downto 0).asUInt.addTag(crossClockDomain)
+  val received_bits = usbReceiverStatusWord(15 downto 0).addTag(crossClockDomain)
+  val received_crc16 = usbReceiverStatusWord(31 downto 16).addTag(crossClockDomain)
 
-  val usbCRC5Word = busCtrl.createReadOnly(Bits(32 bits), address = 28) init(0)
-  val crc5_received = usbCRC5Word(4 downto 0).addTag(crossClockDomain)
-  val crc5_calculated = usbCRC5Word(11 downto 8).addTag(crossClockDomain)
-
-  val usbControlWord = busCtrl.createReadWrite(Bits(32 bits), address = 32) init(22500) // 15 ms at 1.5 MHz
+  val usbControlWord = busCtrl.createReadWrite(Bits(32 bits), address = 28) init(22500) // keepalive: 15 ms at 1.5 MHz
   val enable = usbControlWord(31).addTag(crossClockDomain)
   val keepalive = usbControlWord(30).addTag(crossClockDomain)
   val reset_delay = usbControlWord(15 downto 0).asUInt.addTag(crossClockDomain)
@@ -622,7 +644,7 @@ case class Apb3USB10Ctrl(
     frequency = FixedFrequency(12.0 MHz)
   )
 
-io.test := busy_flag 
+//io.test := busy_flag 
 
   val usb_area = new ClockingArea(usbClockDomain) {
 
@@ -699,13 +721,17 @@ io.test := busy_flag
 
     val receiver = new USBReceiver()
     receiver.io.valid := False
-    crc16_received := receiver.io.crc16
-    crc5_received := receiver.io.crc5
-    received_data_low := receiver.io.data(31 downto 0)
-    received_data_high := receiver.io.data(63 downto 32)
-    pid := receiver.io.pid
+    when(receiver.io.ready) {
+      received_pid := receiver.io.packet(7 downto 0)
+      received_data_low := receiver.io.packet(39 downto 8)
+      received_data_high := receiver.io.packet(71 downto 40)
+      received_crc16 := receiver.io.packet(87 downto 72)
+      received_bits := receiver.io.bits_recv.asBits.resized
+    } 
+
 
     //io.test := bus_reset.io.test|send_token.io.test|send_data.io.test
+io.test := receiver.io.test
 
     switch(state) {
 
