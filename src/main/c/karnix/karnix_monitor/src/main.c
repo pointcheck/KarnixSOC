@@ -429,12 +429,17 @@ getconfig:                      ; get config descriptor of (0,0)
 				goto usb10_error;
 			}
 
-			printf("usb10: packet received, PID = 0x%02X, RX_STATUS = 0x%08X, DATA = %08X:%08X\r\n", USB10_STATUS_PID(USB1->STATUS), USB1->RX_STATUS, USB1->RECV_DATA_HIGH, USB1->RECV_DATA_LOW);
+			printf("usb10: packet received (0), PID = 0x%02X, RX_STATUS = 0x%08X, DATA = %08X:%08X\r\n", USB10_STATUS_PID(USB1->STATUS), USB1->RX_STATUS, USB1->RECV_DATA_HIGH, USB1->RECV_DATA_LOW);
 
-			if(USB10_STATUS_PID(USB1->STATUS) != 0xd2) {
+			if(USB10_STATUS_PID(USB1->STATUS) != USB10_PID_ACK) {
 				printf("usb10: No ACK!\r\n");
 				goto usb10_error;	
 			}
+
+
+			USB10_DescriptionUnion usb_dev_desc;
+
+			// Request First part of Descriptor
 
 			USB1->COMMAND = USB10_CMD_START_BIT |
 					USB10_CMD_SET_PID(USB10_PID_IN) |
@@ -447,9 +452,82 @@ getconfig:                      ; get config descriptor of (0,0)
 				goto usb10_error;
 			}
 
-			printf("usb10: packet received, PID = 0x%02X, RX_STATUS = 0x%08X, DATA = %08X:%08X\r\n", USB10_STATUS_PID(USB1->STATUS), USB1->RX_STATUS, USB1->RECV_DATA_HIGH, USB1->RECV_DATA_LOW);
+			USB1->COMMAND = USB10_CMD_START_BIT |
+					USB10_CMD_SET_PID(USB10_PID_ACK) |
+					USB10_CMD_SET(USB10_CMD_SEND_SHORT_TOKEN);
+					
+			if(!usb10_wait_cmd_complete(USB1, 20000)) { // 2ms timeout
+				printf("usb10: hang after ACK!\r\n");
+				goto usb10_error;
+			}
 
-			// RCV 
+			printf("usb10: packet received (1), PID = 0x%02X, RX_STATUS = 0x%08X, DATA = %08X:%08X\r\n", USB10_STATUS_PID(USB1->STATUS), USB1->RX_STATUS, USB1->RECV_DATA_HIGH, USB1->RECV_DATA_LOW);
+
+
+			if(USB10_STATUS_PID(USB1->STATUS) != USB10_PID_DATA0 && 
+			   USB10_STATUS_PID(USB1->STATUS) != USB10_PID_DATA1) {
+				printf("usb10: expected DATA0/1 packet instead!\r\n");
+				goto usb10_error;
+			}
+
+			if(USB10_RX_STATUS_LEN(USB1->RX_STATUS) != USB10_LOW_SPEED_PACKET_SIZE) {
+				printf("usb10: received bogus data packet size: %d bits != %d\r\n", USB10_RX_STATUS_LEN(USB1->RX_STATUS), USB10_LOW_SPEED_PACKET_SIZE);
+				goto usb10_error;
+			}
+
+			usb_dev_desc.data[0] = USB1->RECV_DATA_LOW;
+			usb_dev_desc.data[1] = USB1->RECV_DATA_HIGH;
+
+
+			// Request Second part of Descriptor
+
+			USB1->COMMAND = USB10_CMD_START_BIT |
+					USB10_CMD_SET_PID(USB10_PID_IN) |
+					USB10_CMD_SET_ADDR(0) |
+					USB10_CMD_SET_ENDP(0) |
+					USB10_CMD_SET(USB10_CMD_SEND_TOKEN);
+					
+			if(!wait_bit_set_timeout(&USB1->STATUS, USB10_STATUS_RECEIVED_BIT, 20000)) { /// 2ms
+				printf("usb10: No response after ACK!\r\n");
+				goto usb10_error;
+			}
+
+			USB1->COMMAND = USB10_CMD_START_BIT |
+					USB10_CMD_SET_PID(USB10_PID_ACK) |
+					USB10_CMD_SET(USB10_CMD_SEND_SHORT_TOKEN);
+					
+			if(!usb10_wait_cmd_complete(USB1, 20000)) { // 2ms timeout
+				printf("usb10: hang after ACK!\r\n");
+				goto usb10_error;
+			}
+
+			printf("usb10: packet received (2), PID = 0x%02X, RX_STATUS = 0x%08X, DATA = %08X:%08X\r\n", USB10_STATUS_PID(USB1->STATUS), USB1->RX_STATUS, USB1->RECV_DATA_HIGH, USB1->RECV_DATA_LOW);
+
+			if(USB10_STATUS_PID(USB1->STATUS) != USB10_PID_DATA0 && 
+			   USB10_STATUS_PID(USB1->STATUS) != USB10_PID_DATA1) {
+				printf("usb10: expected DATA0/1 packet instead!\r\n");
+				goto usb10_error;
+			}
+
+			if(USB10_RX_STATUS_LEN(USB1->RX_STATUS) != USB10_LOW_SPEED_PACKET_SIZE) {
+				printf("usb10: received bogus data packet size: %d bits != %d\r\n", USB10_RX_STATUS_LEN(USB1->RX_STATUS), USB10_LOW_SPEED_PACKET_SIZE);
+				goto usb10_error;
+			}
+
+			usb_dev_desc.data[2] = USB1->RECV_DATA_LOW;
+			usb_dev_desc.data[3] = USB1->RECV_DATA_HIGH;
+		
+			// Do not request third part of Descriptor as many devices do not provide it during setup.
+
+
+			printf("USB1.0 device description received: bLength = %d\r\n"
+			       "	VID:PID:bcdDev = 0x%04X:0x%04X:0x%04X, Class:subClass = 0x%04X:0x%04X, Protocol = 0x%02X\r\n",
+				usb_dev_desc.descr.bLength,
+				usb_dev_desc.descr.idVendor, usb_dev_desc.descr.idProduct,
+				usb_dev_desc.descr.bcdDevice,
+				usb_dev_desc.descr.bDeviceClass, usb_dev_desc.descr.bDeviceSubClass,
+				usb_dev_desc.descr.bDeviceProtocol);
+
 
 			usb10_error:
 

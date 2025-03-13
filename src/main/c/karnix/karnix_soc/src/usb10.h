@@ -62,10 +62,11 @@
 #define	USB10_CMD(X)		(((X) >> USB10_CMD_S) >> USB10_CMD_M)
 #define	USB10_CMD_SET(X)	(((X) & USB10_CMD_M) << USB10_CMD_S)
 
-#define	USB10_CMD_NONE		0x00
-#define	USB10_CMD_SEND_TOKEN	0x01	// Send arbitrary token
-#define	USB10_CMD_SEND_DATA	0x02	// Send data packet
-#define	USB10_CMD_BUS_RESET	0x03	// Initiate Bus Reset state
+#define	USB10_CMD_NONE			0x00
+#define	USB10_CMD_SEND_TOKEN		0x01	// Send arbitrary token
+#define	USB10_CMD_SEND_SHORT_TOKEN	0x02	// Send arbitrary token
+#define	USB10_CMD_SEND_DATA		0x03	// Send data packet
+#define	USB10_CMD_BUS_RESET		0x04	// Initiate Bus Reset state
 
 #define	USB10_STATE_UNCONNECTED	0
 #define	USB10_STATE_IDLE	1
@@ -86,11 +87,18 @@
 #define	USB10_CONTROL_RESET_DELAY(X)		(((X) >> USB10_CONTROL_RESET_DELAY_S) & USB10_CONTROL_RESET_DELAY_M)
 #define	USB10_CONTROL_RESET_DELAY_SET(X)	(((X) & USB10_CONTROL_RESET_DELAY_M) << USB10_CONTROL_RESET_DELAY_S)
 
+#define	USB10_RX_STATUS_LEN_S	0
+#define	USB10_RX_STATUS_LEN_M	0xffff
+#define	USB10_RX_STATUS_LEN(X)	(((X) >> USB10_RX_STATUS_LEN_S) & USB10_RX_STATUS_LEN_M)
 
-#define	USB10_PID_SETUP		0b1101	// "1011 0100"	SETUP 	Address for host-to-device control transfer
-#define	USB10_PID_DATA0		0b0011	// "1100 0011"	DATA0 	Even-numbered data packet
-#define	USB10_PID_DATA1		0b1011	// "1101 1101"	DATA1  	Odd-numbered data packet
-#define	USB10_PID_IN		0b1001	// "1001 0110"	IN	Address for device-to-host transfer
+#define	USB10_LOW_SPEED_PACKET_SIZE	(8 + 64 + 16)	// PID + DATA + CRC16
+
+#define	USB10_PID_SETUP		0b00101101	// "1011 0100"	SETUP 	Address for host-to-device control transfer
+#define	USB10_PID_DATA0		0b11000011	// "1100 0011"	DATA0 	Even-numbered data packet
+#define	USB10_PID_DATA1		0b01001011	// "1101 0010"	DATA1  	Odd-numbered data packet
+#define	USB10_PID_IN		0b01101001	// "1001 0110"	IN	Address for device-to-host transfer
+#define	USB10_PID_ACK		0b11010010	// "0100 1011"	ACK	Data packet accepted	
+#define	USB10_PID_NACK		0b01011010	// "0101 1010"	NACK	Data packet not accepted; please retransmit 
 
 
 #pragma pack(1)
@@ -104,6 +112,29 @@ typedef struct {
 	volatile uint32_t RX_STATUS;
 	volatile uint32_t CONTROL;
 } USB10_Reg;
+
+typedef struct {
+	uint8_t bLength;		// 1 Length of this descriptor = 18 bytes
+	uint8_t bDescriptorType;	// 1 Descriptor type = DEVICE (01h)
+	uint16_t bcdUSB;		// 2 USB specification version (BCD)
+	uint8_t bDeviceClass;		// 1 Device class
+	uint8_t bDeviceSubClass;	// 1 Device subclass
+	uint8_t bDeviceProtocol;	// 1 Device Protocol
+	uint8_t bMaxPacketSize0;	// 1 Max Packet size for endpoint 0
+	uint16_t idVendor;		// 2 Vendor ID (or VID, assigned by USB-IF)
+	uint16_t idProduct;		// 2 Product ID (or PID, assigned by the manufacturer)
+	uint16_t bcdDevice;		// 2 Device release number (BCD)
+	uint8_t iManufacturer;		// 1 Index of manufacturer string
+	uint8_t iProduct;		// 1 Index of product string
+	uint8_t iSerialNumber;		// 1 Index of serial number string
+	uint8_t bNumConfigurations;	// 1 Number of configurations supported 
+} USB10_Description;
+
+typedef union {
+	USB10_Description descr;
+	uint32_t data[6];	
+} USB10_DescriptionUnion;
+
 #pragma pack(0)
 
 
