@@ -23,11 +23,11 @@ case class USBSendToken() extends Component {
 
     def calc_crc5_usb(din: Bits) : Bits = {
       val ret = Bits(5 bits)
-      ret(0) := din(10) ^ din(9) ^ din(6) ^ din(5) ^ din(3) ^ din(0) ^ True 
-      ret(1) := din(10) ^ din(7) ^ din(6) ^ din(4) ^ din(1) ^ True 
-      ret(2) := din(10) ^ din(9) ^ din(8) ^ din(7) ^ din(6) ^ din(3) ^ din(2) ^ din(0) ^ True 
-      ret(3) := din(10) ^ din(9) ^ din(8) ^ din(7) ^ din(4) ^ din(3) ^ din(1) 
-      ret(4) := din(10) ^ din(9) ^ din(8) ^ din(5) ^ din(4) ^ din(2) ^ True 
+      ret(0) := din(10) ^ din(9) ^ din(6) ^ din(5) ^ din(3) ^ din(0) ^ True
+      ret(1) := din(10) ^ din(7) ^ din(6) ^ din(4) ^ din(1) ^ True
+      ret(2) := din(10) ^ din(9) ^ din(8) ^ din(7) ^ din(6) ^ din(3) ^ din(2) ^ din(0) ^ True
+      ret(3) := din(10) ^ din(9) ^ din(8) ^ din(7) ^ din(4) ^ din(3) ^ din(1)
+      ret(4) := din(10) ^ din(9) ^ din(8) ^ din(5) ^ din(4) ^ din(2) ^ True
       return ret
     }
 
@@ -43,12 +43,12 @@ case class USBSendToken() extends Component {
         ret := last_kj
       }
 
-      return ret 
+      return ret
     }
 
     val crc5_out = calc_crc5_usb(io.addr(0) ## io.addr(1) ## io.addr(2) ## io.addr(3) ##
                         io.addr(4) ## io.addr(5) ## io.addr(6) ## io.endp(0) ##
-                        io.endp(1) ## io.endp(2) ## io.endp(3)) ^ B"11111" 
+                        io.endp(1) ## io.endp(2) ## io.endp(3)) ^ B"11111"
     val buffer = crc5_out.reversed ## io.endp ## io.addr ## ~io.pid ## io.pid ## B"1000000"
     val bit_count = Reg(UInt(6 bits)).addTag(crossClockDomain)
     val clock_div = Reg(UInt(8 bits)).addTag(crossClockDomain)
@@ -56,13 +56,13 @@ case class USBSendToken() extends Component {
 
     io.ready := False
 
-    io.test := clock_strobe 
+    io.test := clock_strobe
 
     // J: D- = 1, D+ = 0, K: D- = 0, D+ = 1
-    // KJKJKJKK + PID + ADDR + ENDP + CRC5 
+    // KJKJKJKK + PID + ADDR + ENDP + CRC5
 
     when(io.valid) {
-      clock_div := clock_div + 1 
+      clock_div := clock_div + 1
 
       when(clock_div === io.clock_div) {
         clock_div := 0
@@ -70,30 +70,30 @@ case class USBSendToken() extends Component {
       }
 
       when(clock_strobe) {
-        bit_count := bit_count + 1 
+        bit_count := bit_count + 1
       }
 
-      when(bit_count === 35) { // Ready, EOP: 'J' 
-        io.usb_dm := True 
-        io.usb_dp := False 
-        io.ready := True 
-        bit_count := 35 
+      when(bit_count === 35) { // Ready, EOP: 'J'
+        io.usb_dm := True
+        io.usb_dp := False
+        io.ready := True
+        bit_count := 35
       } elsewhen(bit_count === 34) { // EOP: 'J'
-        io.usb_dm := True 
-        io.usb_dp := False 
+        io.usb_dm := True
+        io.usb_dp := False
       } elsewhen((bit_count === 32) || (bit_count === 33)) { // EOP: 'SE0'
-        io.usb_dm := False 
-        io.usb_dp := False 
+        io.usb_dm := False
+        io.usb_dp := False
       } elsewhen(bit_count === 31 && clock_strobe) { // EOP: 'SE0' - coner case
-        io.usb_dm := False 
-        io.usb_dp := False 
+        io.usb_dm := False
+        io.usb_dp := False
       } otherwise {
         when(toKJ(buffer(bit_count(4 downto 0)))) { // DATA: 0 - 'J' or 1 - 'K'
           io.usb_dm := False
-          io.usb_dp := True 
+          io.usb_dp := True
         } otherwise {
-          io.usb_dm := True 
-          io.usb_dp := False 
+          io.usb_dm := True
+          io.usb_dp := False
         }
       }
 
@@ -101,7 +101,90 @@ case class USBSendToken() extends Component {
       clock_div := 0
       bit_count := 0
       //last_kj := False // 'J'
-      last_kj := True // 'K' 
+      last_kj := True // 'K'
+    }
+}
+
+case class USBSendShortToken() extends Component {
+    val io = new Bundle {
+	val usb_dm    = inout(Analog(Bool()))
+	val usb_dp    = inout(Analog(Bool()))
+	val valid     = in Bool()
+	val ready     = out Bool()
+	val pid       = in Bits(4 bits)
+	val clock_div = in UInt(8 bits)
+
+        val test = out Bool()
+    }
+
+    val last_kj = Reg(Bool()).addTag(crossClockDomain)
+
+    def toKJ(input_bit: Bool) : Bool = {
+      val ret = Bool()
+
+      when(input_bit === False && clock_strobe) {
+        last_kj := !last_kj // Transition
+        ret := !last_kj
+      } otherwise { // No transition
+        ret := last_kj
+      }
+
+      return ret
+    }
+
+    val buffer = ~io.pid ## io.pid ## B"1000000"
+    val bit_count = Reg(UInt(5 bits)).addTag(crossClockDomain)
+    val clock_div = Reg(UInt(8 bits)).addTag(crossClockDomain)
+    val clock_strobe = False
+
+    io.ready := False
+
+    io.test := clock_strobe
+
+    // J: D- = 1, D+ = 0, K: D- = 0, D+ = 1
+    // KJKJKJKK + PID + ADDR + ENDP + CRC5
+
+    when(io.valid) {
+      clock_div := clock_div + 1
+
+      when(clock_div === io.clock_div) {
+        clock_div := 0
+        clock_strobe := True
+      }
+
+      when(clock_strobe) {
+        bit_count := bit_count + 1
+      }
+
+      when(bit_count === 23) { // Ready, EOP: 'J'
+        io.usb_dm := True
+        io.usb_dp := False
+        io.ready := True
+        bit_count := 23
+      } elsewhen(bit_count === 22) { // EOP: 'J'
+        io.usb_dm := True
+        io.usb_dp := False
+      } elsewhen((bit_count === 20) || (bit_count === 21)) { // EOP: 'SE0'
+        io.usb_dm := False
+        io.usb_dp := False
+      } elsewhen(bit_count === 19 && clock_strobe) { // EOP: 'SE0' - coner case
+        io.usb_dm := False
+        io.usb_dp := False
+      } otherwise {
+        when(toKJ(buffer(bit_count(3 downto 0)))) { // DATA: 0 - 'J' or 1 - 'K'
+          io.usb_dm := False
+          io.usb_dp := True
+        } otherwise {
+          io.usb_dm := True
+          io.usb_dp := False
+        }
+      }
+
+    } otherwise {
+      clock_div := 0
+      bit_count := 0
+      //last_kj := False // 'J'
+      last_kj := True // 'K'
     }
 }
 
@@ -164,7 +247,7 @@ case class USBSendData() extends Component {
         ret := last_kj
       }
 
-      return ret 
+      return ret
     }
 
     val crc16 = Reg(Bits(16 bits)).addTag(crossClockDomain) init(B"16'hffff")
@@ -176,7 +259,7 @@ case class USBSendData() extends Component {
     val state = Reg(UInt(3 bits)).addTag(crossClockDomain) init(0)
     val ones = Reg(UInt(3 bits)).addTag(crossClockDomain) init(0)
     val one_bit = False
-    val stuffing = False 
+    val stuffing = False
 
     io.test := clock_strobe //io.valid
 
@@ -186,7 +269,7 @@ case class USBSendData() extends Component {
     // KJKJKJKK + PID + DATA + CRC16
 
     when(io.valid) {
-      clock_div := clock_div + 1 
+      clock_div := clock_div + 1
 
       when(clock_div === io.clock_div) {
         clock_div := 0
@@ -194,7 +277,7 @@ case class USBSendData() extends Component {
       }
 
       when(clock_strobe && !stuffing) {
-        bit_count := bit_count + 1 
+        bit_count := bit_count + 1
       }
 
       switch(state) {
@@ -202,10 +285,10 @@ case class USBSendData() extends Component {
           val one_bit = sync_pid_buffer(bit_count(3 downto 0))
           when(toKJ(one_bit)) { // DATA: 0 - 'J' or 1 - 'K'
             io.usb_dm := False
-            io.usb_dp := True 
+            io.usb_dp := True
           } otherwise {
-            io.usb_dm := True 
-            io.usb_dp := False 
+            io.usb_dm := True
+            io.usb_dp := False
           }
           when(clock_strobe && bit_count === 14) {
             state := 1
@@ -219,7 +302,7 @@ case class USBSendData() extends Component {
             stuffing := True
           }
           when(stuffing) {
-            out_bit := False 
+            out_bit := False
           }
           when(clock_strobe) {
             when(one_bit) {
@@ -241,10 +324,10 @@ case class USBSendData() extends Component {
           }
           when(toKJ(out_bit)) { // DATA: 0 - 'J' or 1 - 'K'
             io.usb_dm := False
-            io.usb_dp := True 
+            io.usb_dp := True
           } otherwise {
-            io.usb_dm := True 
-            io.usb_dp := False 
+            io.usb_dm := True
+            io.usb_dp := False
           }
         }
         is(2) { // sending CRC16 block
@@ -256,7 +339,7 @@ case class USBSendData() extends Component {
             stuffing := True
           }
           when(stuffing) {
-            out_bit := False 
+            out_bit := False
           }
           when(clock_strobe) {
             when(one_bit) {
@@ -272,38 +355,38 @@ case class USBSendData() extends Component {
           } otherwise {
             when(toKJ(out_bit)) { // DATA: 0 - 'J' or 1 - 'K'
               io.usb_dm := False
-              io.usb_dp := True 
+              io.usb_dp := True
             } otherwise {
-              io.usb_dm := True 
-              io.usb_dp := False 
+              io.usb_dm := True
+              io.usb_dp := False
             }
           }
         }
-        is(3) { // sending EOP: 'SE0' 
-          io.usb_dm := False 
-          io.usb_dp := False 
+        is(3) { // sending EOP: 'SE0'
+          io.usb_dm := False
+          io.usb_dp := False
           when(clock_strobe) {
             state := 4
           }
         }
-        is(4) { // sending EOP: 'SE0' 
-          io.usb_dm := False 
-          io.usb_dp := False 
+        is(4) { // sending EOP: 'SE0'
+          io.usb_dm := False
+          io.usb_dp := False
           when(clock_strobe) {
-            io.usb_dm := True // sending EOP: 'J' 
+            io.usb_dm := True // sending EOP: 'J'
             state := 5
           }
         }
-        is(5) { // sending EOP: 'J' 
-          io.usb_dm := True 
-          io.usb_dp := False 
+        is(5) { // sending EOP: 'J'
+          io.usb_dm := True
+          io.usb_dp := False
           when(clock_strobe) {
             state := 6
           }
         }
-        is(6) { // Ready, EOP: 'J' 
-          io.usb_dm := True 
-          io.usb_dp := False 
+        is(6) { // Ready, EOP: 'J'
+          io.usb_dm := True
+          io.usb_dp := False
           io.ready := True
         }
       }
@@ -314,7 +397,7 @@ case class USBSendData() extends Component {
       bit_count := 0
       ones := 0
       crc16 := B"16'hFFFF"
-      last_kj := True // 'K' 
+      last_kj := True // 'K'
     }
 }
 
@@ -334,7 +417,7 @@ case class USBBusReset() extends Component {
     val clock_div = Reg(UInt(8 bits)).addTag(crossClockDomain)
     val clock_strobe = False
 
-    io.test := clock_strobe 
+    io.test := clock_strobe
 
     io.ready := False
 
@@ -347,13 +430,13 @@ case class USBBusReset() extends Component {
       }
 
       when(clock_strobe) {
-        delay_count := delay_count + 1 
+        delay_count := delay_count + 1
       }
 
-      when(clock_strobe && delay_count === io.delay) { // Ready, EOP: 'J' 
-        io.usb_dm := True 
-        io.usb_dp := False 
-        io.ready := True 
+      when(clock_strobe && delay_count === io.delay) { // Ready, EOP: 'J'
+        io.usb_dm := True
+        io.usb_dp := False
+        io.ready := True
       } otherwise {
         io.usb_dm := False // '00'
         io.usb_dp := False
@@ -380,7 +463,7 @@ case class USBKeepAlive() extends Component {
     val clock_div = Reg(UInt(8 bits)).addTag(crossClockDomain)
     val clock_strobe = False
 
-    io.test := clock_strobe 
+    io.test := clock_strobe
 
     io.ready := False
 
@@ -393,13 +476,13 @@ case class USBKeepAlive() extends Component {
       }
 
       when(clock_strobe) {
-        bit_count := bit_count + 1 
+        bit_count := bit_count + 1
       }
 
-      when(clock_strobe && bit_count === 2) { // Ready, 'J' 
-        io.usb_dm := True 
-        io.usb_dp := False 
-        io.ready := True 
+      when(clock_strobe && bit_count === 2) { // Ready, 'J'
+        io.usb_dm := True
+        io.usb_dp := False
+        io.ready := True
       } otherwise {
         io.usb_dm := False // 'SE00'
         io.usb_dp := False
@@ -435,7 +518,7 @@ case class USBReceiver() extends Component {
     val last_dp = Reg(Bool()) init(True)
     val last_symbol = Reg(Bool()) init(True)
 
-    io.packet := packet 
+    io.packet := packet
     io.ready := ready
     io.bits_recv := bit_count
 
@@ -504,21 +587,21 @@ io.test := False
           }
         }
 
-        is(4) { // Receiving data 
+        is(4) { // Receiving data
           when(io.usb_dp =/= io.usb_dm) { // Valid data are only when DP != DM
             T0 := T0 + 1
             last_dp := io.usb_dp
             when(last_dp =/= io.usb_dp) { // sync on each edge
               T0 := 0
             }
-            when(T0 === bit_len) { // end of symbol ? 
+            when(T0 === bit_len) { // end of symbol ?
               T0 := 0
             }
             when(T0 === bit_len(7 downto 1).resized) { // sample one symbol in the middle of tick
-              last_symbol := io.usb_dp 
+              last_symbol := io.usb_dp
               packet(bit_count) := (io.usb_dp === last_symbol) // convert to bit and save to packet
               bit_count := bit_count + 1
-              when(bit_count === 127) { // max data size achieved 
+              when(bit_count === 127) { // max data size achieved
                 state := 7
               }
               io.test := True
@@ -554,7 +637,7 @@ io.test := False
       // Check for hung state ('J')
       when(!io.usb_dp && io.usb_dm) {
         T2 := T2 + 1
-        when(T2 === (bit_len << 3)) { // is 'J' for more than 8 clocks - report error! 
+        when(T2 === (bit_len << 3)) { // is 'J' for more than 8 clocks - report error!
           state := 7
           //io.test := True
         }
@@ -568,13 +651,13 @@ io.test := False
 }
 
 object USBPhase extends SpinalEnum{
-  val StateUnconnected, StateWaitCMDorSYNC, StateKeepAlive, StateSendToken, StateSendData,
-      StateSendReset, StateReceive
+  val StateUnconnected, StateWaitCMDorSYNC, StateKeepAlive, StateSendToken, StateSendShortToken,
+      StateSendData, StateSendReset, StateReceive
       = newElement()
 }
 
 object USBCommand extends SpinalEnum(defaultEncoding = binarySequential){
-  val CMDNone, CMDSendToken, CMDSendData, CMDBusReset
+  val CMDNone, CMDSendToken, CMDSendShortToken, CMDSendData, CMDBusReset
       = newElement()
 }
 
@@ -608,7 +691,7 @@ case class Apb3USB10Ctrl(
   val cmd_start = usbCommandWord(31).addTag(crossClockDomain)
   val cmd_addr = usbCommandWord(30 downto 24).addTag(crossClockDomain)
   val cmd_endp = usbCommandWord(23 downto 20).addTag(crossClockDomain)
-  val cmd_len = usbCommandWord(19 downto 8).asUInt.addTag(crossClockDomain) // len in bits - 1 
+  val cmd_len = usbCommandWord(19 downto 8).asUInt.addTag(crossClockDomain) // len in bits - 1
   val cmd_pid = usbCommandWord(7 downto 4).addTag(crossClockDomain)
   val cmd = usbCommandWord(3 downto 0).addTag(crossClockDomain)
 
@@ -644,7 +727,7 @@ case class Apb3USB10Ctrl(
     frequency = FixedFrequency(12.0 MHz)
   )
 
-//io.test := busy_flag 
+//io.test := busy_flag
 
   val usb_area = new ClockingArea(usbClockDomain) {
 
@@ -665,7 +748,7 @@ case class Apb3USB10Ctrl(
     val state = RegInit(StateUnconnected).addTag(crossClockDomain)
     val T1 = Reg(UInt(16 bits)).addTag(crossClockDomain) init(0) // Guard timer
     val T2 = Reg(UInt(16 bits)).addTag(crossClockDomain) init(0) // Low-Speed Keep-Alive timer
-    
+   
     val error = Reg(Bool()).addTag(crossClockDomain) init(False)
     val report = Reg(Bool()).addTag(crossClockDomain) init(False)
     val busy = Reg(Bool()).addTag(crossClockDomain) init(False)
@@ -683,7 +766,7 @@ case class Apb3USB10Ctrl(
       T1 := T1 + 1
       when(T1 === USBLowSpeedErrorClocks) { // DM/DP is low for quite some time ?
         T1 := 0
-        state := StateUnconnected 
+        state := StateUnconnected
         error := True
         report := True
         received := False
@@ -703,10 +786,15 @@ case class Apb3USB10Ctrl(
     send_token.io.valid := False
     send_token.io.clock_div := USBSlowSpeedClockDiv
 
+    val send_short_token = new USBSendShortToken()
+    send_short_token.io.pid := 0
+    send_short_token.io.valid := False
+    send_short_token.io.clock_div := USBSlowSpeedClockDiv
+
     val send_data = new USBSendData()
     send_data.io.pid := 0
-    send_data.io.data := 0 
-    send_data.io.len := 0 
+    send_data.io.data := 0
+    send_data.io.len := 0
     send_data.io.valid := False
     send_data.io.clock_div := USBSlowSpeedClockDiv
 
@@ -727,7 +815,7 @@ case class Apb3USB10Ctrl(
       received_data_high := receiver.io.packet(71 downto 40)
       received_crc16 := receiver.io.packet(87 downto 72)
       received_bits := receiver.io.bits_recv.asBits.resized
-    } 
+    }
 
 
     //io.test := bus_reset.io.test|send_token.io.test|send_data.io.test
@@ -741,19 +829,24 @@ io.test := receiver.io.test
         when(io.usb.usb_dm && !io.usb.usb_dp) {
           busy := False
           cmd_start := False
-          error := False 
+          error := False
           report := True
           state := StateWaitCMDorSYNC // Low Speed device just connected
         }
       }
 
-      is(StateWaitCMDorSYNC) { // Wait command or SYNC 
+      is(StateWaitCMDorSYNC) { // Wait command or SYNC
         report := False
 
         when(cmd_start) {
           switch(cmd) {
             is(CMDSendToken.asBits.resize(4)) {
               state := StateSendToken
+              busy := True
+              received := False
+            }
+            is(CMDSendShortToken.asBits.resize(4)) {
+              state := StateSendShortToken
               busy := True
               received := False
             }
@@ -792,7 +885,7 @@ io.test := receiver.io.test
 
       }
 
-      is(StateSendToken) { // Connected, send SETUP token 
+      is(StateSendToken) { // Connected, send Token
         send_token.io.pid := cmd_pid
         send_token.io.addr := cmd_addr
         send_token.io.endp := cmd_endp
@@ -800,56 +893,70 @@ io.test := receiver.io.test
         send_token.io.usb_dm <> io.usb.usb_dm
         send_token.io.usb_dp <> io.usb.usb_dp
         when(send_token.io.ready) {
-          state := StateWaitCMDorSYNC 
+          state := StateWaitCMDorSYNC
           report := True
           cmd_start := False
           busy := False
           T2 := 0
-        } 
+        }
+      }
+
+      is(StateSendShortToken) { // Connected, send Short Token
+        send_short_token.io.pid := cmd_pid
+        send_short_token.io.valid := True
+        send_short_token.io.usb_dm <> io.usb.usb_dm
+        send_short_token.io.usb_dp <> io.usb.usb_dp
+        when(send_short_token.io.ready) {
+          state := StateWaitCMDorSYNC
+          report := True
+          cmd_start := False
+          busy := False
+          T2 := 0
+        }
       }
 
       is(StateSendData) { // send DATA packet
         send_data.io.pid := cmd_pid
         send_data.io.data := send_data_high ## send_data_low // B"64'hAAAAAAAAAAAAAAAA" // 0 //B"01010101010101010101010101010101" ## B"01010101010101010101010101010101" //send_data_high ## send_data_low
-        send_data.io.len := cmd_len // in bits - 1 
+        send_data.io.len := cmd_len // in bits - 1
         send_data.io.valid := True
         send_data.io.usb_dm <> io.usb.usb_dm
         send_data.io.usb_dp <> io.usb.usb_dp
         when(send_data.io.ready) {
-          state := StateWaitCMDorSYNC 
+          state := StateWaitCMDorSYNC
           report := True
           cmd_start := False
           busy := False
           T2 := 0
-        } 
+        }
       }
 
-      is(StateSendReset) { // Bus Reset condition (D+ and D- are low for 11ms) 
+      is(StateSendReset) { // Bus Reset condition (D+ and D- are low for 11ms)
         bus_reset.io.valid := True
         bus_reset.io.usb_dm <> io.usb.usb_dm
         bus_reset.io.usb_dp <> io.usb.usb_dp
         when(bus_reset.io.ready) {
-          state := StateWaitCMDorSYNC 
+          state := StateWaitCMDorSYNC
           report := True
           cmd_start := False
           busy := False
           T2 := 0
-        } 
+        }
       }
 
-      is(StateKeepAlive) { // Send KeepAlive (Low-Speed only) 
+      is(StateKeepAlive) { // Send KeepAlive (Low-Speed only)
         send_keepalive.io.valid := True
         send_keepalive.io.usb_dm <> io.usb.usb_dm
         send_keepalive.io.usb_dp <> io.usb.usb_dp
         when(send_keepalive.io.ready) {
-          state := StateWaitCMDorSYNC 
+          state := StateWaitCMDorSYNC
           cmd_start := False
           busy := False
           T2 := 0
-        } 
+        }
       }
 
-      is(StateReceive) { // Receive data piece 
+      is(StateReceive) { // Receive data piece
         receiver.io.valid := True
         receiver.io.usb_dm <> io.usb.usb_dm
         receiver.io.usb_dp <> io.usb.usb_dp
@@ -858,7 +965,7 @@ io.test := receiver.io.test
           received := True
           busy := False
           report := True
-        } 
+        }
       }
 
     } // switch(state)
