@@ -246,7 +246,7 @@ void main() {
 	printf("TIMER1 set to 25 ms\r\n");
 
 	// Enable USB1
-	#if(USB_ENABLE)
+	#if(USB10_ENABLE)
 	USB1->CONTROL &= ~USB10_CONTROL_ENABLE_BIT;
 	delay_us(1000);
 	USB1->CONTROL |= USB10_CONTROL_RESET_DELAY_SET(1500000 / 1000 * 11); // Set reset duration to 11ms (num of ticks as 1.5 MHz
@@ -284,7 +284,7 @@ void main() {
 		if(reg_sys_print_stats &&
 			reg_sys_counter % (200*reg_sys_print_stats) == 0) { // T=1 sec * reg_sys_print_stats
 
-			#if(USB_ENABLE)
+			#if(USB10_ENABLE)
 			printf("\rSTATS: build %05d: irqs = %d, sys_cnt = %d, scratch = %p, sbrk_heap_end = %p, "
 					"console_rx_buf_len = %d, usb1_status = 0x%08x, usb1_cmd = 0x%08x, usb1_recv_low = 0x%08x\r\n",
 				BUILD_NUMBER,
@@ -309,230 +309,12 @@ void main() {
 
 		if(reg_sys_counter % 20 == 0) { // Send USB command every 100ms 
 
-/*
-getdesc:                        ; get device descriptor of (0,0)
-        outb 0x80               ; SYNC
-        outb 0x2d               ; PID
-        outb 0x00               ; ADDR:ENDP = 0:0
-        outb 0x10               ; + CRC5
-        out4 0x03               ; EOP
-        ; outb 0x01             ; ADDR:ENDP = 1:0
-        ; outb 0xe8             ; + CRC5
-        ; out4 0x03             ; EOP
-
-        outb 0x80               ; SYNC
-        outb 0xc3               ; PID=DATA0
-        outb 0x80               ; bmRequestType: 80
-        outb 0x06               ; bRequest=6 Get_Descriptor
-        outb 0x00               ; Desc Index: 0
-        outb 0x01               ; Desc Type: 1 device
-        outb 0x00               ; Language ID: 0
-        outb 0x00               ; 
-        outb 0x12               ; wLength = 18
-        outb 0x00
-        outb 0xE0               ; CRC16
-        outb 0xF4
-        out4 0x03               ; EOP
-
-
-getconfig:                      ; get config descriptor of (0,0)
-        outb 0x80               ; SYNC
-        outb 0x2d               ; PID
-        outb 0x00               ; ADDR:ENDP = 0:0
-        outb 0x10               ; + CRC5
-        out4 0x03               ; EOP
-
-        outb 0x80               ; SYNC
-        outb 0xc3               ; PID=DATA0
-        outb 0x80               ; bmRequestType: 0
-        outb 0x06               ; bRequest=6 Get_Descriptor
-        outb 0x00               ; Desc Index: 0
-        outb 0x02               ; Desc Type: 2 configuration
-        outb 0x00               ; Language ID: 0
-        outb 0x00               ; 
-        outb 0x18               ; wLength = 24 (9 for config, 15 for first interface)
-        outb 0x00
-        outb 0xa2               ; CRC16
-        outb 0x54
-        out4 0x03               ; EOP
-        ret
-
-
-*/
-
-			if(USB1->STATUS & USB10_STATUS_ERROR_BIT) {
-				printf("usb10: not device connected!\r\n");
+			if(usb10_device_reset(USB1, 10000) != 0)
 				goto usb10_error;
-			}
 
-			// RESET
+			usb10_device_get_description(USB1);
 
-			USB1->COMMAND = USB10_CMD_START_BIT |
-					USB10_CMD_SET(USB10_CMD_BUS_RESET);
-					
-			if(!usb10_wait_cmd_complete(USB1, 300000)) { // ~30ms timeout
-				printf("usb10: hung in RESET!\r\n");
-				goto usb10_error;
-			}
-
-	
-			delay_us(20000); // Wait for 20 ms for device to settle 
-
-			// Get Description: SETUP
-			USB1->COMMAND = USB10_CMD_START_BIT |
-					USB10_CMD_SET_PID(USB10_PID_SETUP) |
-					USB10_CMD_SET_ADDR(0) |
-					USB10_CMD_SET_ENDP(0) |
-					USB10_CMD_SET(USB10_CMD_SEND_TOKEN);
-
-			if(!usb10_wait_cmd_complete(USB1, 20000)) { // ~2ms timeout
-				printf("usb10: hang after SETUP token!\r\n");
-				goto usb10_error;
-			}
-
-
-			
-			#if(1)
-			// Send DATA0: Get Description
-
-			USB1->SEND_DATA_LOW = 0x01000680;
-			USB1->SEND_DATA_HIGH = 0x00120000;
-			USB1->COMMAND = USB10_CMD_START_BIT |
-					USB10_CMD_SET_LEN(8*8-1) |
-					USB10_CMD_SET_PID(USB10_PID_DATA0) |
-					USB10_CMD_SET(USB10_CMD_SEND_DATA);
-
-			if(!usb10_wait_cmd_complete(USB1, 20000)) { // ~2ms timeout
-				printf("usb10: hang after DATA0 packet!\r\n");
-				goto usb10_error;
-			}
-			#endif
-
-			#if(0)
-			// Get Config
-			USB1->SEND_DATA_LOW = 0x02000680;
-			USB1->SEND_DATA_HIGH = 0x00180000;
-			USB1->COMMAND = USB10_CMD_START_BIT |
-					USB10_CMD_SET_LEN(8*8-1) |
-					USB10_CMD_SET_PID(USB10_PID_DATA0) |
-					USB10_CMD_SET(USB10_CMD_SEND_DATA);
-
-			if(!usb10_wait_cmd_complete(USB1, 20000)) { // 2ms timeout
-				printf("usb10: hang after DATA0 packet!\r\n");
-				goto usb10_error;
-			}
-			#endif
-
-
-			if(!wait_bit_set_timeout(&USB1->STATUS, USB10_STATUS_RECEIVED_BIT, 20000)) { /// 2ms
-				printf("usb10: No response after SETUP/DATA0!\r\n");
-				goto usb10_error;
-			}
-
-			printf("usb10: packet received (0), PID = 0x%02X, RX_STATUS = 0x%08X, DATA = %08X:%08X\r\n", USB10_STATUS_PID(USB1->STATUS), USB1->RX_STATUS, USB1->RECV_DATA_HIGH, USB1->RECV_DATA_LOW);
-
-			if(USB10_STATUS_PID(USB1->STATUS) != USB10_PID_ACK) {
-				printf("usb10: No ACK!\r\n");
-				goto usb10_error;	
-			}
-
-
-			USB10_DescriptionUnion usb_dev_desc;
-
-			// Request First part of Descriptor
-
-			USB1->COMMAND = USB10_CMD_START_BIT |
-					USB10_CMD_SET_PID(USB10_PID_IN) |
-					USB10_CMD_SET_ADDR(0) |
-					USB10_CMD_SET_ENDP(0) |
-					USB10_CMD_SET(USB10_CMD_SEND_TOKEN);
-					
-			if(!wait_bit_set_timeout(&USB1->STATUS, USB10_STATUS_RECEIVED_BIT, 20000)) { /// 2ms
-				printf("usb10: No response after IN(0:0)!\r\n");
-				goto usb10_error;
-			}
-
-			USB1->COMMAND = USB10_CMD_START_BIT |
-					USB10_CMD_SET_PID(USB10_PID_ACK) |
-					USB10_CMD_SET(USB10_CMD_SEND_SHORT_TOKEN);
-					
-			if(!usb10_wait_cmd_complete(USB1, 20000)) { // 2ms timeout
-				printf("usb10: hang after ACK!\r\n");
-				goto usb10_error;
-			}
-
-			printf("usb10: packet received (1), PID = 0x%02X, RX_STATUS = 0x%08X, DATA = %08X:%08X\r\n", USB10_STATUS_PID(USB1->STATUS), USB1->RX_STATUS, USB1->RECV_DATA_HIGH, USB1->RECV_DATA_LOW);
-
-
-			if(USB10_STATUS_PID(USB1->STATUS) != USB10_PID_DATA0 && 
-			   USB10_STATUS_PID(USB1->STATUS) != USB10_PID_DATA1) {
-				printf("usb10: expected DATA0/1 packet instead!\r\n");
-				goto usb10_error;
-			}
-
-			if(USB10_RX_STATUS_LEN(USB1->RX_STATUS) != USB10_LOW_SPEED_PACKET_SIZE) {
-				printf("usb10: received bogus data packet size: %d bits != %d\r\n", USB10_RX_STATUS_LEN(USB1->RX_STATUS), USB10_LOW_SPEED_PACKET_SIZE);
-				goto usb10_error;
-			}
-
-			usb_dev_desc.data[0] = USB1->RECV_DATA_LOW;
-			usb_dev_desc.data[1] = USB1->RECV_DATA_HIGH;
-
-
-			// Request Second part of Descriptor
-
-			USB1->COMMAND = USB10_CMD_START_BIT |
-					USB10_CMD_SET_PID(USB10_PID_IN) |
-					USB10_CMD_SET_ADDR(0) |
-					USB10_CMD_SET_ENDP(0) |
-					USB10_CMD_SET(USB10_CMD_SEND_TOKEN);
-					
-			if(!wait_bit_set_timeout(&USB1->STATUS, USB10_STATUS_RECEIVED_BIT, 20000)) { /// 2ms
-				printf("usb10: No response after ACK!\r\n");
-				goto usb10_error;
-			}
-
-			USB1->COMMAND = USB10_CMD_START_BIT |
-					USB10_CMD_SET_PID(USB10_PID_ACK) |
-					USB10_CMD_SET(USB10_CMD_SEND_SHORT_TOKEN);
-					
-			if(!usb10_wait_cmd_complete(USB1, 20000)) { // 2ms timeout
-				printf("usb10: hang after ACK!\r\n");
-				goto usb10_error;
-			}
-
-			printf("usb10: packet received (2), PID = 0x%02X, RX_STATUS = 0x%08X, DATA = %08X:%08X\r\n", USB10_STATUS_PID(USB1->STATUS), USB1->RX_STATUS, USB1->RECV_DATA_HIGH, USB1->RECV_DATA_LOW);
-
-			if(USB10_STATUS_PID(USB1->STATUS) != USB10_PID_DATA0 && 
-			   USB10_STATUS_PID(USB1->STATUS) != USB10_PID_DATA1) {
-				printf("usb10: expected DATA0/1 packet instead!\r\n");
-				goto usb10_error;
-			}
-
-			if(USB10_RX_STATUS_LEN(USB1->RX_STATUS) != USB10_LOW_SPEED_PACKET_SIZE) {
-				printf("usb10: received bogus data packet size: %d bits != %d\r\n", USB10_RX_STATUS_LEN(USB1->RX_STATUS), USB10_LOW_SPEED_PACKET_SIZE);
-				goto usb10_error;
-			}
-
-			usb_dev_desc.data[2] = USB1->RECV_DATA_LOW;
-			usb_dev_desc.data[3] = USB1->RECV_DATA_HIGH;
-		
-			// Do not request third part of Descriptor as many devices do not provide it during setup.
-
-
-			printf("USB1.0 device description received: bLength = %d\r\n"
-			       "	VID:PID:bcdDev = 0x%04X:0x%04X:0x%04X, Class:subClass = 0x%04X:0x%04X, Protocol = 0x%02X\r\n",
-				usb_dev_desc.descr.bLength,
-				usb_dev_desc.descr.idVendor, usb_dev_desc.descr.idProduct,
-				usb_dev_desc.descr.bcdDevice,
-				usb_dev_desc.descr.bDeviceClass, usb_dev_desc.descr.bDeviceSubClass,
-				usb_dev_desc.descr.bDeviceProtocol);
-
-
-			usb10_error:
-
-			;
-
+			usb10_error: ;
 		}
 
 		reg_sys_counter++;
@@ -607,7 +389,7 @@ void externalInterrupt(void){
 		PLIC->PENDING &= ~PLIC_IRQ_CGA_VBLANK;
 	}
 
-	#if(USB_ENABLE)
+	#if(USB10_ENABLE)
 	if(PLIC->PENDING & PLIC_IRQ_USB1) { // USB1 is pending
 		//printk("USB1 IRQ: status = %p, cmd = %p, recv = %p:%p, crc5 = %p, crc16 = %p\r\n",
 		//	USB1->STATUS, USB1->COMMAND, USB1->RECV_DATA_HIGH, USB1->RECV_DATA_LOW, USB1->CRC5, USB1->CRC16);
