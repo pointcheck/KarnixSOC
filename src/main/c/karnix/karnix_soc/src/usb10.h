@@ -139,8 +139,9 @@ typedef union {
 
 
 int usb10_wait_cmd_complete(USB10_Reg* reg, int timeout); 
-int usb10_device_reset(USB10_Reg* reg, int wait_us);
-int usb10_device_get_description(USB10_Reg* reg);
+int usb10_bus_reset(USB10_Reg* reg, int wait_us);
+int usb10_device_set_address(USB10_Reg* reg, int address);
+int usb10_device_get_description(USB10_Reg* reg, int address);
 
 
 #endif /* __USB10_H__ */

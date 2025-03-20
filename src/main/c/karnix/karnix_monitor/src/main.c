@@ -249,7 +249,7 @@ void main() {
 	#if(USB10_ENABLE)
 	USB1->CONTROL &= ~USB10_CONTROL_ENABLE_BIT;
 	delay_us(1000);
-	USB1->CONTROL |= USB10_CONTROL_RESET_DELAY_SET(1500000 / 1000 * 11); // Set reset duration to 11ms (num of ticks as 1.5 MHz
+	USB1->CONTROL |= USB10_CONTROL_RESET_DELAY_SET(1500000 / 1000 * 10); // Set reset duration to 11ms (num of ticks at 1.5 MHz
 	USB1->CONTROL |= USB10_CONTROL_KEEPALIVE_BIT;
 	USB1->CONTROL |= USB10_CONTROL_ENABLE_BIT;
 	printf("USB1 enabled\r\n");
@@ -309,10 +309,24 @@ void main() {
 
 		if(reg_sys_counter % 20 == 0) { // Send USB command every 100ms 
 
-			if(usb10_device_reset(USB1, 10000) != 0)
+			if(usb10_bus_reset(USB1, 12000) < 0)
 				goto usb10_error;
 
-			usb10_device_get_description(USB1);
+			if(usb10_device_get_description(USB1, 0) < 0)
+				goto usb10_error;
+
+			if(usb10_bus_reset(USB1, 12000) < 0)
+				goto usb10_error;
+
+			if(usb10_device_set_address(USB1, 1) < 0)
+				goto usb10_error;
+
+			//if(usb10_device_get_config(USB1, 1) < 0)
+			//	goto usb10_error;
+
+
+
+			
 
 			usb10_error: ;
 		}

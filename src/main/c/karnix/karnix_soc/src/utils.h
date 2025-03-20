@@ -41,16 +41,16 @@ uint32_t strntoul(const char * buf, int size, int base); // string to unsigned l
 void printk(const char *fmt, ...);
 
 static inline int wait_bit_set_timeout(volatile void* reg, uint32_t mask, uint32_t timeout) {
-	for(uint32_t i = 0; i < timeout; i++)
+	while(timeout--)
 		if(*(volatile uint32_t*)reg & mask)
-			return 1;
+			return timeout;
 	return 0;
 }
 
 static inline int wait_bit_clear_timeout(volatile void* reg, uint32_t mask, uint32_t timeout) {
-	for(uint32_t i = 0; i < timeout; i++)
+	while(timeout--)
 		if(!(*(volatile uint32_t*)reg & mask))
-			return 1;
+			return timeout;
 	return 0;
 }
 
