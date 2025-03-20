@@ -39,6 +39,7 @@ import mylib.Apb3WatchDogCtrl
 
 case class KarnixSOCConfig(
                        axiFrequency : HertzNumber,
+                       usbFrequency : HertzNumber,
                        onChipRamSize : BigInt,
                        onChipRamHexFile : String,
                        cpuPlugins : ArrayBuffer[Plugin[VexRiscv]],
@@ -54,6 +55,7 @@ object KarnixSOCConfig{
   def default = {
     val config = KarnixSOCConfig(
       axiFrequency = 25 MHz,
+      usbFrequency = 12 MHz,
       onChipRamSize = 72 kB,
       onChipRamHexFile = null,
 
@@ -261,8 +263,8 @@ object KarnixSOCConfig{
 class KarnixSOC(val config: KarnixSOCConfig) extends Component{
 
   //Legacy constructor
-  def this(axiFrequency: HertzNumber) {
-    this(KarnixSOCConfig.default.copy(axiFrequency = axiFrequency))
+  def this(axiFrequency: HertzNumber, usbFrequency: HertzNumber) {
+    this(KarnixSOCConfig.default.copy(axiFrequency = axiFrequency, usbFrequency = usbFrequency))
   }
 
   import config._
@@ -291,7 +293,7 @@ class KarnixSOC(val config: KarnixSOCConfig) extends Component{
     val hdmi = master(HDMIInterface())
     val pixclk_x10 = in Bool()
     val usb1 = master(USBInterface())
-    val usbclk_12mhz = in Bool()
+    val usb_clk = in Bool()
     val test = out Bool()
   }
 
@@ -431,9 +433,9 @@ class KarnixSOC(val config: KarnixSOCConfig) extends Component{
     cgaCtrl.io.pixclk_x10 := io.pixclk_x10
     plic.setIRQ(cgaCtrl.io.vblank_interrupt, 7)
 
-    val usb1Ctrl = new Apb3USB10Ctrl()
+    val usb1Ctrl = new Apb3USB10Ctrl(usbFrequency)
     io.usb1 <> usb1Ctrl.io.usb
-    usb1Ctrl.io.usbclk_12mhz := io.usbclk_12mhz
+    usb1Ctrl.io.usb_clk := io.usb_clk
     plic.setIRQ(usb1Ctrl.io.interrupt, 10)
 
     io.test := usb1Ctrl.io.test
@@ -614,6 +616,7 @@ case class KarnixSOCTopLevel() extends Component{
 
     val karnix_soc = new KarnixSOC(KarnixSOCConfig.default.copy(
 		axiFrequency = 60.0 MHz, 
+		usbFrequency = 11.9 MHz, 
 		onChipRamSize = 72 kB , 
 		onChipRamHexFile = "KarnixSOCTopLevel_random.hex"
 	))
@@ -750,16 +753,19 @@ case class KarnixSOCTopLevel() extends Component{
     io.i2c_sda <> karnix_soc.io.i2c.sda
 
     karnix_soc.io.usb1 <> io.usb1
-    io.clkusb := karnix_soc.io.usbclk_12mhz
+    io.clkusb := karnix_soc.io.usb_clk
 
     io.test := karnix_soc.io.test
 
-    /* Generate ~12 MHz USB1.x clock by dividing pixclk_x10 250MHz by 21 */
+    //karnix_soc.io.usb_clk := karnix_soc.io.mainClk // ~60 MHz
+    //karnix_soc.io.usb_clk := io.clk25 // 25.0 MHz
+
+    // Generate ~12 MHz USB1.x clock by dividing pixclk_x10 250MHz by 21
 
     val pixclk_x10_ClockDomain = ClockDomain(
       clock = karnix_soc.io.pixclk_x10,
       config = ClockDomainConfig(resetKind = BOOT),
-      frequency = FixedFrequency(11.9 MHz)
+      frequency = FixedFrequency(250.0 MHz)
     )
 
     val pixclk_x10_area = new ClockingArea(pixclk_x10_ClockDomain) {
@@ -781,9 +787,33 @@ case class KarnixSOCTopLevel() extends Component{
       var dcca_usb = DCCA()
       dcca_usb.CE := True
       dcca_usb.CLKI := usb_clk 
-      karnix_soc.io.usbclk_12mhz := dcca_usb.CLKO 
+      karnix_soc.io.usb_clk := dcca_usb.CLKO 
     }
 
+/*
+    // Generate 12.5 MHz USB1.x clock by dividing clk25 by 2
+
+    val sys_ClockDomain = ClockDomain(
+      clock = io.clk25,
+      config = ClockDomainConfig(resetKind = BOOT),
+      frequency = FixedFrequency(25.0 MHz)
+    )
+
+    val sys_area = new ClockingArea(sys_ClockDomain) {
+
+      val usb_clk_div = Reg(UInt(5 bits)) init(0)
+      val usb_clk = Reg(Bool()) init(False)
+
+      usb_clk_div := usb_clk_div + 1
+
+      usb_clk := usb_clk_div(0) 
+
+      var dcca_usb = DCCA()
+      dcca_usb.CE := True
+      dcca_usb.CLKI := usb_clk 
+      karnix_soc.io.usb_clk := dcca_usb.CLKO 
+    }
+*/
 }
 
 
