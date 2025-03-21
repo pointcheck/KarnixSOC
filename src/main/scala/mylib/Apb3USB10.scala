@@ -625,7 +625,14 @@ io.test := False
           }
         }
 
-        is(7) { // Error
+        is(6) { // EOP received 
+          T0 := T0 + 1
+          when(T0 === bit_len) { // wait for 'J' after SE0
+            state := 7
+          }
+        }
+
+        is(7) { // Ready 
           ready := True
           io.bits_recv := bit_count
           io.test := True
@@ -643,7 +650,8 @@ io.test := False
       when(!io.usb_dp && !io.usb_dm) {
         T1 := T1 + 1
         when(T1 === ((bit_len << 1) - U(2))) { // is SE0 for two bit intervals - report EOP
-          state := 7
+          state := 6
+          T0 := 0
           //io.test := True
         }
       } otherwise {
@@ -663,6 +671,7 @@ io.test := False
 
     } otherwise {
       state := 0
+      ready := False 
     }
 }
 
@@ -701,7 +710,7 @@ case class Apb3USB10Ctrl(
   val busy_flag = usbStatusWord(28).addTag(crossClockDomain)
   val received_flag = usbStatusWord(27).addTag(crossClockDomain)
   // ... more flags here
-  val received_pid = usbStatusWord(23 downto 16).addTag(crossClockDomain)
+  //val received_pid = usbStatusWord(23 downto 16).addTag(crossClockDomain)
   // ... reserved for FSM states
   val fsm_state = usbStatusWord(2 downto 0).addTag(crossClockDomain)
 
@@ -726,7 +735,8 @@ case class Apb3USB10Ctrl(
   val send_data_high = usbSendHighWord(31 downto 0).addTag(crossClockDomain)
 
   val usbReceiverStatusWord = busCtrl.createReadOnly(Bits(32 bits), address = 24) init(0)
-  val received_bits = usbReceiverStatusWord(15 downto 0).addTag(crossClockDomain)
+  val received_bits = usbReceiverStatusWord(7 downto 0).addTag(crossClockDomain)
+  val received_pid = usbReceiverStatusWord(15 downto 8).addTag(crossClockDomain)
   val received_crc16 = usbReceiverStatusWord(31 downto 16).addTag(crossClockDomain)
 
   val usbControlWord = busCtrl.createReadWrite(Bits(32 bits), address = 28) init(22500) // keepalive: 15 ms at 1.5 MHz
@@ -844,7 +854,7 @@ case class Apb3USB10Ctrl(
 
 
     //io.test := bus_reset.io.test|send_token.io.test|send_data.io.test
-io.test := receiver.io.test
+io.test := busy //receiver.io.test
 
     switch(state) {
 
