@@ -525,6 +525,7 @@ case class USBReceiver() extends Component {
     val bit_count = Reg(UInt(7 bits)).addTag(crossClockDomain) init(0)
     val bit_len = Reg(UInt(8 bits)).addTag(crossClockDomain) init(0)
     val state = Reg(UInt(3 bits)).addTag(crossClockDomain) init(0)
+    val ones = Reg(UInt(3 bits)).addTag(crossClockDomain) init(0) // Count log 1's
     val T0 = Reg(UInt(8 bits)).addTag(crossClockDomain) init(0) // Bit timer
     val T1 = Reg(UInt(8 bits)) init(0) // EOP timer
     val T2 = Reg(UInt(8 bits)) init(0) // Guard timer
@@ -549,6 +550,7 @@ io.test := False
           when(io.usb_dp && !io.usb_dm) { // First 'K' - start calibration
             state := 1
             bit_count := 0
+            ones := 0
             bit_len := 7 // default is 8 clocks
             packet := 0
             ready := False
@@ -614,9 +616,19 @@ io.test := False
               T0 := 0
             }
             when(T0 === bit_len(7 downto 1).resized) { // sample one symbol in the middle of tick
+              var one_bit = (io.usb_dp === last_symbol) // convert to bit
               last_symbol := io.usb_dp
-              packet(bit_count) := (io.usb_dp === last_symbol) // convert to bit and save to packet
-              bit_count := bit_count + 1
+              when(one_bit) {
+                ones := ones + 1
+              } otherwise {
+                ones := 0
+              }
+              when(ones =/= 6) { // save current bit
+                bit_count := bit_count + 1
+                packet(bit_count) := one_bit
+              } otherwise { // skip current bit because it's stuffing bit
+                ones := 0
+              }
               when(bit_count === 127) { // max data size achieved
                 state := 7
               }
