@@ -167,6 +167,8 @@ int usb10_device_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request
 	int num_of_data_packets = response_size % USB10_LOW_SPEED_DATA_SIZE ?
 		response_size / USB10_LOW_SPEED_DATA_SIZE + 1 : response_size / USB10_LOW_SPEED_DATA_SIZE;
 
+	int last_data_pid = USB10_PID_DATA0;
+
 	if(response_size == 0)
 		num_of_data_packets = 1; // read at least one data packet
 
@@ -214,9 +216,23 @@ int usb10_device_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request
 		);
 		#endif
 
+		// ACK received packet no matter what it is
 
-		if(USB10_RX_STATUS_PID(rx_status) != USB10_PID_DATA0 && 
-		   USB10_RX_STATUS_PID(rx_status) != USB10_PID_DATA1) {
+		reg->COMMAND = USB10_CMD_START_BIT |
+			USB10_CMD_SET_PID(USB10_PID_ACK) |
+			USB10_CMD_SET(USB10_CMD_SEND_SHORT_TOKEN);
+			
+		if(!usb10_wait_cmd_complete(reg, 20000)) { // 2ms timeout
+			usb10_printf("%s: hang after ACK!\r\n", USB10_DEVICE_SETUP_REQUEST_STR);
+			ret = -11;
+			goto fail;
+		}
+
+		// Now analyze what we've got here
+
+		int received_pid = USB10_RX_STATUS_PID(rx_status);
+
+		if(received_pid != USB10_PID_DATA0 && received_pid != USB10_PID_DATA1) {
 			usb10_printf("%s: expected %s packet instead of 0x%02X\r\n", USB10_DEVICE_SETUP_REQUEST_STR, "DATA",
 				USB10_RX_STATUS_PID(rx_status));
 
@@ -224,6 +240,20 @@ int usb10_device_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request
 				goto again_data;
 
 			ret = -7;
+			goto fail;
+		}
+
+		if(received_pid == last_data_pid) {
+
+			usb10_printf("%s: received %d dupe data, STATUS = %08X, DATA = %08X:%08X\r\n",
+				USB10_DEVICE_SETUP_REQUEST_STR, i, USB10_RX_STATUS_LEN(rx_status),
+				reg->RECV_DATA_HIGH, reg->RECV_DATA_LOW
+			);
+
+			if(retry--)
+				goto again_data;
+
+			ret = -9;
 			goto fail;
 		}
 
@@ -236,23 +266,15 @@ int usb10_device_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request
 			if(retry--)
 				goto again_data;
 
-			ret = -8;
-			goto fail;
-		}
-
-		reg->COMMAND = USB10_CMD_START_BIT |
-				USB10_CMD_SET_PID(USB10_PID_ACK) |
-				USB10_CMD_SET(USB10_CMD_SEND_SHORT_TOKEN);
-				
-		if(!usb10_wait_cmd_complete(reg, 20000)) { // 2ms timeout
-			usb10_printf("%s: hang after ACK!\r\n", USB10_DEVICE_SETUP_REQUEST_STR);
-			ret = -9;
+			ret = -10;
 			goto fail;
 		}
 
 		usb10_printf("%s: packet received (%d), RX_STATUS = 0x%08X, DATA = %08X:%08X\r\n",
 			USB10_DEVICE_SETUP_REQUEST_STR, i, rx_status, reg->RECV_DATA_HIGH, reg->RECV_DATA_LOW
 		);
+
+		last_data_pid = received_pid;
 
 		if(response_size) { // collect data if response expected
 			*(uint32_t*)(response_data + i * 8 + 0) = reg->RECV_DATA_LOW;
