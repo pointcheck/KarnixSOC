@@ -309,25 +309,44 @@ void main() {
 
 		if(reg_sys_counter % 20 == 0) { // Send USB command every 100ms 
 
-			if(usb10_bus_reset(USB1, 12000) < 0)
-				goto usb10_error;
-
-			if(usb10_device_get_description(USB1, 0) < 0)
-				goto usb10_error;
+			USB10_DescriptionUnion *usb10_descr_resp;
+			USB10_ConfigurationUnion *usb10_config_resp;
 
 			if(usb10_bus_reset(USB1, 12000) < 0)
 				goto usb10_error;
 
-			if(usb10_device_set_address(USB1, 1) < 0)
+			if(usb10_device_get_description(USB1, 0, &usb10_descr_resp) < 0)
 				goto usb10_error;
 
-			//if(usb10_device_get_config(USB1, 1) < 0)
-			//	goto usb10_error;
+			printf("USB10: Device detected: bLength = %d, VID/PID = 0x%04X/0x%04X,\r\n"
+				"\tclass/subclass = 0x%02X/0x%02X, bcdUSB = 0x%04X\r\n",
+				usb10_descr_resp->descr.bLength,
+				usb10_descr_resp->descr.idVendor,
+				usb10_descr_resp->descr.idProduct,
+				usb10_descr_resp->descr.bDeviceClass,
+				usb10_descr_resp->descr.bDeviceSubClass,
+				usb10_descr_resp->descr.bcdUSB);
 
+			if(usb10_bus_reset(USB1, 12000) < 0)
+				goto usb10_error;
 
+			if(usb10_device_set_address(USB1, 0, 1) < 0)
+				goto usb10_error;
 
+			if(usb10_device_get_config(USB1, 1, &usb10_config_resp) < 0)
+				goto usb10_error;
+
+			printf("USB10: Device Config: bLength = %d\r\n"
+	       			"\tEPAddress = 0x%02X, Interval = %d ms, MaxPacketSize = %d,\r\n"
+				"\tbInterfaceClass/Subclass/Protocol = %d/%d/%d\r\n",
+				usb10_config_resp->conf.conf.bLength,
+				usb10_config_resp->conf.endp.bEndpointAddress,
+				usb10_config_resp->conf.endp.bInterval,
+				usb10_config_resp->conf.endp.wMaxPacketSize,
+				usb10_config_resp->conf.iface.bInterfaceClass,
+				usb10_config_resp->conf.iface.bInterfaceSubclass,
+				usb10_config_resp->conf.iface.bInterfaceProtocol);
 			
-
 			usb10_error: ;
 		}
 
