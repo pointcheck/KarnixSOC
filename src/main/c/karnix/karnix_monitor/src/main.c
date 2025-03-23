@@ -312,6 +312,8 @@ void main() {
 			USB10_DescriptionUnion *usb10_descr_resp;
 			USB10_ConfigurationUnion *usb10_config_resp;
 
+			printf("USB10: Scanning for devices...\r\n");
+
 			if(usb10_bus_reset(USB1, 12000) < 0)
 				goto usb10_error;
 
@@ -348,6 +350,8 @@ void main() {
 				usb10_config_resp->conf.iface.bInterfaceProtocol);
 			
 			usb10_error: ;
+
+			printf("\r\n");
 		}
 
 		reg_sys_counter++;
