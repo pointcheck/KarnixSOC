@@ -528,7 +528,7 @@ case class USBReceiver() extends Component {
     val ones = Reg(UInt(3 bits)).addTag(crossClockDomain) init(0) // Count log 1's
     val T0 = Reg(UInt(8 bits)).addTag(crossClockDomain) init(0) // Bit timer
     val T1 = Reg(UInt(8 bits)) init(0) // EOP timer
-    val T2 = Reg(UInt(8 bits)) init(0) // Guard timer
+    val T2 = Reg(UInt(12 bits)) init(0) // Guard timer
 
     val ready = Reg(Bool()).addTag(crossClockDomain) init(False)
     val packet = Reg(Bits(128 bits)).addTag(crossClockDomain) init(0)
