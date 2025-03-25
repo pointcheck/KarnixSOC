@@ -99,7 +99,8 @@
 #define	USB10_PID_DATA1		0b01001011	// "1101 0010"	DATA1  	Odd-numbered data packet
 #define	USB10_PID_IN		0b01101001	// "1001 0110"	IN	Address for device-to-host transfer
 #define	USB10_PID_ACK		0b11010010	// "0100 1011"	ACK	Data packet accepted	
-#define	USB10_PID_NACK		0b01011010	// "0101 1010"	NACK	Data packet not accepted; please retransmit 
+#define	USB10_PID_NAK		0b01011010	// "0101 1010"	NAK	Data packet not accepted; please retransmit 
+#define	USB10_PID_STALL		0b00011110	// "0111 1010"	STALL	Transfer impossible; do error recovery 
 
 
 #pragma pack(1)
@@ -215,6 +216,14 @@ typedef union {
 
 #pragma pack(0)
 
+extern uint8_t usb10_descr_req[];	// array of data for Description request
+extern uint8_t usb10_config_req[];	// array of data for Config request
+extern uint8_t usb10_setaddr_req[];	// array of data for Set Address request
+extern uint8_t usb10_setconf_req[];	// array of data for Set Config request
+extern uint8_t usb10_device_address;	// last used device address
+
+extern USB10_DescriptionUnion usb10_descr_resp;
+extern USB10_ConfigurationUnion usb10_config_resp;
 
 int usb10_wait_cmd_complete(USB10_Reg* reg, int timeout); 
 int usb10_bus_reset(USB10_Reg* reg, int wait_us);
@@ -223,7 +232,11 @@ int usb10_device_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request
 int usb10_device_get_description(USB10_Reg* reg, uint8_t address, USB10_DescriptionUnion** descr_resp);
 int usb10_device_get_config(USB10_Reg* reg, uint8_t address, USB10_ConfigurationUnion** config_resp);
 int usb10_device_set_address(USB10_Reg* reg, uint8_t address_old, uint8_t address_new);
-
+int usb10_device_set_address(USB10_Reg* reg, uint8_t address, uint8_t config_num);
+int usb10_scan(USB10_Reg* reg, uint8_t* new_device_address, USB10_DescriptionUnion **usb10_descr_resp,
+	USB10_ConfigurationUnion **usb10_config_resp);
+int usb10_device_in_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
+	uint8_t* response_data, uint32_t response_size);
 
 #endif /* __USB10_H__ */
 
