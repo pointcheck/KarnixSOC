@@ -39,6 +39,7 @@ volatile uint32_t reg_sys_counter = 0;
 volatile uint32_t reg_irq_counter = 0;
 volatile uint32_t reg_sys_print_stats = 3;
 volatile uint32_t reg_cga_vblank_irqs = 0;
+volatile uint32_t reg_usb_print_stats = 1;
 
 #if(RESET_ON_SOFT_START)
 __attribute__ ((section (".noinit"))) uint32_t deadbeef;	// If equal to 0xdeadbeef - we are in soft-start mode
@@ -307,52 +308,79 @@ void main() {
 
 		}
 
-		if(reg_sys_counter % 20 == 0) { // Send USB command every 100ms 
+		#if(USB10_ENABLE)
+		if(reg_sys_counter % 8 == 0) { // Send USB command every 40ms 
 
-			USB10_DescriptionUnion *usb10_descr_resp;
-			USB10_ConfigurationUnion *usb10_config_resp;
+			uint8_t new_device_address = 0;
 
-			printf("USB10: Scanning for devices...\r\n");
+			if(usb10_device_address == 0) {
+				if(usb10_scan(USB1, &new_device_address, NULL, NULL) == 0) {
+					printf("\rUSB1: new device addr = %d, VID/PID = 0x%04X/0x%04X, class/subclass/proto = %d/%d/%d\r\n",
+						new_device_address,
+						usb10_descr_resp.descr.idVendor,
+						usb10_descr_resp.descr.idProduct,
+						usb10_config_resp.conf.iface.bInterfaceClass,
+						usb10_config_resp.conf.iface.bInterfaceSubclass,
+						usb10_config_resp.conf.iface.bInterfaceProtocol
+					);
 
-			if(usb10_bus_reset(USB1, 12000) < 0)
-				goto usb10_error;
+					cli_prompt();
+				}
+			} else {
+				uint8_t endpoint = 1; //should be usb10_config_resp.conf.endp.bEndpointAddress & 0x0f ?
+				uint8_t response_data[8] = {0};
+				int response_size;
 
-			if(usb10_device_get_description(USB1, 0, &usb10_descr_resp) < 0)
-				goto usb10_error;
+				// Try to guess response data packet size using class info
 
-			printf("USB10: Device detected: bLength = %d, VID/PID = 0x%04X/0x%04X,\r\n"
-				"\tclass/subclass = 0x%02X/0x%02X, bcdUSB = 0x%04X\r\n",
-				usb10_descr_resp->descr.bLength,
-				usb10_descr_resp->descr.idVendor,
-				usb10_descr_resp->descr.idProduct,
-				usb10_descr_resp->descr.bDeviceClass,
-				usb10_descr_resp->descr.bDeviceSubClass,
-				usb10_descr_resp->descr.bcdUSB);
+				if(usb10_config_resp.conf.iface.bInterfaceClass == 3 &&
+				   usb10_config_resp.conf.iface.bInterfaceSubclass == 1 &&
+				   usb10_config_resp.conf.iface.bInterfaceProtocol == 2) {
 
-			if(usb10_bus_reset(USB1, 12000) < 0)
-				goto usb10_error;
+					response_size = 4; // HID mouse
 
-			if(usb10_device_set_address(USB1, 0, 1) < 0)
-				goto usb10_error;
+				} else if(usb10_config_resp.conf.iface.bInterfaceClass == 3 &&
+					  usb10_config_resp.conf.iface.bInterfaceSubclass == 1 &&
+					  usb10_config_resp.conf.iface.bInterfaceProtocol == 1) {
 
-			if(usb10_device_get_config(USB1, 1, &usb10_config_resp) < 0)
-				goto usb10_error;
+					response_size = 8; // HID keyboard 
 
-			printf("USB10: Device Config: bLength = %d\r\n"
-	       			"\tEPAddress = 0x%02X, Interval = %d ms, MaxPacketSize = %d,\r\n"
-				"\tbInterfaceClass/Subclass/Protocol = %d/%d/%d\r\n",
-				usb10_config_resp->conf.conf.bLength,
-				usb10_config_resp->conf.endp.bEndpointAddress,
-				usb10_config_resp->conf.endp.bInterval,
-				usb10_config_resp->conf.endp.wMaxPacketSize,
-				usb10_config_resp->conf.iface.bInterfaceClass,
-				usb10_config_resp->conf.iface.bInterfaceSubclass,
-				usb10_config_resp->conf.iface.bInterfaceProtocol);
-			
-			usb10_error: ;
+				} else if(usb10_config_resp.conf.iface.bInterfaceClass == 3 &&
+					  usb10_config_resp.conf.iface.bInterfaceSubclass == 0 &&
+				  	  usb10_config_resp.conf.iface.bInterfaceProtocol == 0) {
 
-			printf("\r\n");
+					response_size = 8; // HID gamepad 
+
+				} else {
+					response_size = 8; // Unknown
+				}
+				
+				int ret = usb10_device_in_request(USB1, usb10_device_address, endpoint,
+						response_data, response_size);
+
+				if(ret == 0) {
+					if(reg_usb_print_stats) {
+						printf("\rUSB1 (%d:%d) data received: ", usb10_device_address, endpoint);
+						for(int i = 0; i < response_size; i++)
+							printf("%02X ", response_data[i]);
+						printf("\r\n");
+
+						cli_prompt();
+					}
+
+				} else if(ret == -8 || ret == -9) { // STALL,  NAK or dupe
+					// Do nothing
+				} else {
+					printf("\rUSB1 (%d:%d) failed, ret = %d\r\n", usb10_device_address, endpoint, ret);
+					usb10_device_address = 0; // flag USB as broken
+
+					cli_prompt();
+				}
+
+			}
+
 		}
+		#endif
 
 		reg_sys_counter++;
 

@@ -36,6 +36,7 @@ uint32_t cli_buf_len = 0;
 
 uint32_t current_address = 0x80000000;
 extern volatile uint32_t reg_sys_print_stats;
+extern volatile uint32_t reg_usb_print_stats;
 
 void* ZModemWriteAddress;
 
@@ -69,6 +70,7 @@ void cli_cmd_help(char *argv[], int argn) {
 	printf(
 "/// List of general commands:\r\n"
 "stats	[period]		- Enable printing statistics each 'period' sec, use 0 to disable.\r\n"
+"usb	[1/0]			- Enable/disable printing USB data.\r\n"
 "r[b|d]	[*|addr] [len]		- Read and print 'len' bytes or dwords of memory beginning at 'addr'.\r\n"
 "w[b|d]	[*|addr] [data] [many]	- Write 'data' byte or dword to memory at 'addr' as 'many' times.\r\n"
 "addr	[*|addr]		- Set current address pointer to 'addr'.\r\n"
@@ -730,6 +732,14 @@ void cli_cmd_stats(char *argv[], int argn) {
 	printf("reg_sys_print_stats = %d\r\n", reg_sys_print_stats);
 }
 	
+void cli_cmd_usb(char *argv[], int argn) {
+
+	if(argv[1])
+		reg_usb_print_stats = strtoul(argv[1], NULL, 0);;
+
+	printf("reg_usb_print_stats = %d\r\n", reg_usb_print_stats);
+}
+
 // Process CLI command once Enter is pressed
 void cli_process_command(uint8_t *cmdline, uint32_t len) {
 
@@ -782,6 +792,11 @@ void cli_process_command(uint8_t *cmdline, uint32_t len) {
 
 	if(argv[0][0] == 's' && argv[0][1] == 't') {
 		cli_cmd_stats(argv, argn);
+		return;
+	}
+
+	if(argv[0][0] == 'u' && argv[0][1] == 's') {
+		cli_cmd_usb(argv, argn);
 		return;
 	}
 
