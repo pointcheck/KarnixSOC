@@ -303,8 +303,11 @@ case class USBSendData() extends Component {
             io.usb_dp := False
           }
           when(clock_strobe && bit_count === 15) {
-            state := 1
             bit_count := 0
+            state := 1 // send data
+            when(io.len === 0xfff) { // zero len ?
+              state := 2 // send CRC16
+            }
           }
         }
         is(1) { // sending DATA block
@@ -841,7 +844,7 @@ case class Apb3USB10Ctrl(
     val send_data = new USBSendData()
     send_data.io.pid := 0
     send_data.io.data := 0
-    send_data.io.len := 0
+    send_data.io.len := 0xfff // zero data bits
     send_data.io.valid := False
     send_data.io.clock_div := USBSlowSpeedClockDiv
 
