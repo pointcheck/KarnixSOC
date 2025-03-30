@@ -869,7 +869,9 @@ case class Apb3USB10Ctrl(
 
 
     //io.test := bus_reset.io.test|send_token.io.test|send_data.io.test
-io.test := busy //receiver.io.test
+    io.test := busy
+    //io.test := receiver.io.test
+    //io.test := received
 
     switch(state) {
 
