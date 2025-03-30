@@ -40,6 +40,7 @@ volatile uint32_t reg_irq_counter = 0;
 volatile uint32_t reg_sys_print_stats = 3;
 volatile uint32_t reg_cga_vblank_irqs = 0;
 volatile uint32_t reg_usb_print_stats = 1;
+volatile uint32_t reg_usb_error_count = 0;
 
 #if(RESET_ON_SOFT_START)
 __attribute__ ((section (".noinit"))) uint32_t deadbeef;	// If equal to 0xdeadbeef - we are in soft-start mode
@@ -315,6 +316,9 @@ void main() {
 
 			if(usb10_device_address == 0) {
 				if(usb10_scan(USB1, &new_device_address, NULL, NULL) == 0) {
+
+					reg_usb_error_count = 0;
+
 					printf("\rUSB1: new device addr = %d, VID/PID = 0x%04X/0x%04X, class/subclass/proto = %d/%d/%d\r\n",
 						new_device_address,
 						usb10_descr_resp.descr.idVendor,
@@ -330,35 +334,42 @@ void main() {
 				uint8_t endpoint = 1; //should be usb10_config_resp.conf.endp.bEndpointAddress & 0x0f ?
 				uint8_t response_data[8] = {0};
 				int response_size;
+				int device_type;
 
 				// Try to guess response data packet size using class info
 
 				if(usb10_config_resp.conf.iface.bInterfaceClass == 3 &&
-				   usb10_config_resp.conf.iface.bInterfaceSubclass == 1 &&
-				   usb10_config_resp.conf.iface.bInterfaceProtocol == 2) {
-
-					response_size = 4; // HID mouse
-
-				} else if(usb10_config_resp.conf.iface.bInterfaceClass == 3 &&
 					  usb10_config_resp.conf.iface.bInterfaceSubclass == 1 &&
 					  usb10_config_resp.conf.iface.bInterfaceProtocol == 1) {
 
 					response_size = 8; // HID keyboard 
+					device_type = 1;
+
+				} else if(usb10_config_resp.conf.iface.bInterfaceClass == 3 &&
+				   usb10_config_resp.conf.iface.bInterfaceSubclass == 1 &&
+				   usb10_config_resp.conf.iface.bInterfaceProtocol == 2) {
+
+					response_size = 4; // HID mouse
+					device_type = 2;
 
 				} else if(usb10_config_resp.conf.iface.bInterfaceClass == 3 &&
 					  usb10_config_resp.conf.iface.bInterfaceSubclass == 0 &&
 				  	  usb10_config_resp.conf.iface.bInterfaceProtocol == 0) {
 
 					response_size = 8; // HID gamepad 
+					device_type = 3;
 
 				} else {
 					response_size = 8; // Unknown
+					device_type = 0;
 				}
 				
 				int ret = usb10_device_in_request(USB1, usb10_device_address, endpoint,
 						response_data, response_size);
 
 				if(ret == 0) {
+					reg_usb_error_count = 0;
+					
 					if(reg_usb_print_stats) {
 						printf("\rUSB1 (%d:%d) data received: ", usb10_device_address, endpoint);
 						for(int i = 0; i < response_size; i++)
@@ -371,12 +382,22 @@ void main() {
 				} else if(ret == -8 || ret == -9) { // STALL,  NAK or dupe
 					// Do nothing
 				} else {
-					printf("\rUSB1 (%d:%d) failed, ret = %d\r\n", usb10_device_address, endpoint, ret);
-					usb10_device_address = 0; // flag USB as broken
-
-					cli_prompt();
+					if(++reg_usb_error_count > 3) {
+						printf("\rUSB1 (%d:%d) failed, ret = %d\r\n", usb10_device_address, endpoint, ret);
+						usb10_device_address = 0; // flag USB as broken
+						cli_prompt();
+					}
 				}
 
+				if(device_type == 1) { // keyboard
+					if((reg_sys_counter & 0x3ff) == 0x100) { // Send HID all LEDs on
+						usb10_hid_set_led(USB1, usb10_device_address, 1, 0xff);
+					}
+
+					if((reg_sys_counter & 0x3ff) == 0x200) { // Send HID all LEDs off
+						usb10_hid_set_led(USB1, usb10_device_address, 1, 0x00);
+					}
+				}
 			}
 
 		}
