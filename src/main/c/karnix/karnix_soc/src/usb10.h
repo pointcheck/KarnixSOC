@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#define	USB10_EP0		0
+
 #define	USB10_STATUS_ERROR_S	30
 #define	USB10_STATUS_ERROR_M	0x01
 #define	USB10_STATUS_ERROR(X)	(((X) >> USB10_STATUS_ERROR_S) & USB10_STATUS_ERROR_M)
@@ -98,10 +100,13 @@
 #define	USB10_PID_DATA0		0b11000011	// "1100 0011"	DATA0 	Even-numbered data packet
 #define	USB10_PID_DATA1		0b01001011	// "1101 0010"	DATA1  	Odd-numbered data packet
 #define	USB10_PID_IN		0b01101001	// "1001 0110"	IN	Address for device-to-host transfer
+#define	USB10_PID_OUT		0b11100001	// "1000 0111"	OUT	Address for host-to-device transfer 
 #define	USB10_PID_ACK		0b11010010	// "0100 1011"	ACK	Data packet accepted	
 #define	USB10_PID_NAK		0b01011010	// "0101 1010"	NAK	Data packet not accepted; please retransmit 
 #define	USB10_PID_STALL		0b00011110	// "0111 1010"	STALL	Transfer impossible; do error recovery 
 
+#define	MAX_ADDRESSES		4		// How many devices should be supported (consumes memory)
+#define	MAX_ENDPOINTS		16		// How many endpoints per device
 
 #pragma pack(1)
 typedef struct {
@@ -114,6 +119,14 @@ typedef struct {
 	volatile uint32_t RX_STATUS;
 	volatile uint32_t CONTROL;
 } USB10_Reg;
+
+typedef struct {
+	uint8_t bmRequestType;	// D7: 0 - host->device, D6-5: 00 - standard, 01 - class, D4-0 - recipient: 0 - Device, 1 - Interface
+	uint8_t bRequest;
+	uint16_t wValue;	// Extra parameter to the request 
+	uint16_t bIndex;	// Endpoint number, Config number, Interface number
+	uint16_t wLength;
+} USB10_SetupRequest;
 
 typedef struct {
 	uint8_t bLength;		// 1 Length of this descriptor = 18 bytes
@@ -229,14 +242,20 @@ int usb10_wait_cmd_complete(USB10_Reg* reg, int timeout);
 int usb10_bus_reset(USB10_Reg* reg, int wait_us);
 int usb10_device_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request_data,
 	uint8_t* response_data, uint32_t response_size);
-int usb10_device_get_description(USB10_Reg* reg, uint8_t address, USB10_DescriptionUnion** descr_resp);
-int usb10_device_get_config(USB10_Reg* reg, uint8_t address, USB10_ConfigurationUnion** config_resp);
+int usb10_device_get_description(USB10_Reg* reg, uint8_t address, USB10_DescriptionUnion* descr_resp);
+int usb10_device_get_config(USB10_Reg* reg, uint8_t address, USB10_ConfigurationUnion* config_resp);
 int usb10_device_set_address(USB10_Reg* reg, uint8_t address_old, uint8_t address_new);
 int usb10_device_set_address(USB10_Reg* reg, uint8_t address, uint8_t config_num);
+
+/* NOTE: descr_resp and config_resp can be NULL pointers if response is unused. */
 int usb10_scan(USB10_Reg* reg, uint8_t* new_device_address, USB10_DescriptionUnion **usb10_descr_resp,
 	USB10_ConfigurationUnion **usb10_config_resp);
+
+/* NOTE: request_data buffer should be at least 8 bytes long, even if request_size is zero !!! */
 int usb10_device_in_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 	uint8_t* response_data, uint32_t response_size);
+
+int usb10_hid_set_led(USB10_Reg* reg, uint8_t address, uint8_t endpoint, uint8_t leds);
 
 #endif /* __USB10_H__ */
 
