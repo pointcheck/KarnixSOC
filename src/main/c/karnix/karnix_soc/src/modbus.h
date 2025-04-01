@@ -47,8 +47,9 @@
 #define	REG_CONFIG_WRITE		126		// Config write Operations: (32 bit signed) - any positive value greater than 0 allows config to be written 
 #define	REG_REBOOT			127		// Writing to this register causes hard reboot
 
-#define REG_VIDEO_MODE_CGA  		1
-#define REG_VIDEO_MODE_HUB		2
+#define REG_VIDEO_MODE_CGA_TEXT 	1
+#define REG_VIDEO_MODE_CGA_GRAPHICS 	2
+#define REG_VIDEO_MODE_HUB		3
 
 extern volatile uint32_t reg_sys_counter;
 extern volatile uint32_t reg_irq_counter;

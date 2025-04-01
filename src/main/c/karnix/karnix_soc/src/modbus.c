@@ -7,6 +7,7 @@
 #ifdef CONFIG_HAS_HUB
 	#include "hub.h"
 #endif
+
 #include "cga.h"
 #include "audiodac.h"
 #include "modbus.h"
@@ -15,10 +16,15 @@
 	#error	"Please define CONFIG_HAS_MODBUS in Makefile DEFS if you want Modbus support!"
 #endif
 
+#if defined(CONFIG_HAS_CGA_GRAPHICS) || defined(CONFIG_HAS_HUB)
+	extern const char font_6x8[];
+	extern const char font_12x16[];
+#endif
+
 //#define MODBUS_DEBUG	1
 
 volatile uint32_t reg_color = HUB_COLOR_WHITE;
-volatile uint32_t reg_video_mode = REG_VIDEO_MODE_CGA;
+volatile uint32_t reg_video_mode = REG_VIDEO_MODE_CGA_TEXT;
 volatile uint32_t reg_video_frame_size = CGA_FRAMEBUFFER_SIZE;
 volatile extern uint32_t reg_irq_counter;
 volatile extern uint32_t reg_sys_counter;
@@ -118,20 +124,27 @@ int modbus_store_reg(uint16_t reg, uint8_t *data, uint16_t data_len) {
 				break;
 			}
 
-			if(font_id == 0)
+			if(font_id == 0) {
 				#ifdef CONFIG_HAS_HUB
 				if(reg_video_mode == REG_VIDEO_MODE_HUB)
 					hub_print(x, y, reg_color, &(data[6]), text_len, font_6x8, 6, 8);
-				else
 				#endif
-					cga_video_print(x, y, reg_color, &(data[6]), text_len, font_12x16, 12, 16);
-			else
+
+				#ifdef CONFIG_HAS_CGA_GRAPHICS
+				if(reg_video_mode == REG_VIDEO_MODE_CGA_GRAPHICS)
+					cga_video_print(x, y, reg_color, &(data[6]), text_len, font_6x8, 6, 8);
+				#endif
+			} else { 
 				#ifdef CONFIG_HAS_HUB
 				if(reg_video_mode == REG_VIDEO_MODE_HUB)
-					hub_print(x, y, reg_color, &(data[6]), text_len, font_6x8, 6, 8);
-				else
+					hub_print(x, y, reg_color, &(data[6]), text_len, font_12x16, 12, 16);
 				#endif
+
+				#ifdef CONFIG_HAS_CGA_GRAPHICS
+				if(reg_video_mode == REG_VIDEO_MODE_CGA_GRAPHICS)
 					cga_video_print(x, y, reg_color, &(data[6]), text_len, font_12x16, 12, 16);
+				#endif
+			}
 
 			ret = 0;
 		} break;
