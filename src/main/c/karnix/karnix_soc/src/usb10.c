@@ -609,6 +609,8 @@ int usb10_device_get_description(USB10_Reg* reg, uint8_t address, USB10_Descript
 		return ret;
 	}
 
+	delay_us(200); // let device process request
+
 	// End of transaction 
 	if((ret = usb10_device_out_request(USB1, address, USB10_EP0, NULL, 0)) < 0) {
 		usb10_printf("%s: usb10_device_out_request ret = %d\r\n", USB10_DEVICE_GET_DESCR_STR, ret);
@@ -634,6 +636,8 @@ int usb10_device_get_config(USB10_Reg* reg, uint8_t address, USB10_Configuration
 		usb10_printf("%s: usb10_device_setup_request ret = %d\r\n", USB10_DEVICE_GET_CONFIG_STR, ret);
 		return ret;
 	}
+
+	delay_us(200); // let device process request
 
 	// End of transaction 
 	if((ret = usb10_device_out_request(USB1, address, USB10_EP0, NULL, 0)) < 0) {
@@ -663,11 +667,14 @@ int usb10_device_set_address(USB10_Reg* reg, uint8_t address_old, uint8_t addres
 		return ret;
 	}
 
+	delay_us(200); // let device process request
+
 	// End of transaction
 	if((ret = usb10_device_in_request(USB1, address_old, USB10_EP0, NULL, 0)) < 0) {
 		usb10_printf("%s: usb10_device_in_request ret = %d\r\n", USB10_DEVICE_SET_ADDR_STR, ret);
 		return ret;
 	}
+
 
 	usb10_printf("%s: %s\r\n", USB10_DEVICE_SET_ADDR_STR, "ok");
 
@@ -690,6 +697,8 @@ int usb10_device_set_config(USB10_Reg* reg, uint8_t address, uint8_t config_num)
 		usb10_printf("%s: usb10_device_setup_request ret = %d\r\n", USB10_DEVICE_SET_CONF_STR, ret);
 		return ret;
 	}
+
+	delay_us(200); // let device process request
 
 	// End of transaction
 	if((ret = usb10_device_in_request(USB1, address, USB10_EP0, NULL, 0)) < 0) {
@@ -800,6 +809,8 @@ int usb10_hid_set_led(USB10_Reg* reg, uint8_t address, uint8_t endpoint, uint8_t
 		usb10_printf("%s: usb10_device_setup_request ret = %d\r\n", USB10_HID_SET_LED_STR, ret);
 		return ret;
 	}
+
+	delay_us(200);
 
 	// Send LED status data
 	if((ret = usb10_device_out_request(USB1, address, USB10_EP0, led_status, 1)) < 0) {
