@@ -10,11 +10,7 @@
 #include "crc32.h"
 #include "context.h"
 #include "zmodem.h"
-
-#define	CLI_BUF_SIZE       	128
-#define	CLI_HISTORY_SIZE	4
-#define CONSOLE_RX_BUF_SIZE     128
-#define CONSOLE_RX_DELAY_US     10000
+#include "cli.h"
 
 #define	DEBUG_CLI		1		// 0 - off, 1 - few, 2 - more
 #define	ARGN_MAX		8		// Max number of arguments in cmd line
@@ -26,6 +22,7 @@ void welcome(void);
 
 volatile uint32_t console_rx_buf_len = 0;
 volatile uint8_t console_rx_buf[CONSOLE_RX_BUF_SIZE];
+volatile uint32_t console_rx_timestamp = 0;
 
 
 uint8_t cli_history[CLI_HISTORY_SIZE][CLI_BUF_SIZE+1] = {0};
