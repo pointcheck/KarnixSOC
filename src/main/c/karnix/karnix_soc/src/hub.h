@@ -3,9 +3,6 @@
 
 #include <stdint.h>
 
-extern const char font_6x8[];
-extern const char font_12x16[];
-
 extern uint32_t hub_frame_size;
 extern uint32_t hub_frame_width;
 extern uint32_t hub_frame_height;
