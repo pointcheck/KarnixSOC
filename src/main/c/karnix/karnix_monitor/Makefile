@@ -11,7 +11,9 @@ COMPRESSED=yes
 
 DEFS += -DCONFIG_HAS_MODBUS -DCONFIG_HAS_MAC
 DEFS += -DUSB10_ENABLE
-DEFS += -DUSB10_DEBUG
+DEFS += -DUSB_KEYBOARD_ENABLE
+#DEFS += -DKEYBOARD_DEBUG
+#DEFS += -DUSB10_DEBUG
 #DEFS += -DDEBUG_SBRK 
 
 # LwIP support
@@ -27,6 +29,7 @@ LDSCRIPT_XIP=src/linker_monitor_xip.ld -Wl
 
 
 SRCS += $(wildcard src/*.c) $(wildcard src/*.cpp)
+SRCS += $(wildcard src/keyboard/*.c)
 SRCS += $(wildcard $(SOCDIR)/*.c) $(wildcard $(SOCDIR)/*.cpp)
 SRCS += $(COREFILES) $(CORE4FILES) $(LWIPDIR)/netif/ethernet.c
 SRCS += $(CRT)

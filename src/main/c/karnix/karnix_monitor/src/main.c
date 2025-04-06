@@ -23,6 +23,7 @@
 #include "qspi.h"
 #include "context.h"
 #include "cli.h"
+#include "keyboard/keyboard.h"
 
 const char *WELCOME_TEXT = "Welcome to Karnix SoC Monitor. Copyright (C) 2024-2025, Fabmicro, LLC.\r\nBuild #%04u at %s %s. Main addr: %p\r\n\r\n";
 	
@@ -39,11 +40,32 @@ volatile uint32_t reg_sys_counter = 0;
 volatile uint32_t reg_irq_counter = 0;
 volatile uint32_t reg_sys_print_stats = 3;
 volatile uint32_t reg_cga_vblank_irqs = 0;
-volatile uint32_t reg_usb_print_stats = 1;
+volatile uint32_t reg_usb_print_stats = 0;
 volatile uint32_t reg_usb_error_count = 0;
 
 #if(RESET_ON_SOFT_START)
 __attribute__ ((section (".noinit"))) uint32_t deadbeef;	// If equal to 0xdeadbeef - we are in soft-start mode
+#endif
+
+
+#if(USB_KEYBOARD_ENABLE)
+void process_keyboard_events(struct kbd_data *kbd, unsigned char value)
+{
+	events_console_poll = 1;
+}
+
+struct kbd_data keyboard = {
+	.buffer = console_rx_buf,
+	.size = CONSOLE_RX_BUF_SIZE,
+	.len = &console_rx_buf_len,
+	.time = &console_rx_timestamp,
+	.k_spec = &process_keyboard_events,
+	.k_fn = &process_keyboard_events,
+	.k_self = &process_keyboard_events,
+	.k_lowercase = &process_keyboard_events,
+	.k_cur = &process_keyboard_events,
+	.k_pad = &process_keyboard_events
+}; 
 #endif
 
 void welcome(void); 
@@ -368,13 +390,18 @@ void main() {
 						response_data, response_size);
 
 				if(ret == 0) {
+
 					reg_usb_error_count = 0;
-					
+
+					#if(USB_KEYBOARD_ENABLE)
+					kbd_hid_keycode(&keyboard, response_data);
+					#endif
+
 					if(reg_usb_print_stats) {
 						printf("\rUSB1 (%d:%d) data received: ", usb10_device_address, endpoint);
 						for(int i = 0; i < response_size; i++)
 							printf("%02X ", response_data[i]);
-						printf("\r\n");
+						printf(", RX_STATUS: 0x%08X\r\n", USB1->RX_STATUS);
 
 						cli_prompt();
 					}
