@@ -521,10 +521,45 @@ case class USBReceiver() extends Component {
 	val ready     = out Bool()
         val packet    = out Bits(128 bits) // PID(8) + DATA(64) + CRC16(16) + ALIGN
         val bits_recv = out UInt(7 bits)
+        val calculated_crc16 = out Bits(16 bits)
+        val received_crc16 = out Bits(16 bits)
 
         val test = out Bool()
     }
 
+    def calc_crc16_usb(crc_in: Bits, din: Bits) : Bits = {
+      val ret = Bits(16 bits)
+
+	ret(0) :=	din(7) ^ din(6) ^ din(5) ^ din(4) ^ din(3) ^
+        		din(2) ^ din(1) ^ din(0) ^ crc_in(8) ^ crc_in(9) ^
+        		crc_in(10) ^ crc_in(11) ^ crc_in(12) ^ crc_in(13) ^
+        		crc_in(14) ^ crc_in(15)
+	ret(1) :=	din(7) ^ din(6) ^ din(5) ^ din(4) ^ din(3) ^ din(2) ^
+        		din(1) ^ crc_in(9) ^ crc_in(10) ^ crc_in(11) ^
+        		crc_in(12) ^ crc_in(13) ^ crc_in(14) ^ crc_in(15)
+	ret(2) :=	din(1) ^ din(0) ^ crc_in(8) ^ crc_in(9)
+	ret(3) :=	din(2) ^ din(1) ^ crc_in(9) ^ crc_in(10)
+	ret(4) :=	din(3) ^ din(2) ^ crc_in(10) ^ crc_in(11)
+	ret(5) :=	din(4) ^ din(3) ^ crc_in(11) ^ crc_in(12)
+	ret(6) :=	din(5) ^ din(4) ^ crc_in(12) ^ crc_in(13)
+	ret(7) :=	din(6) ^ din(5) ^ crc_in(13) ^ crc_in(14)
+	ret(8) :=	din(7) ^ din(6) ^ crc_in(0) ^ crc_in(14) ^ crc_in(15)
+	ret(9) :=	din(7) ^ crc_in(1) ^ crc_in(15)
+	ret(10) :=	crc_in(2)
+	ret(11) :=	crc_in(3)
+	ret(12) :=	crc_in(4)
+	ret(13) :=	crc_in(5)
+	ret(14) :=	crc_in(6)
+	ret(15) :=	din(7) ^ din(6) ^ din(5) ^ din(4) ^ din(3) ^ din(2) ^
+			din(1) ^ din(0) ^ crc_in(7) ^ crc_in(8) ^ crc_in(9) ^
+			crc_in(10) ^ crc_in(11) ^ crc_in(12) ^ crc_in(13) ^
+			crc_in(14) ^ crc_in(15)
+
+      return ret
+    }
+
+    val calculated_crc16 = Reg(Bits(16 bits)).addTag(crossClockDomain) init(0)
+    val received_crc16 = Reg(Bits(16 bits)).addTag(crossClockDomain) init(0)
     val bit_count = Reg(UInt(7 bits)).addTag(crossClockDomain) init(0)
     val bit_len = Reg(UInt(8 bits)).addTag(crossClockDomain) init(0)
     val state = Reg(UInt(3 bits)).addTag(crossClockDomain) init(0)
@@ -541,6 +576,8 @@ case class USBReceiver() extends Component {
     io.packet := packet
     io.ready := ready
     io.bits_recv := bit_count
+    io.calculated_crc16 := ~calculated_crc16.reversed
+    io.received_crc16 := received_crc16
 
 //    io.test := io.valid
 io.test := False
@@ -556,6 +593,8 @@ io.test := False
             ones := 0
             bit_len := 7 // default is 8 clocks
             packet := 0
+            calculated_crc16 := B"16'hFFFF"
+            received_crc16 := 0
             ready := False
             last_dp := True
             last_symbol := True
@@ -629,6 +668,10 @@ io.test := False
               when(ones =/= 6) { // save current bit
                 bit_count := bit_count + 1
                 packet(bit_count) := one_bit
+		received_crc16 := one_bit ## received_crc16(15 downto 1)
+                when(bit_count > 23 && bit_count(2 downto 0) === U("000")) {
+			calculated_crc16 := calc_crc16_usb(calculated_crc16, received_crc16(7 downto 0).reversed)
+		}
               } otherwise { // skip current bit because it's stuffing bit
                 ones := 0
               }
@@ -724,6 +767,7 @@ case class Apb3USB10Ctrl(
   val report_flag = usbStatusWord(29).addTag(crossClockDomain)
   val busy_flag = usbStatusWord(28).addTag(crossClockDomain)
   val received_flag = usbStatusWord(27).addTag(crossClockDomain)
+  val crc16_ok_flag = usbStatusWord(26).addTag(crossClockDomain)
   // ... more flags here
   //val received_pid = usbStatusWord(23 downto 16).addTag(crossClockDomain)
   // ... reserved for FSM states
@@ -758,6 +802,9 @@ case class Apb3USB10Ctrl(
   val enable = usbControlWord(31).addTag(crossClockDomain)
   val keepalive = usbControlWord(30).addTag(crossClockDomain)
   val reset_delay = usbControlWord(15 downto 0).asUInt.addTag(crossClockDomain)
+
+  val usbReceiverStatusWord2 = busCtrl.createReadOnly(Bits(32 bits), address = 32) init(0)
+  val calculated_crc16 = usbReceiverStatusWord2(15 downto 0).addTag(crossClockDomain)
 
   io.interrupt := report_flag
 
@@ -803,11 +850,13 @@ case class Apb3USB10Ctrl(
     val report = Reg(Bool()).addTag(crossClockDomain) init(False)
     val busy = Reg(Bool()).addTag(crossClockDomain) init(False)
     val received = Reg(Bool()).addTag(crossClockDomain) init(False)
+    val crc16_ok = Reg(Bool()).addTag(crossClockDomain) init(False)
 
     error_flag := error
     report_flag := report
     received_flag := received
     busy_flag := busy
+    crc16_ok_flag := crc16_ok
 
     fsm_state := state.asBits
 
@@ -859,12 +908,14 @@ case class Apb3USB10Ctrl(
 
     val receiver = new USBReceiver()
     receiver.io.valid := False
+    crc16_ok := received_crc16 === calculated_crc16
     when(receiver.io.ready) {
       received_pid := receiver.io.packet(7 downto 0)
       received_data_low := receiver.io.packet(39 downto 8)
       received_data_high := receiver.io.packet(71 downto 40)
-      received_crc16 := receiver.io.packet(87 downto 72)
       received_bits := receiver.io.bits_recv.asBits.resized
+      received_crc16 := receiver.io.received_crc16 //receiver.io.packet(87 downto 72)
+      calculated_crc16 := receiver.io.calculated_crc16
     }
 
 
