@@ -594,7 +594,7 @@ io.test := False
             bit_len := 7 // default is 8 clocks
             packet := 0
             calculated_crc16 := B"16'hFFFF"
-            received_crc16 := 0
+            //received_crc16 := B"16'hFFFF" 
             ready := False
             last_dp := True
             last_symbol := True
@@ -908,21 +908,12 @@ case class Apb3USB10Ctrl(
 
     val receiver = new USBReceiver()
     receiver.io.valid := False
-    crc16_ok := received_crc16 === calculated_crc16
-    when(receiver.io.ready) {
-      received_pid := receiver.io.packet(7 downto 0)
-      received_data_low := receiver.io.packet(39 downto 8)
-      received_data_high := receiver.io.packet(71 downto 40)
-      received_bits := receiver.io.bits_recv.asBits.resized
-      received_crc16 := receiver.io.received_crc16 //receiver.io.packet(87 downto 72)
-      calculated_crc16 := receiver.io.calculated_crc16
-    }
-
 
     //io.test := bus_reset.io.test|send_token.io.test|send_data.io.test
-    io.test := busy
+    //io.test := busy
     //io.test := receiver.io.test
     //io.test := received
+    io.test := crc16_ok 
 
     switch(state) {
 
@@ -1068,6 +1059,13 @@ case class Apb3USB10Ctrl(
           received := True
           busy := False
           report := True
+          received_pid := receiver.io.packet(7 downto 0)
+          received_data_low := receiver.io.packet(39 downto 8)
+          received_data_high := receiver.io.packet(71 downto 40)
+          received_bits := receiver.io.bits_recv.asBits.resized
+          received_crc16 := receiver.io.received_crc16 //receiver.io.packet(87 downto 72)
+          calculated_crc16 := receiver.io.calculated_crc16
+          crc16_ok := receiver.io.received_crc16 === receiver.io.calculated_crc16
         }
       }
 
