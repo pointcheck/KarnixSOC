@@ -582,7 +582,10 @@ int kbd_hid_keycode(struct kbd_data *kbd, uint8_t hid_response[8])
 	}
 	
 
-	// Check for keys newly pressed
+	// Check for keys newly pressed and repeat
+
+	unsigned char repeat_key_event = 0;
+	int repeat_flag = 0;
 
 	for(int i = 2; i < 8; i++) {
 		
@@ -599,9 +602,16 @@ int kbd_hid_keycode(struct kbd_data *kbd, uint8_t hid_response[8])
 			if(j == 8) // key newly pressed
 				kbd_keycode(kbd, key_event, shift_pressed, ctrl_pressed, alt_pressed, 0);
 
+			repeat_key_event = key_event;
+
 		}
 
+		if(hid_response[i] == prev_hid_response[i])
+			repeat_flag ++;
 	}
+
+	if(repeat_flag == 6)
+		kbd_keycode(kbd, repeat_key_event, shift_pressed, ctrl_pressed, alt_pressed, 0);
 
 	memcpy((void*) prev_hid_response, (void*) hid_response, 8);
 
