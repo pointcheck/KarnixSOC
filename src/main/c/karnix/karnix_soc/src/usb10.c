@@ -237,6 +237,9 @@ int usb10_device_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request
 				reg->RECV_DATA_HIGH, reg->RECV_DATA_LOW
 			);
 
+
+			delay_us(20);
+
 			if(retry--)
 				goto again_data;
 
