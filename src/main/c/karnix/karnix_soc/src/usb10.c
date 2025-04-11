@@ -228,6 +228,24 @@ int usb10_device_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request
 
 		rx_status = reg->RX_STATUS; // read once, use many times
 
+		// Note: NAK packets missing CRC16 which also considered as fail 
+
+		#if(1)
+		if(!(reg->STATUS & USB10_STATUS_CRC16_OK_BIT)) {
+			usb10_printf("%s: CRC16 error (%d), STATUS = %08X, RX_STATUS = %08X, RX_STATUS2 = %08X, DATA = %08X:%08X\r\n",
+				USB10_DEVICE_SETUP_REQUEST_STR, i, reg->STATUS, rx_status, reg->RX_STATUS2,
+				reg->RECV_DATA_HIGH, reg->RECV_DATA_LOW
+			);
+
+			if(retry--)
+				goto again_data;
+
+			ret = -10;
+			goto fail;
+		}
+		#endif
+
+		#if(0) // Enable this if packet size matching is necessary
 		if(USB10_RX_STATUS_LEN(rx_status) != packet_size_bits) {
 			usb10_printf("%s: received bogus data packet (%d) size: %d bits != %d, DATA = %08X:%08X\r\n",
 				USB10_DEVICE_SETUP_REQUEST_STR, i, USB10_RX_STATUS_LEN(rx_status), packet_size_bits,
@@ -240,8 +258,9 @@ int usb10_device_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request
 			ret = -10;
 			goto fail;
 		}
+		#endif
 
-		// ACK received packet no matter what it is
+		// Send ACK for received packet
 
 		reg->COMMAND = USB10_CMD_START_BIT |
 			USB10_CMD_SET_PID(USB10_PID_ACK) |
@@ -383,6 +402,38 @@ int usb10_device_in_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 			goto fail;
 		}
 
+		// Note: Some short token packets missing CRC16 which also considered as fail 
+
+		#if(1)
+		if(!(reg->STATUS & USB10_STATUS_CRC16_OK_BIT)) {
+			usb10_printf("%s: CRC16 error (%d), STATUS = %08X, RX_STATUS = %08X, RX_STATUS2 = %08X, DATA = %08X:%08X\r\n",
+				USB10_DEVICE_IN_REQUEST_STR, i, reg->STATUS, rx_status, reg->RX_STATUS2,
+				reg->RECV_DATA_HIGH, reg->RECV_DATA_LOW
+			);
+
+/*
+			reg->COMMAND = USB10_CMD_START_BIT |
+				USB10_CMD_SET_PID(USB10_PID_NAK) |
+				USB10_CMD_SET(USB10_CMD_SEND_SHORT_TOKEN);
+			
+			if(!usb10_wait_cmd_complete(reg, 20000)) { // 2ms timeout
+				usb10_printf("%s: hung after %s packet!\r\n", USB10_DEVICE_IN_REQUEST_STR, "NAK");
+				ret = -7;
+				goto fail;
+			}
+*/
+
+			delay_us(20);
+
+			if(retry--)
+				goto again_data;
+
+			ret = -10;
+			goto fail;
+		}
+		#endif
+
+		#if(0) // Enable this if packet size matching is necessary
 		if(USB10_RX_STATUS_LEN(rx_status) != packet_size_bits) {
 			usb10_printf("%s: received bogus data packet (%d) size: %d bits != %d, DATA = %08X:%08X\r\n",
 				USB10_DEVICE_IN_REQUEST_STR, i, USB10_RX_STATUS_LEN(rx_status), packet_size_bits,
@@ -395,8 +446,9 @@ int usb10_device_in_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 			ret = -11;
 			goto fail;
 		}
+		#endif
 
-		// ACK received packet no matter what it is
+		// Send ACK for received packet
 
 		reg->COMMAND = USB10_CMD_START_BIT |
 			USB10_CMD_SET_PID(USB10_PID_ACK) |

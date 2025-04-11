@@ -364,6 +364,8 @@ void main() {
 					  usb10_config_resp.conf.iface.bInterfaceSubclass == 1 &&
 					  usb10_config_resp.conf.iface.bInterfaceProtocol == 1) {
 
+					// We have to check RX packet len (88 bits) to skip empty packets
+
 					response_size = 8; // HID keyboard 
 					device_type = 1;
 
@@ -394,14 +396,21 @@ void main() {
 					reg_usb_error_count = 0;
 
 					#if(USB_KEYBOARD_ENABLE)
-					kbd_hid_keycode(&keyboard, response_data);
+					// We have to check device type and RX packet len (88 bits) to
+					// skip empty or bogus packets.
+					if(device_type == 1 && USB10_RX_STATUS_LEN(USB1->RX_STATUS) == 88)
+						kbd_hid_keycode(&keyboard, response_data);
 					#endif
 
 					if(reg_usb_print_stats) {
 						printf("\rUSB1 (%d:%d) data received: ", usb10_device_address, endpoint);
 						for(int i = 0; i < response_size; i++)
 							printf("%02X ", response_data[i]);
-						printf(", RX_STATUS: 0x%08X\r\n", USB1->RX_STATUS);
+						printf(", class = %d/%d/%d, RX_STATUS: 0x%08X, RX_STATUS2: 0x%08X, STATUS: 0x%08X\r\n",
+							usb10_config_resp.conf.iface.bInterfaceClass,
+							usb10_config_resp.conf.iface.bInterfaceSubclass, 
+							usb10_config_resp.conf.iface.bInterfaceProtocol,
+							USB1->RX_STATUS, USB1->RX_STATUS2, USB1->STATUS);
 
 						cli_prompt();
 					}
