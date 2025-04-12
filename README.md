@@ -28,6 +28,7 @@ Karnix SOC (former BrieyForKarnix SoC) is based on VexRiscv RV32IMFAC ISA with M
 - CGA-like video adapter with HDMI interface on Karnix board
 - QSPI controller connector to Winbond Q25W128 NOR flash
 - (optional) HUB13/75 LED matrix controller connected to GPIO header
+- USB 1.0 controller with HID support
 
 Fmax = 60 MHz on Lattice ECP5 25F grade 7
 
@@ -200,6 +201,56 @@ ELF executables are usually built following "flat RAM" model with a fixed progra
 ### How to program for Karnix SoC
 
 A README.md file from [karnix/example](src/main/c/karnix/example) has gory details on how to build ```example``` program both for RAM and XIP execution models and how to run it.
+
+## USB 1.0 Support
+
+Karnix SoC has simplified but extendable implementation of USB 1.0 that supports many Low Speed HID devices like keyboards, mice and gamepads. USB 1.0 protocol is implemented in HAL using hardware assisted primitives to send/receive USB tokens and data. Note, that USB is increadibly complex thing, currently only Low Speed devices are supported.
+
+Files involved:
+
+- [./src/main/scala/mylib/Apb3USB10.scala](src/main/scala/mylib/Apb3USB10.scala) - USB 1.0 controller written in SpinalHDL.
+- [./src/main/c/karnix/karnix_soc/src/usb10.c](src/main/c/karnix/karnix_soc/src/usb10.c) - USB 1.0 protocol implemented in C.
+- [./src/main/c/karnix/karnix_soc/src/keyboard.c](src/main/c/karnix/karnix_soc/src/keyboard.c) - Basic support for HID keyboard.
+- [./src/main/c/karnix/karnix_soc/src/defkeymap.c](src/main/c/karnix/karnix_soc/src/defkeymap.c) - Default keymap for EN/US keyboards.
+
+To give it a try, a USB type A connector has to wired to GPIO connector of Karnix board using the following pinout:
+
+- Pin 1 Vcc connect to +5V which is pin 2 of GPIO connector on Karnix board.
+- Pin 2 USB_DM connect to GPIO_22 (pin 15) and pull down to GND using 10K resistor.
+- Pin 3 USB_DP connect to GPIO_23 (pin 16) and pull down to GND using 10K resistor.
+- Pin 4 connect to GND (pin 6).
+
+Compile Monitor with the following options enabled in it's Makefile: 
+
+```
+DEFS += -DUSB10_ENABLE
+DEFS += -DUSB_KEYBOARD_ENABLE
+```
+
+Upload new binary to NOR flash and restart. Monitor will receive keyboard input for it's command line interface.
+
+Use `usb 1` command in Monitor CLI to enable displaying USB debubgging messages.
+
+Example:
+
+```
+MONITOR[0x80000000]-> usb 1
+reg_usb_print_stats = 1
+USB1: new device addr = 1, VID/PID = 0x046D/0xC31C, class/subclass/proto = 3/1/1
+USB1 (1:1) data received: 00 00 00 00 00 00 00 00 , class = 3/1/1, RX_STATUS: 0xF4BF4B58, RX_STATUS2: 0x0000F4BF, STATUS: 0x04000001
+USB1 (1:1) data received: 00 00 00 00 00 00 00 00 , class = 3/1/1, RX_STATUS: 0xF4BFC358, RX_STATUS2: 0x0000F4BF, STATUS: 0x04000001
+USB1 (1:1) data received: 00 00 00 00 00 00 00 00 , class = 3/1/1, RX_STATUS: 0xF4BF4B58, RX_STATUS2: 0x0000F4BF, STATUS: 0x04000001
+USB1 (1:1) data received: 00 00 00 00 00 00 00 00 , class = 3/1/1, RX_STATUS: 0xF4BFC358, RX_STATUS2: 0x0000F4BF, STATUS: 0x04000001
+USB1 (1:1) data received: 00 00 00 00 00 00 00 00 , class = 3/1/1, RX_STATUS: 0xF4BF4B58, RX_STATUS2: 0x0000F4BF, STATUS: 0x04000001
+USB1 (1:1) data received: 00 00 00 00 00 00 00 00 , class = 3/1/1, RX_STATUS: 0xF4BFC358, RX_STATUS2: 0x0000F4BF, STATUS: 0x04000001
+USB1 (1:1) data received: 00 00 00 00 00 00 00 00 , class = 3/1/1, RX_STATUS: 0xF4BF4B58, RX_STATUS2: 0x0000F4BF, STATUS: 0x04000001
+USB1 (1:1) data received: 00 00 00 00 00 00 00 00 , class = 3/1/1, RX_STATUS: 0xF4BFC358, RX_STATUS2: 0x0000F4BF, STATUS: 0x04000001
+USB1 (1:1) data received: 00 00 00 00 00 00 00 00 , class = 3/1/1, RX_STATUS: 0xF4BF4B58, RX_STATUS2: 0x0000F4BF, STATUS: 0x04000001
+MONITOR[0x80000000]-> usb 0
+reg_usb_print_stats = 0
+
+```
+
 
 ## More details on this project
 
