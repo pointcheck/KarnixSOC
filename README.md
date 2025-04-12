@@ -213,7 +213,7 @@ Files involved:
 - [./src/main/c/karnix/karnix_soc/src/keyboard.c](src/main/c/karnix/karnix_soc/src/keyboard.c) - Basic support for HID keyboard.
 - [./src/main/c/karnix/karnix_soc/src/defkeymap.c](src/main/c/karnix/karnix_soc/src/defkeymap.c) - Default keymap for EN/US keyboards.
 
-To give it a try, a USB type A connector has to wired to GPIO connector of Karnix board using the following pinout:
+To give it a try, a USB type A connector has to be wired to GPIO connector of Karnix board using the following pinout:
 
 - Pin 1 Vcc connect to +5V which is pin 2 of GPIO connector on Karnix board.
 - Pin 2 USB_DM connect to GPIO_22 (pin 15) and pull down to GND using 10K resistor.
