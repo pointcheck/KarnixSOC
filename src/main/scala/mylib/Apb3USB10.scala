@@ -8,31 +8,24 @@ import spinal.lib.Counter
 import spinal.lib.bus.amba3.apb.{Apb3, Apb3Config, Apb3SlaveFactory}
 import spinal.lib.misc.HexTools
 
-case class USBSendToken() extends Component {
-    val io = new Bundle {
+case class USB_IO() extends Bundle {
 	val usb_dm    = inout(Analog(Bool()))
 	val usb_dp    = inout(Analog(Bool()))
 	val valid     = in Bool()
 	val ready     = out Bool()
-	val pid       = in Bits(4 bits)
-	val addr      = in Bits(7 bits)
-	val endp      = in Bits(4 bits)
 	val clock_div = in UInt(8 bits)
+	
+	val test      = out Bool()
 
-        val test = out Bool()
-    }
+        ready := False
+}
 
-    def calc_crc5_usb(din: Bits) : Bits = {
-      val ret = Bits(5 bits)
-      ret(0) := din(10) ^ din(9) ^ din(6) ^ din(5) ^ din(3) ^ din(0) ^ True
-      ret(1) := din(10) ^ din(7) ^ din(6) ^ din(4) ^ din(1) ^ True
-      ret(2) := din(10) ^ din(9) ^ din(8) ^ din(7) ^ din(6) ^ din(3) ^ din(2) ^ din(0) ^ True
-      ret(3) := din(10) ^ din(9) ^ din(8) ^ din(7) ^ din(4) ^ din(3) ^ din(1)
-      ret(4) := din(10) ^ din(9) ^ din(8) ^ din(5) ^ din(4) ^ din(2) ^ True
-      return ret
-    }
+class USBSendReceive() extends Component {
+
 
     val last_kj = Reg(Bool()).addTag(crossClockDomain)
+    val clock_div = Reg(UInt(8 bits)).addTag(crossClockDomain)
+    val clock_strobe = False
 
     def toKJ(input_bit: Bool) : Bool = {
       val ret = Bool()
@@ -47,15 +40,61 @@ case class USBSendToken() extends Component {
       return ret
     }
 
+    def calc_crc5_usb(din: Bits) : Bits = {
+      val ret = Bits(5 bits)
+      ret(0) := din(10) ^ din(9) ^ din(6) ^ din(5) ^ din(3) ^ din(0) ^ True
+      ret(1) := din(10) ^ din(7) ^ din(6) ^ din(4) ^ din(1) ^ True
+      ret(2) := din(10) ^ din(9) ^ din(8) ^ din(7) ^ din(6) ^ din(3) ^ din(2) ^ din(0) ^ True
+      ret(3) := din(10) ^ din(9) ^ din(8) ^ din(7) ^ din(4) ^ din(3) ^ din(1)
+      ret(4) := din(10) ^ din(9) ^ din(8) ^ din(5) ^ din(4) ^ din(2) ^ True
+      return ret
+    }
+
+    def calc_crc16_usb(crc_in: Bits, din: Bits) : Bits = {
+      val ret = Bits(16 bits)
+
+	ret(0) :=	din(7) ^ din(6) ^ din(5) ^ din(4) ^ din(3) ^
+        		din(2) ^ din(1) ^ din(0) ^ crc_in(8) ^ crc_in(9) ^
+        		crc_in(10) ^ crc_in(11) ^ crc_in(12) ^ crc_in(13) ^
+        		crc_in(14) ^ crc_in(15)
+	ret(1) :=	din(7) ^ din(6) ^ din(5) ^ din(4) ^ din(3) ^ din(2) ^
+        		din(1) ^ crc_in(9) ^ crc_in(10) ^ crc_in(11) ^
+        		crc_in(12) ^ crc_in(13) ^ crc_in(14) ^ crc_in(15)
+	ret(2) :=	din(1) ^ din(0) ^ crc_in(8) ^ crc_in(9)
+	ret(3) :=	din(2) ^ din(1) ^ crc_in(9) ^ crc_in(10)
+	ret(4) :=	din(3) ^ din(2) ^ crc_in(10) ^ crc_in(11)
+	ret(5) :=	din(4) ^ din(3) ^ crc_in(11) ^ crc_in(12)
+	ret(6) :=	din(5) ^ din(4) ^ crc_in(12) ^ crc_in(13)
+	ret(7) :=	din(6) ^ din(5) ^ crc_in(13) ^ crc_in(14)
+	ret(8) :=	din(7) ^ din(6) ^ crc_in(0) ^ crc_in(14) ^ crc_in(15)
+	ret(9) :=	din(7) ^ crc_in(1) ^ crc_in(15)
+	ret(10) :=	crc_in(2)
+	ret(11) :=	crc_in(3)
+	ret(12) :=	crc_in(4)
+	ret(13) :=	crc_in(5)
+	ret(14) :=	crc_in(6)
+	ret(15) :=	din(7) ^ din(6) ^ din(5) ^ din(4) ^ din(3) ^ din(2) ^
+			din(1) ^ din(0) ^ crc_in(7) ^ crc_in(8) ^ crc_in(9) ^
+			crc_in(10) ^ crc_in(11) ^ crc_in(12) ^ crc_in(13) ^
+			crc_in(14) ^ crc_in(15)
+
+      return ret
+    }
+
+}
+
+case class USBSendToken() extends USBSendReceive {
+    val io = new USB_IO {
+	val pid       = in Bits(4 bits)
+	val addr      = in Bits(7 bits)
+	val endp      = in Bits(4 bits)
+    }
+
     val crc5_out = calc_crc5_usb(io.addr(0) ## io.addr(1) ## io.addr(2) ## io.addr(3) ##
                         io.addr(4) ## io.addr(5) ## io.addr(6) ## io.endp(0) ##
                         io.endp(1) ## io.endp(2) ## io.endp(3)) ^ B"11111"
     val buffer = crc5_out.reversed ## io.endp ## io.addr ## ~io.pid ## io.pid ## B"10000000"
     val bit_count = Reg(UInt(6 bits)).addTag(crossClockDomain)
-    val clock_div = Reg(UInt(8 bits)).addTag(crossClockDomain)
-    val clock_strobe = False
-
-    io.ready := False
 
     io.test := clock_strobe
 
@@ -108,39 +147,13 @@ case class USBSendToken() extends Component {
     }
 }
 
-case class USBSendShortToken() extends Component {
-    val io = new Bundle {
-	val usb_dm    = inout(Analog(Bool()))
-	val usb_dp    = inout(Analog(Bool()))
-	val valid     = in Bool()
-	val ready     = out Bool()
+case class USBSendShortToken() extends USBSendReceive {
+    val io = new USB_IO {
 	val pid       = in Bits(4 bits)
-	val clock_div = in UInt(8 bits)
-
-        val test = out Bool()
-    }
-
-    val last_kj = Reg(Bool()).addTag(crossClockDomain)
-
-    def toKJ(input_bit: Bool) : Bool = {
-      val ret = Bool()
-
-      when(input_bit === False && clock_strobe) {
-        last_kj := !last_kj // Transition
-        ret := !last_kj
-      } otherwise { // No transition
-        ret := last_kj
-      }
-
-      return ret
     }
 
     val buffer = ~io.pid ## io.pid ## B"10000000"
     val bit_count = Reg(UInt(5 bits)).addTag(crossClockDomain)
-    val clock_div = Reg(UInt(8 bits)).addTag(crossClockDomain)
-    val clock_strobe = False
-
-    io.ready := False
 
     io.test := clock_strobe
 
@@ -197,82 +210,23 @@ case class USBSendShortToken() extends Component {
     }
 }
 
-case class USBSendData() extends Component {
-    val io = new Bundle {
-	val usb_dm    = inout(Analog(Bool()))
-	val usb_dp    = inout(Analog(Bool()))
-	val valid     = in Bool()
-	val ready     = out Bool()
+case class USBSendData() extends USBSendReceive {
+    val io = new USB_IO {
 	val pid       = in Bits(4 bits)
 	val data      = in Bits(64 bits)
 	val len       = in UInt(12 bits)
-	val clock_div = in UInt(8 bits)
-
-        val test = out Bool()
-    }
-
-    def calc_crc16_usb(crc_in: Bits, din: Bits) : Bits = {
-      val ret = Bits(16 bits)
-
-	ret(0) :=	din(7) ^ din(6) ^ din(5) ^ din(4) ^ din(3) ^
-        		din(2) ^ din(1) ^ din(0) ^ crc_in(8) ^ crc_in(9) ^
-        		crc_in(10) ^ crc_in(11) ^ crc_in(12) ^ crc_in(13) ^
-        		crc_in(14) ^ crc_in(15)
-	ret(1) :=	din(7) ^ din(6) ^ din(5) ^ din(4) ^ din(3) ^ din(2) ^
-        		din(1) ^ crc_in(9) ^ crc_in(10) ^ crc_in(11) ^
-        		crc_in(12) ^ crc_in(13) ^ crc_in(14) ^ crc_in(15)
-	ret(2) :=	din(1) ^ din(0) ^ crc_in(8) ^ crc_in(9)
-	ret(3) :=	din(2) ^ din(1) ^ crc_in(9) ^ crc_in(10)
-	ret(4) :=	din(3) ^ din(2) ^ crc_in(10) ^ crc_in(11)
-	ret(5) :=	din(4) ^ din(3) ^ crc_in(11) ^ crc_in(12)
-	ret(6) :=	din(5) ^ din(4) ^ crc_in(12) ^ crc_in(13)
-	ret(7) :=	din(6) ^ din(5) ^ crc_in(13) ^ crc_in(14)
-	ret(8) :=	din(7) ^ din(6) ^ crc_in(0) ^ crc_in(14) ^ crc_in(15)
-	ret(9) :=	din(7) ^ crc_in(1) ^ crc_in(15)
-	ret(10) :=	crc_in(2)
-	ret(11) :=	crc_in(3)
-	ret(12) :=	crc_in(4)
-	ret(13) :=	crc_in(5)
-	ret(14) :=	crc_in(6)
-	ret(15) :=	din(7) ^ din(6) ^ din(5) ^ din(4) ^ din(3) ^ din(2) ^
-			din(1) ^ din(0) ^ crc_in(7) ^ crc_in(8) ^ crc_in(9) ^
-			crc_in(10) ^ crc_in(11) ^ crc_in(12) ^ crc_in(13) ^
-			crc_in(14) ^ crc_in(15)
-
-      return ret
-    }
-
-
-
-    val last_kj = Reg(Bool()).addTag(crossClockDomain)
-
-    def toKJ(input_bit: Bool) : Bool = {
-      val ret = Bool()
-
-      when(input_bit === False && clock_strobe) {
-        last_kj := !last_kj // Transition
-        ret := !last_kj
-      } otherwise { // No transition
-        ret := last_kj
-      }
-
-      return ret
     }
 
     val crc16 = Reg(Bits(16 bits)).addTag(crossClockDomain) init(B"16'hffff")
     val crc_byte = Reg(Bits(8 bits))
     val sync_pid_buffer = ~io.pid ## io.pid ## B"10000000"
     val bit_count = Reg(UInt(13 bits)).addTag(crossClockDomain) // 8192 bits max
-    val clock_div = Reg(UInt(8 bits)).addTag(crossClockDomain)
-    val clock_strobe = False
     val state = Reg(UInt(3 bits)).addTag(crossClockDomain) init(0)
     val ones = Reg(UInt(3 bits)).addTag(crossClockDomain) init(0)
     val one_bit = False
     val stuffing = False
 
     io.test := clock_strobe //io.valid
-
-    io.ready := False
 
     // J: D- = 1, D+ = 0, K: D- = 0, D+ = 1
     // KJKJKJKK + PID + DATA + CRC16
@@ -417,25 +371,14 @@ case class USBSendData() extends Component {
     }
 }
 
-case class USBBusReset() extends Component {
-    val io = new Bundle {
-	val usb_dm    = inout(Analog(Bool()))
-	val usb_dp    = inout(Analog(Bool()))
-	val valid     = in Bool()
-	val ready     = out Bool()
+case class USBBusReset() extends USBSendReceive {
+    val io = new USB_IO {
 	val delay     = in UInt(16 bits)
-	val clock_div = in UInt(8 bits)
-
-        val test = out Bool()
     }
 
     val delay_count = Reg(UInt(16 bits)).addTag(crossClockDomain)
-    val clock_div = Reg(UInt(8 bits)).addTag(crossClockDomain)
-    val clock_strobe = False
 
     io.test := clock_strobe
-
-    io.ready := False
 
     when(io.valid) {
       clock_div := clock_div + 1
@@ -464,24 +407,13 @@ case class USBBusReset() extends Component {
     }
 }
 
-case class USBKeepAlive() extends Component {
-    val io = new Bundle {
-	val usb_dm    = inout(Analog(Bool()))
-	val usb_dp    = inout(Analog(Bool()))
-	val valid     = in Bool()
-	val ready     = out Bool()
-	val clock_div = in UInt(8 bits)
+case class USBKeepAlive() extends USBSendReceive {
 
-        val test = out Bool()
-    }
+    val io = new USB_IO()
 
     val bit_count = Reg(UInt(2 bits)).addTag(crossClockDomain)
-    val clock_div = Reg(UInt(8 bits)).addTag(crossClockDomain)
-    val clock_strobe = False
 
     io.test := clock_strobe
-
-    io.ready := False
 
     when(io.valid) {
       clock_div := clock_div + 1
@@ -513,49 +445,12 @@ case class USBKeepAlive() extends Component {
     }
 }
 
-case class USBReceiver() extends Component {
-    val io = new Bundle {
-	val usb_dm    = inout(Analog(Bool()))
-	val usb_dp    = inout(Analog(Bool()))
-	val valid     = in Bool()
-	val ready     = out Bool()
+case class USBReceiver() extends USBSendReceive {
+    val io = new USB_IO {
         val packet    = out Bits(128 bits) // PID(8) + DATA(64) + CRC16(16) + ALIGN
         val bits_recv = out UInt(7 bits)
         val calculated_crc16 = out Bits(16 bits)
         val received_crc16 = out Bits(16 bits)
-
-        val test = out Bool()
-    }
-
-    def calc_crc16_usb(crc_in: Bits, din: Bits) : Bits = {
-      val ret = Bits(16 bits)
-
-	ret(0) :=	din(7) ^ din(6) ^ din(5) ^ din(4) ^ din(3) ^
-        		din(2) ^ din(1) ^ din(0) ^ crc_in(8) ^ crc_in(9) ^
-        		crc_in(10) ^ crc_in(11) ^ crc_in(12) ^ crc_in(13) ^
-        		crc_in(14) ^ crc_in(15)
-	ret(1) :=	din(7) ^ din(6) ^ din(5) ^ din(4) ^ din(3) ^ din(2) ^
-        		din(1) ^ crc_in(9) ^ crc_in(10) ^ crc_in(11) ^
-        		crc_in(12) ^ crc_in(13) ^ crc_in(14) ^ crc_in(15)
-	ret(2) :=	din(1) ^ din(0) ^ crc_in(8) ^ crc_in(9)
-	ret(3) :=	din(2) ^ din(1) ^ crc_in(9) ^ crc_in(10)
-	ret(4) :=	din(3) ^ din(2) ^ crc_in(10) ^ crc_in(11)
-	ret(5) :=	din(4) ^ din(3) ^ crc_in(11) ^ crc_in(12)
-	ret(6) :=	din(5) ^ din(4) ^ crc_in(12) ^ crc_in(13)
-	ret(7) :=	din(6) ^ din(5) ^ crc_in(13) ^ crc_in(14)
-	ret(8) :=	din(7) ^ din(6) ^ crc_in(0) ^ crc_in(14) ^ crc_in(15)
-	ret(9) :=	din(7) ^ crc_in(1) ^ crc_in(15)
-	ret(10) :=	crc_in(2)
-	ret(11) :=	crc_in(3)
-	ret(12) :=	crc_in(4)
-	ret(13) :=	crc_in(5)
-	ret(14) :=	crc_in(6)
-	ret(15) :=	din(7) ^ din(6) ^ din(5) ^ din(4) ^ din(3) ^ din(2) ^
-			din(1) ^ din(0) ^ crc_in(7) ^ crc_in(8) ^ crc_in(9) ^
-			crc_in(10) ^ crc_in(11) ^ crc_in(12) ^ crc_in(13) ^
-			crc_in(14) ^ crc_in(15)
-
-      return ret
     }
 
     val calculated_crc16 = Reg(Bits(16 bits)).addTag(crossClockDomain) init(0)
@@ -574,15 +469,16 @@ case class USBReceiver() extends Component {
     val last_symbol = Reg(Bool()) init(True)
 
     io.packet := packet
-    io.ready := ready
     io.bits_recv := bit_count
     io.calculated_crc16 := ~calculated_crc16.reversed
     io.received_crc16 := received_crc16
 
-//    io.test := io.valid
-io.test := False
+    //io.test := io.valid
+    io.test := False
 
     when(io.valid) {
+
+      io.ready := ready
 
       switch(state) {
 
