@@ -29,7 +29,6 @@ LDSCRIPT_XIP=src/linker_monitor_xip.ld -Wl
 
 
 SRCS += $(wildcard src/*.c) $(wildcard src/*.cpp)
-SRCS += $(wildcard src/keyboard/*.c)
 SRCS += $(wildcard $(SOCDIR)/*.c) $(wildcard $(SOCDIR)/*.cpp)
 SRCS += $(COREFILES) $(CORE4FILES) $(LWIPDIR)/netif/ethernet.c
 SRCS += $(CRT)

@@ -23,7 +23,7 @@
 #include "qspi.h"
 #include "context.h"
 #include "cli.h"
-#include "keyboard/keyboard.h"
+#include "keyboard.h"
 
 const char *WELCOME_TEXT = "Welcome to Karnix SoC Monitor. Copyright (C) 2024-2025, Fabmicro, LLC.\r\nBuild #%04u at %s %s. Main addr: %p\r\n\r\n";
 	

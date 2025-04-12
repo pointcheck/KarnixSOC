@@ -1,4 +1,4 @@
-/* The tables below provide translation of keyboard key events */
+/* The tables below provides translation of keyboard key events */
 /* to ASCII strings as in Linux VTY. Keycodes are basically XT */
 /* scancodes on which Linux keyboard events are based.         */ 
 
