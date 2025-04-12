@@ -52,10 +52,10 @@ hexx2bin: hexx2bin.c
 
 bin/KarnixSOCTopLevel.json : ${VERILOG} ../../../KarnixSOCTopLevel.v*.bin
 	mkdir -p bin
-	yosys -v2 -p "synth_ecp5 -abc9 -top KarnixSOCTopLevel -json bin/KarnixSOCTopLevel.json" ${VERILOG}
+	yosys -l yosys.log -v2 -p "synth_ecp5 -abc9 -top KarnixSOCTopLevel -json bin/KarnixSOCTopLevel.json" ${VERILOG}
 
 bin/KarnixSOCTopLevel_random_25F.config : karnix_cabga256.lpf bin/KarnixSOCTopLevel.json
-	nextpnr-ecp5 -r --speed 8 --25k --parallel-refine --lpf karnix_cabga256.lpf --placed-svg bin/KarnixSOCTopLevel_placed.svg --package CABGA256 --json bin/KarnixSOCTopLevel.json --textcfg $@ 
+	nextpnr-ecp5 -l nextpnr.log -r --speed 8 --25k --parallel-refine --lpf karnix_cabga256.lpf --placed-svg bin/KarnixSOCTopLevel_placed.svg --package CABGA256 --json bin/KarnixSOCTopLevel.json --textcfg $@ 
 
 bin/KarnixSOCTopLevel_25F.config: bin/KarnixSOCTopLevel_random_25F.config ../../../src/main/c/karnix/$(RAMPROG)/build/$(RAMPROG).hexx ../../../KarnixSOCTopLevel_random.hexx
 	ecpbram -v -i bin/KarnixSOCTopLevel_random_25F.config -o bin/KarnixSOCTopLevel_25F.config -f ../../../KarnixSOCTopLevel_random.hexx -t ../../../src/main/c/karnix/$(RAMPROG)/build/$(RAMPROG).hexx
