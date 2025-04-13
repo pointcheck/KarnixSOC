@@ -112,8 +112,9 @@ Note, the addreess 0xA0100000 is where NOR offset 0x100000 is mapped to in SoC's
 
 ## How to play
 
-Enjoy playing Tetris by using four on-board keys to move tetrominos.
+You can choose to enable USB 1.0 HID support by defining USB10_ENABLE option in Makefile. In this case you would be able to connect USB HID keyboard, mouse or gamepad to control tetrominos. You will also need to solder USB type A port to GPIO_22 and GPIO_23 pins. Please check main README.md for USB 1.0 support details.
 
+If you do not have USB port, you still can enjoy playing Tetris by using four on-board keys to move tetrominos.
  
 --
 Regards,

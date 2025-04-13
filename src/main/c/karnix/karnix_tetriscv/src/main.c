@@ -28,6 +28,15 @@ volatile uint32_t reg_irq_counter = 0;
 volatile uint32_t reg_sys_counter = 0;
 volatile uint64_t reg_sys_timestamp = 0;
 
+#if(USB10_ENABLE)
+#include "usb10.h"
+#include "usb_hid_keys.h"
+volatile uint32_t reg_usb_timestamp = 0;
+volatile uint32_t reg_usb_error_count = 0;
+volatile uint32_t reg_usb_response_size = 0; 
+volatile uint32_t reg_usb_device_type = 0;
+#endif
+
 #if(AUDIO_ENABLED)
 #define	AUDIO_RING_BUFFER_SIZE	(2048*2)		// Audio playback ring buffer
 volatile uint32_t audiodac0_irqs = 0;
@@ -283,6 +292,16 @@ int main(void) {
 
 	printf("CGA init done\r\n");
 
+	// Enable USB1
+	#if(USB10_ENABLE)
+	USB1->CONTROL &= ~USB10_CONTROL_ENABLE_BIT;
+	delay_us(1000);
+	USB1->CONTROL |= USB10_CONTROL_RESET_DELAY_SET(1500000 / 1000 * 10); // Set reset duration to 11ms (num of ticks at 1.5 MHz
+	USB1->CONTROL |= USB10_CONTROL_KEEPALIVE_BIT;
+	USB1->CONTROL |= USB10_CONTROL_ENABLE_BIT;
+	printf("USB1 enabled\r\n");
+	#endif
+
 	// Reset PLIC interrupt controller and disable all IRQ lines 
 	PLIC->ENABLE = 0;
 	PLIC->POLARITY = 0;
@@ -380,7 +399,7 @@ int main(void) {
 	cga_set_video_mode(CGA_MODE_TEXT);
 	cga_fill_screen(0);
 
-	delay_us(5000000); // Let monitor to sync
+	delay_us(2000000); // Let video monitor to sync
 
 	const int targetFrameTime = 350;
 	uint64_t lastTime = get_mtime();
@@ -406,9 +425,10 @@ int main(void) {
 
 		GPIO->OUTPUT &= ~(GPIO_OUT_LED1 | GPIO_OUT_LED2 | GPIO_OUT_LED3);
 
+		uint32_t timestamp = get_mtime();
+
 		// Print resource usage statistics 
 		#if(PRINT_STATS)
-		uint64_t timestamp = get_mtime();
 		if(timestamp - reg_sys_timestamp >= 1000000) {
 
 			printf("Build %05d: irqs = %d, sys_cnt = %d, sbrk_heap_end = %p, "
@@ -425,6 +445,143 @@ int main(void) {
 			reg_sys_timestamp = timestamp;
 		}
 		#endif
+
+		#if(USB10_ENABLE)
+		if(timestamp - reg_usb_timestamp >= 40000) { // Send USB command every 40ms 
+
+			reg_usb_timestamp = timestamp;
+
+			uint8_t new_device_address = 0;
+
+			if(usb10_device_address == 0) {
+
+				// USB Device Detection
+
+				if(usb10_scan(USB1, &new_device_address, NULL, NULL) == 0) {
+
+					reg_usb_error_count = 0;
+
+					// Try to guess device type and response data packet size using class info
+
+					if(usb10_config_resp.conf.iface.bInterfaceClass == 3 &&
+						  usb10_config_resp.conf.iface.bInterfaceSubclass == 1 &&
+						  usb10_config_resp.conf.iface.bInterfaceProtocol == 1) {
+
+						// We have to check RX packet len (88 bits) to skip empty packets
+
+						reg_usb_response_size = 8; // HID keyboard 
+						reg_usb_device_type = 1;
+
+					} else if(usb10_config_resp.conf.iface.bInterfaceClass == 3 &&
+					   usb10_config_resp.conf.iface.bInterfaceSubclass == 1 &&
+					   usb10_config_resp.conf.iface.bInterfaceProtocol == 2) {
+
+						reg_usb_response_size = 4; // HID mouse
+						reg_usb_device_type = 2;
+
+					} else if(usb10_config_resp.conf.iface.bInterfaceClass == 3 &&
+						  usb10_config_resp.conf.iface.bInterfaceSubclass == 0 &&
+					  	  usb10_config_resp.conf.iface.bInterfaceProtocol == 0) {
+
+						reg_usb_response_size = 8; // HID gamepad 
+						reg_usb_device_type = 3;
+
+					} else {
+						reg_usb_response_size = 8; // Unknown
+						reg_usb_device_type = 0;
+					}
+
+					printf("\rUSB1: new device addr = %d, type = %s, VID/PID = 0x%04X/0x%04X, class/subclass/proto = %d/%d/%d\r\n",
+						new_device_address,
+						reg_usb_device_type == 0 ? "unknown" :
+							(reg_usb_device_type == 1 ? "keyboard" : 
+							(reg_usb_device_type == 2 ? "mouse" : "gamepad")
+						),
+						usb10_descr_resp.descr.idVendor,
+						usb10_descr_resp.descr.idProduct,
+						usb10_config_resp.conf.iface.bInterfaceClass,
+						usb10_config_resp.conf.iface.bInterfaceSubclass,
+						usb10_config_resp.conf.iface.bInterfaceProtocol
+					);
+				}
+			} else {
+				// Poll USB device for events
+
+				uint8_t endpoint = 1; //should be usb10_config_resp.conf.endp.bEndpointAddress & 0x0f ?
+				uint8_t response_data[8] = {0};
+				
+				int ret = usb10_device_in_request(USB1, usb10_device_address, endpoint,
+						response_data, reg_usb_response_size);
+
+				if(ret == 0) {
+
+					reg_usb_error_count = 0;
+
+					#if(0)
+					{
+						printf("\rUSB1 (%d:%d) data received: ", usb10_device_address, endpoint);
+						for(int i = 0; i < reg_usb_response_size; i++)
+							printf("%02X ", response_data[i]);
+						printf(", class = %d/%d/%d, RX_STATUS: 0x%08X, RX_STATUS2: 0x%08X, STATUS: 0x%08X\r\n",
+							usb10_config_resp.conf.iface.bInterfaceClass,
+							usb10_config_resp.conf.iface.bInterfaceSubclass, 
+							usb10_config_resp.conf.iface.bInterfaceProtocol,
+							USB1->RX_STATUS, USB1->RX_STATUS2, USB1->STATUS);
+
+					}
+					#endif
+
+				} else if(ret == -8 || ret == -9) { // STALL,  NAK or dupe
+					// Do nothing
+				} else {
+					if(++reg_usb_error_count > 3) {
+						printf("\rUSB1 (%d:%d) failed, ret = %d\r\n", usb10_device_address, endpoint, ret);
+						usb10_device_address = 0; // flag USB as broken
+					}
+				}
+
+				switch(reg_usb_device_type) {
+					case 1: // keyboard
+						switch(response_data[2]) {
+							case KEY_UP:	keys = last_keys = GPIO_IN_KEY1;
+									break;
+							case KEY_DOWN:	keys = last_keys = GPIO_IN_KEY2;
+									break;
+							case KEY_LEFT:	keys = last_keys = GPIO_IN_KEY3;
+									break;
+							case KEY_RIGHT:	keys = last_keys = GPIO_IN_KEY0;
+									break;
+						}
+						break;
+
+					case 2: // mouse 
+						if(response_data[1] >= 0x80) // left
+							keys = last_keys = GPIO_IN_KEY3;
+						if(response_data[1] > 0x0 && response_data[1] < 0x80) // right
+							keys = last_keys = GPIO_IN_KEY0;
+						if(response_data[2] >= 0x80) // up 
+							keys = last_keys = GPIO_IN_KEY1;
+						if(response_data[2] > 0x0 && response_data[2] < 0x80) // down 
+							keys = last_keys = GPIO_IN_KEY2;
+						break;
+
+					case 3: // gamepag 
+						if(response_data[0] == 0x00 || response_data[5] == 0x8f) // left
+							keys = last_keys = GPIO_IN_KEY3;
+						if(response_data[0] == 0xff || response_data[5] == 0x2f) // right
+							keys = last_keys = GPIO_IN_KEY0;
+						if(response_data[1] == 0x00 || response_data[5] == 0x1f) // up 
+							keys = last_keys = GPIO_IN_KEY1;
+						if(response_data[1] == 0xff || response_data[5] == 0x4f) // down 
+							keys = last_keys = GPIO_IN_KEY2;
+						break;
+				}
+			}
+
+		}
+		#endif
+
+
 
 		// Tetris Game screen
 
@@ -450,19 +607,17 @@ int main(void) {
 
 				printf("Inputs: last_keys = %04x, new_keys = %04x\r\n", last_keys, new_keys); 
 
-				if(new_keys & GPIO_IN_KEY0)
+				if(keys & GPIO_IN_KEY0)
 					processInputs(TETRIS_EVENT_RIGHT);
 
-				if(new_keys & GPIO_IN_KEY3)
+				if(keys & GPIO_IN_KEY3)
 					processInputs(TETRIS_EVENT_LEFT);
 
-				if(new_keys & GPIO_IN_KEY1)
+				if(keys & GPIO_IN_KEY1)
 					processInputs(TETRIS_EVENT_UP);
 
-				if(new_keys & GPIO_IN_KEY2)
+				if(keys & GPIO_IN_KEY2)
 					processInputs(TETRIS_EVENT_DOWN);
-
-				last_keys = new_keys;
 
 				colorfx_idx--;
 			}

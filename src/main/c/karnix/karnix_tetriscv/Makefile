@@ -11,6 +11,7 @@ MODEL ?= xip
 
 # Set defines as appropriate
 #DEFS += -DDEBUG_SBRK	# Enable mamory allocations, sbrk() and init_sbrk() debug
+DEFS += -DUSB10_ENABLE
 
 SOCDIR=../karnix_soc/src
 
@@ -31,6 +32,7 @@ SRCS += $(SOCDIR)/config.c
 SRCS += $(SOCDIR)/cga.c
 SRCS += $(SOCDIR)/audiodac.c
 SRCS += $(SOCDIR)/sram.c
+SRCS += $(SOCDIR)/usb10.c
 SRCS += $(CRT)
 
 CRT_RAM=$(SOCDIR)/crt_ram.S
