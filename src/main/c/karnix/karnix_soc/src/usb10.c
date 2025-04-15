@@ -824,24 +824,28 @@ int usb10_scan(USB10_Reg* reg, uint8_t* new_device_address, USB10_DescriptionUni
 		usb10_config_resp.conf.iface.bInterfaceSubclass,
 		usb10_config_resp.conf.iface.bInterfaceProtocol);
 		
-		goto ok;
-	
-	usb10_error: 
-		usb10_device_address = 0; // this can be used as flag to indicate b10_device_addressevice is ready
 
 	ok:
 		// Fill-in returning data structures 
 
-		if(new_device_address)
-			*new_device_address = usb10_device_address;
+	if(new_device_address)
+		*new_device_address = usb10_device_address;
 
-		if(descr_resp)
-			*descr_resp = &usb10_descr_resp;
+	if(descr_resp)
+		*descr_resp = &usb10_descr_resp;
 
-		if(config_resp)
-			*config_resp = &usb10_config_resp;
+	if(config_resp)
+		*config_resp = &usb10_config_resp;
 
-		usb10_printf("%s: %s\r\n", USB10_SCAN_STR, "ok");
+	usb10_printf("%s: %s\r\n", USB10_SCAN_STR, "ok");
+
+	return 0;
+
+	usb10_error: 
+
+	usb10_device_address = 0; // this can be used as flag to indicate b10_device_addressevice is ready
+
+	usb10_printf("%s: %s\r\n", USB10_SCAN_STR, "fail");
 
 	return ret;
 }
