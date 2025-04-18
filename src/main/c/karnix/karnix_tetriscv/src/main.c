@@ -186,15 +186,18 @@ int main(void) {
 
         printk("\r\n*** Adjusting global REENT structure:\r\n");
 
+	__sinit(&_IMPURE_DATA); // Init LIBC impure_data structure
+
+	#ifdef GCC_SIFIVE
         *(uint32_t*)&_impure_ptr = (uint32_t)&_IMPURE_DATA;
         *(uint32_t*)&_global_impure_ptr = (uint32_t)_impure_ptr;
         _impure_ptr->_stdin = (__FILE *)&__sf_fake_stdin;
         _impure_ptr->_stdout = (__FILE *)&__sf_fake_stdout;
         _impure_ptr->_stderr = (__FILE *)&__sf_fake_stderr;
+	#endif
 
-        printk("_impure_ptr: %p, _global_impure_ptr: %p, fake_stdout: %p\r\n",
-                (unsigned int)_impure_ptr, (unsigned int)_global_impure_ptr,
-                (unsigned int)(_impure_ptr->_stdout));
+        printk("_impure_ptr: %p, stdout: %p\r\n",
+                (unsigned int)_impure_ptr, (unsigned int)(_impure_ptr->_stdout));
 
 	// Can use printf() from here
 
