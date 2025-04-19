@@ -29,7 +29,6 @@ extern unsigned int trap_entry;
 extern unsigned int* heap_start; /* programmer defined heap start */
 extern unsigned int* heap_end; /* programmer defined heap end */
 
-
 void init_sbrk(unsigned int* heap, int size);
 void delay(uint32_t loops);
 void delay_us(uint32_t us);
@@ -55,6 +54,13 @@ static inline int wait_bit_clear_timeout(volatile void* reg, uint32_t mask, uint
 }
 
 #define print print_uart0
+
+#if(CGA_VTY_ENABLE)
+void xprintf(const char *format, ...);
+#else
+	#define	xprintf(...)	{printf( __VA_ARGS__);}
+#endif
+
 
 #endif // _UTILS_H_
 

@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdint.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -86,7 +87,7 @@ void delay(uint32_t loops) {
 
 
 void delay_us(uint32_t us) {
-	unsigned long long t0, t;
+	uint64_t t0, t;
 
 	t0 = get_mtime();
 
@@ -249,4 +250,24 @@ uint32_t strntoul(const char *buf, int size, int base) {
 
 	return result;
 }
+
+#if(CGA_VTY_ENABLE)
+#include <stdarg.h>
+void xprintf(const char *format, ...)
+{
+	char *cga_vty_str = NULL;
+
+	va_list argptr;
+	va_start(argptr, format);
+	vasprintf(&cga_vty_str, format, argptr);
+	va_end(argptr);
+
+	if(cga_vty_str) {
+		printf(cga_vty_str); // to UART
+		fflush(stdout);
+		cga_text_print(CGA->FB, -1, -1, 15, 0, cga_vty_str); // to CGA
+		free(cga_vty_str);
+	}
+}
+#endif
 
