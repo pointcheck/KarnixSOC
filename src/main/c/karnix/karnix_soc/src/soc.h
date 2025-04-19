@@ -29,12 +29,10 @@
 #define MAC		((MAC_Reg*)(0xF0070000))
 #define I2C0		((I2C_Reg*)(0xF0090000))
 #define WD		((WD_Reg*)(0xF00A0000))
-#define MTIME		(*(volatile unsigned long long*)(0xF00B0000))
+#define MTIME		(*(volatile uint64_t*)(0xF00B0000))
 #define AUDIODAC0	((AUDIODAC_Reg*)(0xF00C0000))
 #define USB0		((USB_Reg*)(0xF00D0000))
 #define USB1		((USB10_Reg*)(0xF00D1000))
-
-inline volatile unsigned long long get_mtime(void) { return MTIME; }
 
 //#define	SYSTEM_CLOCK_HZ	58333000
 //#define	SYSTEM_CLOCK_HZ	50000000
@@ -42,6 +40,10 @@ inline volatile unsigned long long get_mtime(void) { return MTIME; }
 //#define	SYSTEM_CLOCK_HZ	65000000
 //#define	SYSTEM_CLOCK_HZ	62000000
 #define	SYSTEM_CLOCK_HZ	60000000
+
+static inline uint64_t get_mtime(void) {
+	return MTIME;
+}
 
 
 #endif /* __SOC_H__ */
