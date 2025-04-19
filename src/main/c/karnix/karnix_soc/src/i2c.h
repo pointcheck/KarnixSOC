@@ -10,6 +10,8 @@
 #ifndef _I2C_H_
 #define _I2C_H_
 
+#include <stdint.h>
+
 typedef struct {
 	volatile uint32_t tx_data; 		// 0x00
 	volatile uint32_t rx_data;		// 0x04

@@ -10,7 +10,7 @@ int sram_test_write_random_ints(int interations) {
 	       fill = 0xdeadbeef + i;
 	       mem = (unsigned int*) SRAM_ADDR_BEGIN;
 
-	       printk("Filling SRAM at: %p, size: %d bytes...\r\n", mem, SRAM_SIZE);
+	       xprintf("Filling SRAM at: %p, size: %d bytes...\r\n", mem, SRAM_SIZE);
 
 	       while((unsigned int)mem < SRAM_ADDR_END) {
 		       *mem++ = fill;
@@ -20,15 +20,15 @@ int sram_test_write_random_ints(int interations) {
 	       fill = 0xdeadbeef + i;
 	       mem = (unsigned int*) SRAM_ADDR_BEGIN;
 
-	       printk("Checking SRAM at: %p, size: %d bytes...\r\n", mem, SRAM_SIZE);
+	       xprintf("Checking SRAM at: %p, size: %d bytes...\r\n", mem, SRAM_SIZE);
 
 	       while((unsigned int)mem < SRAM_ADDR_END) {
 		       unsigned int tmp = *mem;
 		       if(tmp != fill) {
-			       printk("SRAM check failed at: %p, expected: %p, got: %p\r\n", mem, fill, tmp);
+			       xprintf("SRAM check failed at: %p, expected: %p, got: %p\r\n", mem, fill, tmp);
 			       fails++;
 		       } else {
-			       //printk("\r\nMem check OK     at: %p, expected: %p, got: %p\r\n", mem, fill, *mem);
+			       //xprintf("\r\nMem check OK     at: %p, expected: %p, got: %p\r\n", mem, fill, *mem);
 		       }
 		       mem++;
 		       fill += 0xdeadbeef; // generate pseudo-random data
@@ -36,7 +36,7 @@ int sram_test_write_random_ints(int interations) {
 	       }
 
 	       if((unsigned int)mem == SRAM_ADDR_END)
-		       printk("SRAM Fails: %d\r\n", fails);
+		       xprintf("SRAM Fails: %d\r\n", fails);
 
 	       if(fails)
 		       break;
