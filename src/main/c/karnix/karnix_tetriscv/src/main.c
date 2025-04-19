@@ -597,13 +597,13 @@ int main(void) {
 			cga_wait_vblank_end();
 
 			for(int i = 0; i < 480/2; i++) {
-				while(!(CGA->CTRL & CGA_CTRL_HSYNC_FLAG));
+				while(!(cga_read_reg(&CGA->CTRL) & CGA_CTRL_HSYNC_FLAG));
 				CGA->PALETTE[5] = colorfx_rainbow[colorfx_idx];
 				colorfx_idx = (colorfx_idx + 1) % 32;
-				while(CGA->CTRL & CGA_CTRL_HSYNC_FLAG);
+				while(cga_read_reg(&CGA->CTRL) & CGA_CTRL_HSYNC_FLAG);
 
-				while(!(CGA->CTRL & CGA_CTRL_HSYNC_FLAG));
-				while(CGA->CTRL & CGA_CTRL_HSYNC_FLAG);
+				while(!(cga_read_reg(&CGA->CTRL) & CGA_CTRL_HSYNC_FLAG));
+				while(cga_read_reg(&CGA->CTRL) & CGA_CTRL_HSYNC_FLAG);
 			}
 
 			if(keys) {
@@ -667,13 +667,13 @@ int main(void) {
 			cga_wait_vblank_end();
 
 			for(int i = 0; i < 480/2; i++) {
-				while(!(CGA->CTRL & CGA_CTRL_HSYNC_FLAG));
+				while(!(cga_read_reg(&CGA->CTRL) & CGA_CTRL_HSYNC_FLAG));
 				CGA->PALETTE[5] = colorfx_rainbow[colorfx_idx];
 				colorfx_idx = (colorfx_idx + 1) % 32;
-				while(CGA->CTRL & CGA_CTRL_HSYNC_FLAG);
+				while(cga_read_reg(&CGA->CTRL) & CGA_CTRL_HSYNC_FLAG);
 
-				while(!(CGA->CTRL & CGA_CTRL_HSYNC_FLAG));
-				while(CGA->CTRL & CGA_CTRL_HSYNC_FLAG);
+				while(!(cga_read_reg(&CGA->CTRL) & CGA_CTRL_HSYNC_FLAG));
+				while(cga_read_reg(&CGA->CTRL) & CGA_CTRL_HSYNC_FLAG);
 			}
 
 			if(_scroll == 16 || _scroll == -16)
@@ -721,13 +721,13 @@ int main(void) {
 			cga_wait_vblank_end();
 
 			for(int i = 0; i < 480/2; i++) {
-				while(!(CGA->CTRL & CGA_CTRL_HSYNC_FLAG));
+				while(!(cga_read_reg(&CGA->CTRL) & CGA_CTRL_HSYNC_FLAG));
 				CGA->PALETTE[5] = colorfx_rainbow[colorfx_idx];
 				colorfx_idx = (colorfx_idx + 1) % 32;
-				while(CGA->CTRL & CGA_CTRL_HSYNC_FLAG);
+				while(cga_read_reg(&CGA->CTRL) & CGA_CTRL_HSYNC_FLAG);
 
-				while(!(CGA->CTRL & CGA_CTRL_HSYNC_FLAG));
-				while(CGA->CTRL & CGA_CTRL_HSYNC_FLAG);
+				while(!(cga_read_reg(&CGA->CTRL) & CGA_CTRL_HSYNC_FLAG));
+				while(cga_read_reg(&CGA->CTRL) & CGA_CTRL_HSYNC_FLAG);
 			}
 
 			cga_wait_vblank();
