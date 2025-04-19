@@ -14,7 +14,7 @@ This example does the following:
 2. Configures PLIC, sets Timer1 and Timer2 periodic interrupts, prints some info in IRQ handle when timer interrupts occur.
 3. Uses global and local arrays to print some text to test access to .data and .stack.
 4. Initializes heap by calling to ```init_sbrk()``` and uses ```malloc()``` to test it.
-5. Initializes LIBC's ```impure_data``` structure by adjusting pointers to ```struct _reent``` and to fake file stream sructures.
+5. Initializes LIBC's ```impure_data``` structure by calling to __sninit() providing pointer to free space.
 6. Prints global pointers.
 7. Calls ```printf()``` as one of the most heavy LIBC function to demonstrate LIBC is ready and working.
 8. Returns to Monitor with some result code.
