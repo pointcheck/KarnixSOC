@@ -104,7 +104,7 @@ int cga_ram_test(int interations) {
 		fill = 0xdeadbeef + i;
 		mem = (unsigned int*) CGA->FB;
 
-		printf("Filling video RAM at: %p, size: %d bytes...\r\n", mem, CGA_FRAMEBUFFER_SIZE);
+		printk("Filling video RAM at: %p, size: %d bytes...\r\n", mem, CGA_FRAMEBUFFER_SIZE);
 
 		while((unsigned int)mem < (unsigned int)(CGA->FB + CGA_FRAMEBUFFER_SIZE)) {
 			*mem++ = fill;
@@ -114,12 +114,12 @@ int cga_ram_test(int interations) {
 		fill = 0xdeadbeef + i;
 		mem = (unsigned int*) CGA->FB;
 
-		printf("Checking video RAM at: %p, size: %d bytes...\r\n", mem, CGA_FRAMEBUFFER_SIZE);
+		printk("Checking video RAM at: %p, size: %d bytes...\r\n", mem, CGA_FRAMEBUFFER_SIZE);
 
 		while((unsigned int)mem < (unsigned int)(CGA->FB + CGA_FRAMEBUFFER_SIZE)) {
 			unsigned int tmp = *mem;
 			if(tmp != fill) {
-				printf("Video RAM check failed at: %p, expected: %p, got: %p\r\n", mem, fill, tmp);
+				printk("Video RAM check failed at: %p, expected: %p, got: %p\r\n", mem, fill, tmp);
 				fails++;
 			} else {
 				//printf("\r\nMem check OK     at: %p, expected: %p, got: %p\r\n", mem, fill, *mem);
@@ -130,7 +130,7 @@ int cga_ram_test(int interations) {
 		}
 
 		if((unsigned int)mem == (unsigned int)(CGA->FB + CGA_FRAMEBUFFER_SIZE))
-			printf("SRAM Fails: %d\r\n", fails);
+			printk("SRAM Fails: %d\r\n", fails);
 
 		if(fails)
 			break;
@@ -302,14 +302,15 @@ void cga_draw_line(int x0, int y0, int x1, int y1, int color) {
  * zero value - no scroll.
  */
 void cga_set_scroll(int scrl) {
-        CGA->CTRL &= ~CGA_CTRL_V_SCROLL;
+	uint32_t tmp = cga_read_reg(&CGA->CTRL) & ~CGA_CTRL_V_SCROLL;
         if(scrl >= 0) {   
-                CGA->CTRL &= ~CGA_CTRL_V_SCROLL_DIR;
-                CGA->CTRL |= (scrl << CGA_CTRL_V_SCROLL_SHIFT) & CGA_CTRL_V_SCROLL;
+                tmp &= ~CGA_CTRL_V_SCROLL_DIR;
+                tmp |= (scrl << CGA_CTRL_V_SCROLL_SHIFT) & CGA_CTRL_V_SCROLL;
         } else {
-                CGA->CTRL |= CGA_CTRL_V_SCROLL_DIR;
-                CGA->CTRL |= ((-scrl) << CGA_CTRL_V_SCROLL_SHIFT) & CGA_CTRL_V_SCROLL;
+                tmp |= CGA_CTRL_V_SCROLL_DIR;
+                tmp |= ((-scrl) << CGA_CTRL_V_SCROLL_SHIFT) & CGA_CTRL_V_SCROLL;
         }
+	cga_write_reg(&CGA->CTRL, tmp);
 }
 
 /*
@@ -320,14 +321,19 @@ void cga_set_scroll(int scrl) {
  */
 void cga_text_scroll_up(int scroll_delay) {
 	uint32_t *fb = (uint32_t*) CGA->FB;
+	uint32_t tmp;
 
-	CGA->CTRL2 &= ~CGA_CTRL2_CURSOR_BLINK_EN;
-	CGA->CTRL &= ~CGA_CTRL_V_SCROLL_DIR; 
+	tmp = cga_read_reg(&CGA->CTRL2) & ~CGA_CTRL2_CURSOR_BLINK_EN;
+	cga_write_reg(&CGA->CTRL2, tmp);
+
+	tmp = cga_read_reg(&CGA->CTRL) & ~CGA_CTRL_V_SCROLL_DIR; 
+	cga_write_reg(&CGA->CTRL, tmp);
 
 	for(int i = 0; i < 16; i++) {
 		cga_wait_vblank();
-		CGA->CTRL &= ~CGA_CTRL_V_SCROLL;
-		CGA->CTRL |= (i & 0x0f) << CGA_CTRL_V_SCROLL_SHIFT;
+		tmp = cga_read_reg(&CGA->CTRL) & ~CGA_CTRL_V_SCROLL;
+		tmp |= (i & 0x0f) << CGA_CTRL_V_SCROLL_SHIFT;
+		cga_write_reg(&CGA->CTRL, tmp);
 		delay_us(scroll_delay);
 	}
 
@@ -341,8 +347,12 @@ void cga_text_scroll_up(int scroll_delay) {
 		fb[(CGA_TEXT_HEIGHT_TOTAL - 1) * CGA_TEXT_WIDTH + col] = tmp;
 	}
 
-	CGA->CTRL &= ~CGA_CTRL_V_SCROLL;
-	CGA->CTRL2 |= CGA_CTRL2_CURSOR_BLINK_EN;
+	
+	tmp = cga_read_reg(&CGA->CTRL) & ~CGA_CTRL_V_SCROLL;
+	cga_write_reg(&CGA->CTRL, tmp);
+
+	tmp = cga_read_reg(&CGA->CTRL2) | CGA_CTRL2_CURSOR_BLINK_EN;
+	cga_write_reg(&CGA->CTRL2, tmp);
 }
 
 
@@ -354,14 +364,19 @@ void cga_text_scroll_up(int scroll_delay) {
  */
 void cga_text_scroll_down(int scroll_delay) {
 	uint32_t *fb = (uint32_t*) CGA->FB;
+	uint32_t tmp;
 
-	CGA->CTRL2 &= ~CGA_CTRL2_CURSOR_BLINK_EN;
-	CGA->CTRL |= CGA_CTRL_V_SCROLL_DIR; 
+	tmp = cga_read_reg(&CGA->CTRL2) & ~CGA_CTRL2_CURSOR_BLINK_EN;
+	cga_write_reg(&CGA->CTRL2, tmp);
+
+	tmp = cga_read_reg(&CGA->CTRL) & ~CGA_CTRL_V_SCROLL_DIR; 
+	cga_write_reg(&CGA->CTRL, tmp);
 
 	for(int i = 0; i < 16; i++) {
 		cga_wait_vblank();
-		CGA->CTRL &= ~CGA_CTRL_V_SCROLL;
-		CGA->CTRL |= (i & 0x0f) << CGA_CTRL_V_SCROLL_SHIFT;
+		tmp = cga_read_reg(&CGA->CTRL) & ~CGA_CTRL_V_SCROLL;
+		tmp |= (i & 0x0f) << CGA_CTRL_V_SCROLL_SHIFT;
+		cga_write_reg(&CGA->CTRL, tmp);
 		delay_us(scroll_delay);
 	}
 
@@ -375,24 +390,31 @@ void cga_text_scroll_down(int scroll_delay) {
 		fb[col] = tmp;
 	}
 
-	CGA->CTRL &= ~CGA_CTRL_V_SCROLL;
-	CGA->CTRL2 |= CGA_CTRL2_CURSOR_BLINK_EN;
+	tmp = cga_read_reg(&CGA->CTRL) & ~CGA_CTRL_V_SCROLL;
+	cga_write_reg(&CGA->CTRL, tmp);
+
+	tmp = cga_read_reg(&CGA->CTRL2) | CGA_CTRL2_CURSOR_BLINK_EN;
+	cga_write_reg(&CGA->CTRL2, tmp);
 }
 
 
 void cga_set_cursor_xy(int x, int y) {
-	CGA->CTRL2 &= ~CGA_CTRL2_CURSOR_X;
-	CGA->CTRL2 |= (x & 0xff) << CGA_CTRL2_CURSOR_X_SHIFT;
-	CGA->CTRL2 &= ~CGA_CTRL2_CURSOR_Y;
-	CGA->CTRL2 |= (y & 0xff) << CGA_CTRL2_CURSOR_Y_SHIFT;
+	uint32_t tmp = cga_read_reg(&CGA->CTRL2);
+	tmp &= ~CGA_CTRL2_CURSOR_X;
+	tmp |= (x & 0xff) << CGA_CTRL2_CURSOR_X_SHIFT;
+	tmp &= ~CGA_CTRL2_CURSOR_Y;
+	tmp |= (y & 0xff) << CGA_CTRL2_CURSOR_Y_SHIFT;
+	cga_write_reg(&CGA->CTRL2, tmp);
 }
 
 
 void cga_set_cursor_style(int top, int bottom) {
-	CGA->CTRL2 &= ~CGA_CTRL2_CURSOR_TOP;
-	CGA->CTRL2 |= (top & 0x0f) << CGA_CTRL2_CURSOR_TOP_SHIFT;
-	CGA->CTRL2 &= ~CGA_CTRL2_CURSOR_BOTTOM;
-	CGA->CTRL2 |= (bottom & 0x0f) << CGA_CTRL2_CURSOR_BOTTOM_SHIFT;
+	uint32_t tmp = cga_read_reg(&CGA->CTRL2);
+	tmp &= ~CGA_CTRL2_CURSOR_TOP;
+	tmp |= (top & 0x0f) << CGA_CTRL2_CURSOR_TOP_SHIFT;
+	tmp &= ~CGA_CTRL2_CURSOR_BOTTOM;
+	tmp |= (bottom & 0x0f) << CGA_CTRL2_CURSOR_BOTTOM_SHIFT;
+	cga_write_reg(&CGA->CTRL2, tmp);
 }
 
 void cga_text_print(uint8_t *framebuffer, int x, int y, int fg_color, int bg_color, char *text)
@@ -419,12 +441,34 @@ void cga_text_print(uint8_t *framebuffer, int x, int y, int fg_color, int bg_col
 			fb -= (fb - (uint32_t*)framebuffer) % CGA_TEXT_WIDTH;
 			x=0;
 		} else if(text[i] == '\t') {
-			for(int j = 0; j < 8; j++)
+			int spaces = 8 - x % 8;
+			for(int j = 0; j < spaces; j++)
 				*fb++ = attributes | 0x20;
-			x+=8;
+			x+=spaces;
 		} else if(text[i] == 0x1b) {
 			i++;
 			switch(text[i]) {
+				case '[': {
+					i++;
+					if(text[i] == '2' && text[i+1] == 'K') { // Ctrl-U - erase line
+						i+=2;
+						fb -= (fb - (uint32_t*)framebuffer) % CGA_TEXT_WIDTH;
+						for(int j = 0; j < CGA_TEXT_WIDTH; j++)
+							fb[j] = attributes | 0x20;
+						x=0;
+					}
+					if(text[i] == '2' && text[i+1] == 'J') { // Ctrl-L - erase entire screen 
+						fb = (uint32_t*) framebuffer;
+						for(int j = 0; j < CGA_TEXT_WIDTH; j++)
+							for(int k = 0; k < CGA_TEXT_HEIGHT; k++)
+								*fb++ = attributes | 0x20;
+							
+					}
+					if(text[i] == 'H') { // Cursor to Home position 
+						i++;
+						x = y = 0;
+					}
+				} break;
 				case 'F': {
 					i++;
 					attributes &= ~ 0x0000ff00;
@@ -463,8 +507,12 @@ void cga_text_print(uint8_t *framebuffer, int x, int y, int fg_color, int bg_col
 			*fb++ = attributes | text[i];
 			x++;
 		}
-	}
 
+		if(x >= CGA_TEXT_WIDTH) {
+			y++;
+			x = x % CGA_TEXT_WIDTH;
+		}
+	}
 
 	cga_set_cursor_xy(x, y);
 }

@@ -80,20 +80,28 @@ void cga_text_scroll_down(int scroll_delay);
 void cga_set_cursor_xy(int x, int y);
 void cga_set_cursor_style(int top, int bottom);
 
+static inline uint32_t cga_read_reg(volatile uint32_t* reg) {
+	return *reg;
+}
+
+static inline void cga_write_reg(volatile uint32_t* reg, uint32_t val) {
+	asm volatile ("sw %0, (%1)" :  : "r"(val), "r"(reg));
+}
+
 static inline int cga_get_cursor_x(void) {
-        return (CGA->CTRL2 & CGA_CTRL2_CURSOR_X) >> CGA_CTRL2_CURSOR_X_SHIFT;
+	return (cga_read_reg(&CGA->CTRL2) & CGA_CTRL2_CURSOR_X) >> CGA_CTRL2_CURSOR_X_SHIFT;
 }
 
 static inline int cga_get_cursor_y(void) {
-        return (CGA->CTRL2 & CGA_CTRL2_CURSOR_Y) >> CGA_CTRL2_CURSOR_Y_SHIFT;
+	return (cga_read_reg(&CGA->CTRL2) & CGA_CTRL2_CURSOR_Y) >> CGA_CTRL2_CURSOR_Y_SHIFT;
 }
 
 static inline void cga_wait_vblank(void) {
-        while(!(CGA->CTRL & CGA_CTRL_VBLANK_FLAG));
+	while(!(cga_read_reg(&CGA->CTRL) & CGA_CTRL_VBLANK_FLAG));
 }
 
 static inline void cga_wait_vblank_end(void) {
-        while(CGA->CTRL & CGA_CTRL_VBLANK_FLAG);
+	while(cga_read_reg(&CGA->CTRL) & CGA_CTRL_VBLANK_FLAG);
 }
 
 static inline void cga_set_palette(uint32_t c[16]) {
@@ -101,9 +109,11 @@ static inline void cga_set_palette(uint32_t c[16]) {
 }
 
 static inline void cga_set_video_mode(int mode) {
-	CGA->CTRL &= ~CGA_CTRL_VIDEO_MODE;
-	CGA->CTRL |= (mode << CGA_CTRL_VIDEO_MODE_SHIFT) & CGA_CTRL_VIDEO_MODE;
-	//printf("cga_set_video_mode: mode = %d, ctrl = %p\r\n", mode, CGA->CTRL);
+	uint32_t tmp = cga_read_reg(&CGA->CTRL);
+	tmp &= ~CGA_CTRL_VIDEO_MODE;
+	tmp |= (mode << CGA_CTRL_VIDEO_MODE_SHIFT);
+	cga_write_reg(&CGA->CTRL, tmp);
+	//printf("cga_set_video_mode: mode = %d, ctrl = %p\r\n", mode, cga_read_reg(&CGA->CTRL));
 }
 
 #define	ESC_UP		"\033U"	// Move cursor upward 1 line
