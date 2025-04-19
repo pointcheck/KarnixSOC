@@ -75,7 +75,7 @@ static inline void audiodac_applyConfig(AUDIODAC_Reg* reg, AUDIODAC_Config *conf
 	reg->ssDisable = config->ssDisable;
 }
 
-inline int audiodac_get_tx_avail(AUDIODAC_Reg* reg) {
+static inline int audiodac_get_tx_avail(AUDIODAC_Reg* reg) {
         return (reg->status & AUDIO_DAC_STATUS_TX_AVAIL) >> 16;
 }
 
