@@ -1,6 +1,6 @@
 #include <stdint.h>
 #include "uart.h"
-#include "soc.h"
+#include "utils.h"
 
 int uart_read(Uart_Reg *reg, char *buf, int size, int timeout) {
 	int bytes_read = 0;
