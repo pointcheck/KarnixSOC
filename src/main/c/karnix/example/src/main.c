@@ -67,12 +67,6 @@ void __attribute__((optimize("O0"))) test(int i) {
 	printk(buf);
 }
 
-
-extern const struct __sFILE_fake __sf_fake_stdin;
-extern const struct __sFILE_fake __sf_fake_stdout;
-extern const struct __sFILE_fake __sf_fake_stderr;
-extern unsigned int _IMPURE_DATA; /* reference to .data.impure_data section */
-
 int main(void) {
 
 	/* Disable Machine interrupts during tests */ 
@@ -128,15 +122,10 @@ int main(void) {
 
 	printk("\r\n*** Adjusting global REENT structure:\r\n");
 
-	*(uint32_t*)&_impure_ptr = (uint32_t)&_IMPURE_DATA;
-	*(uint32_t*)&_global_impure_ptr = (uint32_t)_impure_ptr;
-	_impure_ptr->_stdin = (__FILE *)&__sf_fake_stdin;
-	_impure_ptr->_stdout = (__FILE *)&__sf_fake_stdout;
-	_impure_ptr->_stderr = (__FILE *)&__sf_fake_stderr;
+	__sinit(&_IMPURE_DATA); // Init LIBC impure_data structure
 
-	printk("_impure_ptr: %p, _global_impure_ptr: %p, fake_stdout: %p\r\n",
-		(unsigned int)_impure_ptr, (unsigned int)_global_impure_ptr,
-		(unsigned int)(_impure_ptr->_stdout));
+	printk("_impure_ptr: %p, stdout: %p\r\n",
+		(unsigned int)_impure_ptr, (unsigned int)(_impure_ptr->_stdout));
 
 	printk("\r\n*** Checking malloc:\r\n");
 

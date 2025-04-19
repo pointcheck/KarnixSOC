@@ -29,6 +29,9 @@ extern unsigned int trap_entry;
 extern unsigned int* heap_start; /* programmer defined heap start */
 extern unsigned int* heap_end; /* programmer defined heap end */
 
+extern void __sinit(void *); /* Hidden part of LIBC */
+extern unsigned int _IMPURE_DATA; /* reserved space for _impure_data (REENT) */
+
 void init_sbrk(unsigned int* heap, int size);
 void delay(uint32_t loops);
 void delay_us(uint32_t us);
