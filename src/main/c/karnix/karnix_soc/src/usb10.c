@@ -27,19 +27,18 @@ struct _usb10_last_data_pid {
 	uint8_t recv;
 } usb10_last_data_pid[MAX_ADDRESSES][MAX_ENDPOINTS];
 
-
 int usb10_wait_cmd_complete(USB10_Reg* reg, int timeout) {
 
 	int i;
 
 	// Make sure command execution has begun
 	for(i = 0; i < 50; i++)
-	       if(reg->STATUS & USB10_STATUS_BUSY_BIT)
+	       if(usb10_read_reg(&reg->STATUS) & USB10_STATUS_BUSY_BIT)
 		       break;
 
 	// Wait for execution to complete
 	while(timeout--)
-	       if((reg->STATUS & USB10_STATUS_BUSY_BIT) == 0)
+	       if((usb10_read_reg(&reg->STATUS) & USB10_STATUS_BUSY_BIT) == 0)
 			return timeout; // OK
 
 	return 0; // Fail
@@ -52,7 +51,7 @@ int usb10_wait_while_busy(USB10_Reg* reg, int timeout) {
 
 	// Wait for execution to complete
 	while(timeout--)
-	       if((reg->STATUS & USB10_STATUS_BUSY_BIT) == 0)
+	       if((usb10_read_reg(&reg->STATUS) & USB10_STATUS_BUSY_BIT) == 0)
 			return timeout;
 
 	return 0;
@@ -64,15 +63,15 @@ int usb10_wait_while_busy(USB10_Reg* reg, int timeout) {
 int usb10_bus_reset(USB10_Reg* reg, int wait_us)
 {
 
-	if(reg->STATUS & USB10_STATUS_ERROR_BIT) {
+	if(usb10_read_reg(&reg->STATUS) & USB10_STATUS_ERROR_BIT) {
 		usb10_printf("%s: device not connected!\r\n", USB10_DEVICE_RESET_STR);
 		return -1;
 	}
 
 	// RESET
 
-	reg->COMMAND = USB10_CMD_START_BIT |
-			USB10_CMD_SET(USB10_CMD_BUS_RESET);
+	sub10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
+			USB10_CMD_SET(USB10_CMD_BUS_RESET));
 			
 	if(!usb10_wait_cmd_complete(reg, 600000)) { // ~30ms timeout
 		usb10_printf("%s: hung after %s packet!\r\n", USB10_DEVICE_RESET_STR, "RESET");
@@ -123,18 +122,19 @@ int usb10_device_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request
 	again_setup:
 
 	// Prepare DATA to be sent 
-	reg->SEND_DATA_LOW = *(uint32_t*)(request_data + 0);
-	reg->SEND_DATA_HIGH = *(uint32_t*)(request_data + 4);
+	sub10_write_reg(&reg->SEND_DATA_LOW, *(uint32_t*)(request_data + 0));
+	sub10_write_reg(&reg->SEND_DATA_HIGH, *(uint32_t*)(request_data + 4));
 
 	int data_pid = (usb10_last_data_pid[address][0].sent == USB10_PID_DATA0) ? 
 		USB10_PID_DATA1 : USB10_PID_DATA0;
 
 	// SETUP I/O with 0:0
-	reg->COMMAND = USB10_CMD_START_BIT |
+	sub10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
 			USB10_CMD_SET_PID(USB10_PID_SETUP) |
 			USB10_CMD_SET_ADDR(address) |
 			USB10_CMD_SET_ENDP(0) |
-			USB10_CMD_SET(USB10_CMD_SEND_TOKEN);
+			USB10_CMD_SET(USB10_CMD_SEND_TOKEN));
+ 
 
 	if(!usb10_wait_cmd_complete(reg, 20000)) { // ~2ms timeout
 		usb10_printf("%s: hung after %s packet!\r\n", USB10_DEVICE_SETUP_REQUEST_STR, "SETUP");
@@ -142,10 +142,10 @@ int usb10_device_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request
 		goto fail;
 	}
 
-	reg->COMMAND = USB10_CMD_START_BIT |
+	sub10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
 			USB10_CMD_SET_LEN(8*8-1) |
 			USB10_CMD_SET_PID(data_pid) |
-			USB10_CMD_SET(USB10_CMD_SEND_DATA);
+			USB10_CMD_SET(USB10_CMD_SEND_DATA));
 
 	if(!usb10_wait_cmd_complete(reg, 5000)) { // ~0.5ms timeout
 		usb10_printf("%s: hung after %s packet!\r\n", USB10_DEVICE_SETUP_REQUEST_STR, "DATA");
@@ -155,7 +155,7 @@ int usb10_device_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request
 
 	timeout = 2500;
 	while(timeout--)
-		if(reg->STATUS & USB10_STATUS_RECEIVED_BIT)
+		if(usb10_read_reg(&reg->STATUS) & USB10_STATUS_RECEIVED_BIT)
 			goto rcvd1;
 
 	{
@@ -173,7 +173,7 @@ int usb10_device_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request
 
 	usb10_last_data_pid[address][0].sent = data_pid; // remember last used DATA PID
 
-	rx_status = reg->RX_STATUS; // read once, use many times
+	rx_status = usb10_read_reg(&reg->RX_STATUS); // read once, use many times
 
 	if(USB10_RX_STATUS_PID(rx_status) != USB10_PID_ACK) {
 		usb10_printf("%s: expected %s packet instead of 0x%02X, RX_STATUS = %08X\r\n", USB10_DEVICE_SETUP_REQUEST_STR, "ACK",
@@ -202,15 +202,15 @@ int usb10_device_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request
 
 		again_data:
 
-		reg->COMMAND = USB10_CMD_START_BIT |
+		sub10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
 				USB10_CMD_SET_PID(USB10_PID_IN) |
 				USB10_CMD_SET_ADDR(address) |
 				USB10_CMD_SET_ENDP(0) |
-				USB10_CMD_SET(USB10_CMD_SEND_TOKEN);
-				
+				USB10_CMD_SET(USB10_CMD_SEND_TOKEN));
+
 		timeout = 2500;
 		while(timeout--)
-			if(reg->STATUS & USB10_STATUS_RECEIVED_BIT)
+			if(usb10_read_reg(&reg->STATUS) & USB10_STATUS_RECEIVED_BIT)
 				goto rcvd2;
 
 		{
@@ -226,15 +226,16 @@ int usb10_device_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request
 		
 		rcvd2:
 
-		rx_status = reg->RX_STATUS; // read once, use many times
+		rx_status = usb10_read_reg(&reg->RX_STATUS); // read once, use many times
 
 		// Note: NAK packets missing CRC16 which also considered as fail 
 
 		#if(1)
-		if(!(reg->STATUS & USB10_STATUS_CRC16_OK_BIT)) {
+		if(!(usb10_read_reg(&reg->STATUS) & USB10_STATUS_CRC16_OK_BIT)) {
 			usb10_printf("%s: CRC16 error (%d), STATUS = %08X, RX_STATUS = %08X, RX_STATUS2 = %08X, DATA = %08X:%08X\r\n",
-				USB10_DEVICE_SETUP_REQUEST_STR, i, reg->STATUS, rx_status, reg->RX_STATUS2,
-				reg->RECV_DATA_HIGH, reg->RECV_DATA_LOW
+				USB10_DEVICE_SETUP_REQUEST_STR, i, usb10_read_reg(&reg->STATUS), rx_status,
+				usb10_read_reg(&reg->RX_STATUS2), usb10_read_reg(&reg->RECV_DATA_HIGH),
+				usb10_read_reg(&reg->RECV_DATA_LOW)
 			);
 
 
@@ -252,7 +253,7 @@ int usb10_device_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request
 		if(USB10_RX_STATUS_LEN(rx_status) != packet_size_bits) {
 			usb10_printf("%s: received bogus data packet (%d) size: %d bits != %d, DATA = %08X:%08X\r\n",
 				USB10_DEVICE_SETUP_REQUEST_STR, i, USB10_RX_STATUS_LEN(rx_status), packet_size_bits,
-				reg->RECV_DATA_HIGH, reg->RECV_DATA_LOW
+				usb10_read_reg(&reg->RECV_DATA_HIGH), usb10_read_reg(&reg->RECV_DATA_LOW)
 			);
 
 			if(retry--)
@@ -265,10 +266,10 @@ int usb10_device_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request
 
 		// Send ACK for received packet
 
-		reg->COMMAND = USB10_CMD_START_BIT |
-			USB10_CMD_SET_PID(USB10_PID_ACK) |
-			USB10_CMD_SET(USB10_CMD_SEND_SHORT_TOKEN);
-			
+		sub10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
+				USB10_CMD_SET_PID(USB10_PID_ACK) |
+				USB10_CMD_SET(USB10_CMD_SEND_SHORT_TOKEN));
+
 		if(!usb10_wait_cmd_complete(reg, 20000)) { // 2ms timeout
 			usb10_printf("%s: hung after %s packet!\r\n", USB10_DEVICE_SETUP_REQUEST_STR, "ACK");
 			ret = -7;
@@ -294,7 +295,7 @@ int usb10_device_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request
 
 			usb10_printf("%s: received %d dupe data, RX_STATUS = %08X, DATA = %08X:%08X\r\n",
 				USB10_DEVICE_SETUP_REQUEST_STR, i, rx_status,
-				reg->RECV_DATA_HIGH, reg->RECV_DATA_LOW
+				usb10_read_reg(&reg->RECV_DATA_HIGH), usb10_read_reg(&reg->RECV_DATA_LOW)
 			);
 
 			if(retry--)
@@ -305,14 +306,15 @@ int usb10_device_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request
 		}
 
 		usb10_printf("%s: packet received (%d), RX_STATUS = 0x%08X, DATA = %08X:%08X\r\n",
-			USB10_DEVICE_SETUP_REQUEST_STR, i, rx_status, reg->RECV_DATA_HIGH, reg->RECV_DATA_LOW
+			USB10_DEVICE_SETUP_REQUEST_STR, i, rx_status,
+			usb10_read_reg(&reg->RECV_DATA_HIGH), usb10_read_reg(&reg->RECV_DATA_LOW)
 		);
 
 		usb10_last_data_pid[address][0].recv = received_pid; // Remember last received DATA PID
 
 		if(response_size && response_data) { // collect data if response expected
-			*(uint32_t*)(response_data + i * 8 + 0) = reg->RECV_DATA_LOW;
-			*(uint32_t*)(response_data + i * 8 + 4) = reg->RECV_DATA_HIGH;
+			*(uint32_t*)(response_data + i * 8 + 0) = usb10_read_reg(&reg->RECV_DATA_LOW);
+			*(uint32_t*)(response_data + i * 8 + 4) = usb10_read_reg(&reg->RECV_DATA_HIGH);
 		}
 
 	}
@@ -372,15 +374,15 @@ int usb10_device_in_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 
 		again_data:
 
-		reg->COMMAND = USB10_CMD_START_BIT |
+		sub10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
 				USB10_CMD_SET_PID(USB10_PID_IN) |
 				USB10_CMD_SET_ADDR(address) |
 				USB10_CMD_SET_ENDP(endpoint) |
-				USB10_CMD_SET(USB10_CMD_SEND_TOKEN);
-				
+				USB10_CMD_SET(USB10_CMD_SEND_TOKEN));
+
 		timeout = 25000;
 		while(timeout--)
-			if(reg->STATUS & USB10_STATUS_RECEIVED_BIT)
+			if(usb10_read_reg(&reg->STATUS) & USB10_STATUS_RECEIVED_BIT)
 				goto rcvd2;
 
 		{
@@ -396,7 +398,7 @@ int usb10_device_in_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 		
 		rcvd2:
 
-		rx_status = reg->RX_STATUS; // read once, use many times
+		rx_status = usb10_read_reg(&reg->RX_STATUS); // read once, use many times
 
 		int received_pid = USB10_RX_STATUS_PID(rx_status);
 
@@ -408,16 +410,21 @@ int usb10_device_in_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 		// Note: Some short token packets missing CRC16 which also considered as fail 
 
 		#if(1)
-		if(!(reg->STATUS & USB10_STATUS_CRC16_OK_BIT)) {
+		if(!(usb10_read_reg(&reg->STATUS) & USB10_STATUS_CRC16_OK_BIT)) {
 			usb10_printf("%s: CRC16 error (%d), STATUS = %08X, RX_STATUS = %08X, RX_STATUS2 = %08X, DATA = %08X:%08X\r\n",
-				USB10_DEVICE_IN_REQUEST_STR, i, reg->STATUS, rx_status, reg->RX_STATUS2,
-				reg->RECV_DATA_HIGH, reg->RECV_DATA_LOW
+				USB10_DEVICE_IN_REQUEST_STR, i, usb10_read_reg(&reg->STATUS), rx_status,
+				usb10_read_reg(&reg->RX_STATUS2),
+				usb10_read_reg(&reg->RECV_DATA_HIGH), usb10_read_reg(&reg->RECV_DATA_LOW)
 			);
 
 /*
-			reg->COMMAND = USB10_CMD_START_BIT |
+//			reg->COMMAND = USB10_CMD_START_BIT |
+//				USB10_CMD_SET_PID(USB10_PID_NAK) |
+//				USB10_CMD_SET(USB10_CMD_SEND_SHORT_TOKEN);
+			
+			sub10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
 				USB10_CMD_SET_PID(USB10_PID_NAK) |
-				USB10_CMD_SET(USB10_CMD_SEND_SHORT_TOKEN);
+				USB10_CMD_SET(USB10_CMD_SEND_SHORT_TOKEN));
 			
 			if(!usb10_wait_cmd_complete(reg, 20000)) { // 2ms timeout
 				usb10_printf("%s: hung after %s packet!\r\n", USB10_DEVICE_IN_REQUEST_STR, "NAK");
@@ -440,7 +447,7 @@ int usb10_device_in_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 		if(USB10_RX_STATUS_LEN(rx_status) != packet_size_bits) {
 			usb10_printf("%s: received bogus data packet (%d) size: %d bits != %d, DATA = %08X:%08X\r\n",
 				USB10_DEVICE_IN_REQUEST_STR, i, USB10_RX_STATUS_LEN(rx_status), packet_size_bits,
-				reg->RECV_DATA_HIGH, reg->RECV_DATA_LOW
+				usb10_read_reg(&reg->RECV_DATA_HIGH), usb10_read_reg(&reg->RECV_DATA_LOW)
 			);
 
 			if(retry--)
@@ -453,10 +460,10 @@ int usb10_device_in_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 
 		// Send ACK for received packet
 
-		reg->COMMAND = USB10_CMD_START_BIT |
-			USB10_CMD_SET_PID(USB10_PID_ACK) |
-			USB10_CMD_SET(USB10_CMD_SEND_SHORT_TOKEN);
-			
+		sub10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
+				USB10_CMD_SET_PID(USB10_PID_ACK) |
+				USB10_CMD_SET(USB10_CMD_SEND_SHORT_TOKEN));
+
 		if(!usb10_wait_cmd_complete(reg, 20000)) { // 2ms timeout
 			usb10_printf("%s: hung after %s packet!\r\n", USB10_DEVICE_IN_REQUEST_STR, "ACK");
 			ret = -7;
@@ -480,7 +487,7 @@ int usb10_device_in_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 
 			usb10_printf("%s: received %d dupe data, RX_STATUS = %08X, DATA = %08X:%08X\r\n",
 				USB10_DEVICE_IN_REQUEST_STR, i, rx_status,
-				reg->RECV_DATA_HIGH, reg->RECV_DATA_LOW
+				usb10_read_reg(&reg->RECV_DATA_HIGH), usb10_read_reg(&reg->RECV_DATA_LOW)
 			);
 
 			if(retry--)
@@ -491,14 +498,15 @@ int usb10_device_in_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 		}
 
 		usb10_printf("%s: packet received (%d), RX_STATUS = 0x%08X, DATA = %08X:%08X\r\n",
-			USB10_DEVICE_IN_REQUEST_STR, i, rx_status, reg->RECV_DATA_HIGH, reg->RECV_DATA_LOW
+			USB10_DEVICE_IN_REQUEST_STR, i, rx_status,
+			usb10_read_reg(&reg->RECV_DATA_HIGH), usb10_read_reg(&reg->RECV_DATA_LOW)
 		);
 
 		usb10_last_data_pid[address][endpoint].recv = received_pid; // Remember last received DATA PID
 
 		if(response_size && response_data) { // collect data if response expected
-			*(uint32_t*)(response_data + i * 8 + 0) = reg->RECV_DATA_LOW;
-			*(uint32_t*)(response_data + i * 8 + 4) = reg->RECV_DATA_HIGH;
+			*(uint32_t*)(response_data + i * 8 + 0) = usb10_read_reg(&reg->RECV_DATA_LOW);
+			*(uint32_t*)(response_data + i * 8 + 4) = usb10_read_reg(&reg->RECV_DATA_HIGH);
 		}
 
 	}
@@ -565,16 +573,17 @@ int usb10_device_out_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 
 		// Prepare data to send, if such were provided
 		if(request_size && request_data) {
-			reg->SEND_DATA_LOW = *(uint32_t*)(request_data + 0);
-			reg->SEND_DATA_HIGH = *(uint32_t*)(request_data + 4);
+			sub10_write_reg(&reg->SEND_DATA_LOW, *(uint32_t*)(request_data + 0));
+			sub10_write_reg(&reg->SEND_DATA_HIGH, *(uint32_t*)(request_data + 4));
 		}
 
 		// Send OUT token first
-		reg->COMMAND = USB10_CMD_START_BIT |
+				
+		sub10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
 				USB10_CMD_SET_PID(USB10_PID_OUT) |
 				USB10_CMD_SET_ADDR(address) |
 				USB10_CMD_SET_ENDP(endpoint) |
-				USB10_CMD_SET(USB10_CMD_SEND_TOKEN);
+				USB10_CMD_SET(USB10_CMD_SEND_TOKEN));
 				
 		if(!usb10_wait_cmd_complete(reg, 20000)) { // 2ms timeout
 			usb10_printf("%s: hung after %s packet!\r\n", USB10_DEVICE_OUT_REQUEST_STR, "OUT");
@@ -583,10 +592,10 @@ int usb10_device_out_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 		}
 
 		// Send DATA packet
-		reg->COMMAND = USB10_CMD_START_BIT |
+		sub10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
 				USB10_CMD_SET_LEN(packet_size_bits) |
 				USB10_CMD_SET_PID(data_pid) |
-				USB10_CMD_SET(USB10_CMD_SEND_DATA);
+				USB10_CMD_SET(USB10_CMD_SEND_DATA));
 
 		if(!usb10_wait_cmd_complete(reg, 5000)) { // ~0.5ms timeout
 			usb10_printf("%s: hung after %s packet!\r\n", USB10_DEVICE_OUT_REQUEST_STR, "DATA");
@@ -596,7 +605,7 @@ int usb10_device_out_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 
 		timeout = 2500;
 		while(timeout--)
-			if(reg->STATUS & USB10_STATUS_RECEIVED_BIT)
+			if(usb10_read_reg(&reg->STATUS) & USB10_STATUS_RECEIVED_BIT)
 				goto recv1;
 
 		{
@@ -612,7 +621,7 @@ int usb10_device_out_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 		
 		recv1:
 
-		rx_status = reg->RX_STATUS; // read once, use many times
+		rx_status = usb10_read_reg(&reg->RX_STATUS); // read once, use many times
 
 		// Now analyze what we've got here
 
@@ -624,7 +633,8 @@ int usb10_device_out_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 		}
 
 		if(received_pid != USB10_PID_ACK) {
-			usb10_printf("%s: expected %s packet instead of 0x%02X, RX_STATUS = %08X\r\n", USB10_DEVICE_OUT_REQUEST_STR, "ACK",
+			usb10_printf("%s: expected %s packet instead of 0x%02X, RX_STATUS = %08X\r\n",
+				USB10_DEVICE_OUT_REQUEST_STR, "ACK",
 				USB10_RX_STATUS_PID(rx_status), rx_status);
 
 			if(retry--)
@@ -637,7 +647,8 @@ int usb10_device_out_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 		usb10_last_data_pid[address][endpoint].sent = data_pid;
 
 		usb10_printf("%s: packet sent (%d), RX_STATUS = 0x%08X, DATA = %08X:%08X\r\n",
-			USB10_DEVICE_OUT_REQUEST_STR, i, rx_status, reg->SEND_DATA_HIGH, reg->SEND_DATA_LOW
+			USB10_DEVICE_OUT_REQUEST_STR, i, rx_status,
+			usb10_read_reg(&reg->SEND_DATA_HIGH), usb10_read_reg(&reg->SEND_DATA_LOW)
 		);
 
 	}

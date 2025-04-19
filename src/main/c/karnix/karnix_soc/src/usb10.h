@@ -263,5 +263,13 @@ int usb10_device_in_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 
 int usb10_hid_set_led(USB10_Reg* reg, uint8_t address, uint8_t endpoint, uint8_t leds);
 
+static inline void sub10_write_reg(volatile uint32_t* reg, uint32_t val) {
+	asm volatile ("sw %0, (%1)" :  : "r"(val), "r"(reg));
+}
+
+static inline uint32_t usb10_read_reg(volatile uint32_t* reg) {
+	return *reg;
+}
+
 #endif /* __USB10_H__ */
 
