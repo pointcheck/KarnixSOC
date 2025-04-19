@@ -12,6 +12,7 @@ MODEL ?= xip
 # Set defines as appropriate
 #DEFS += -DDEBUG_SBRK	# Enable mamory allocations, sbrk() and init_sbrk() debug
 DEFS += -DUSB10_ENABLE
+#DEFS += -DUSB10_DEBUG
 
 SOCDIR=../karnix_soc/src
 
@@ -89,16 +90,13 @@ ifeq ($(COMPRESSED),yes)
 	MARCH := $(MARCH)c
 endif
 
-#CFLAGS += -fwhole-program -march=$(MARCH)  -mabi=$(MABI) -DNDEBUG -fno-common -fno-builtin-printf -DBUILD_NUMBER=$(BUILD_NUMBER)+1 
-# use suffix __attribute__((externally_visible))
+CFLAGS += -march=$(MARCH) -mabi=$(MABI) -DNDEBUG -flto -fno-common -MD -fstrict-volatile-bitfields -fno-strict-aliasing -fno-builtin-printf -DBUILD_NUMBER=$(BUILD_NUMBER)+1 $(DEFS) 
 
-CFLAGS += -march=$(MARCH)  -mabi=$(MABI) -DNDEBUG -flto -fno-common -fno-builtin-printf -DBUILD_NUMBER=$(BUILD_NUMBER)+1 $(DEFS) 
-LDFLAGS += -march=$(MARCH)  -mabi=$(MABI) -specs=nano.specs -lnosys -lc_nano
-#LDFLAGS += -march=rv32im -mabi=ilp32 -specs=nano.specs -lnosys -lc_nano
+LDFLAGS += -march=$(MARCH)  -mabi=$(MABI) -specs=nano.specs -lnosys -lc_nano -nostdlib -lgcc -mcmodel=medany -nostartfiles -ffreestanding -Wl,-Bstatic,-T,$(LDSCRIPT),-Map,$(OBJDIR)/$(PROJ_NAME_M).map,--print-memory-usage
 
 
 ifeq ($(DEBUG),yes)
-	CFLAGS += -g3 -O0
+	CFLAGS += -g3 -O1
 endif
 
 ifeq ($(DEBUG),no)
@@ -134,10 +132,6 @@ endif
 RISCV_OBJCOPY = $(RISCV_PATH)/bin/$(RISCV_NAME)-objcopy
 RISCV_OBJDUMP = $(RISCV_PATH)/bin/$(RISCV_NAME)-objdump
 RISCV_CC=$(RISCV_PATH)/bin/$(RISCV_NAME)-gcc
-
-CFLAGS +=  -MD -fstrict-volatile-bitfields -fno-strict-aliasing
-LDFLAGS +=  -nostdlib -lgcc -mcmodel=medany -nostartfiles -ffreestanding -Wl,-Bstatic,-T,$(LDSCRIPT),-Map,$(OBJDIR)/$(PROJ_NAME_M).map,--print-memory-usage
-#LDFLAGS += -lgcc -lc -lg -nostdlib  -lgcc  -msave-restore    --strip-debug,
 
 OBJS := $(SRCS)
 OBJS := $(OBJS:.c=.o)
