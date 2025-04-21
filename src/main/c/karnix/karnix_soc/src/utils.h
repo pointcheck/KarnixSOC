@@ -41,6 +41,7 @@ void hard_reboot(void);
 void memcpy_rev(void* dst, void* src, uint32_t count);
 uint32_t strntoul(const char * buf, int size, int base); // string to unsigned long with size
 void printk(const char *fmt, ...);
+void CALL_MONITOR(void);
 
 static inline int wait_bit_set_timeout(volatile register void* reg, uint32_t mask, uint32_t timeout) {
 	while(timeout--)

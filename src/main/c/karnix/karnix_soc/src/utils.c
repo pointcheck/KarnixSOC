@@ -93,7 +93,7 @@ void delay_us(uint32_t us) {
 
 	while(1) {
 		t = get_mtime();
-		if(t - t0 >= us)
+		if(t - t0 >= (uint64_t)us)
 			break;
 	}
 }
@@ -251,6 +251,16 @@ uint32_t strntoul(const char *buf, int size, int base) {
 	return result;
 }
 
+
+void CALL_MONITOR(void)
+{
+	uint32_t ret_addr = *(uint32_t*)(&_stack_start - 3); // RA is saved on stack as third parameter
+	printk("*** CALL_MONITOR: Returning to %p\r\n", ret_addr);
+	void (*monitor)(void) = (void(*)(void))ret_addr;
+	monitor();
+}
+
+
 #if(CGA_VTY_ENABLE)
 #include <stdarg.h>
 void xprintf(const char *format, ...)
@@ -270,4 +280,5 @@ void xprintf(const char *format, ...)
 	}
 }
 #endif
+
 
