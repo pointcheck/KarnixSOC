@@ -34,6 +34,7 @@ SRCS += $(SOCDIR)/cga.c
 SRCS += $(SOCDIR)/audiodac.c
 SRCS += $(SOCDIR)/sram.c
 SRCS += $(SOCDIR)/usb10.c
+SRCS += $(SOCDIR)/memops.S
 SRCS += $(CRT)
 
 CRT_RAM=$(SOCDIR)/crt_ram.S

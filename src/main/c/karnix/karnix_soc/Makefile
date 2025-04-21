@@ -27,6 +27,7 @@ LDSCRIPT_XIP=src/linker_xip.ld -Wl
 
 #SRCS += $(wildcard src/*.c) $(wildcard src/*.cpp)
 SRCS += $(wildcard $(SOCDIR)/*.c) $(wildcard $(SOCDIR)/*.cpp)
+SRCS += $(wildcard $(SOCDIR)/memops.S)
 SRCS += $(COREFILES) $(CORE4FILES) $(LWIPDIR)/netif/ethernet.c
 SRCS += $(CRT)
 
