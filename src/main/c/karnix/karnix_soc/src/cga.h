@@ -44,7 +44,10 @@ extern const char font_12x16[];
 #define	CGA_MODE_TEXT		0
 #define	CGA_MODE_GRAPHICS1	1
 
-#pragma pack(1)
+// Note that pragma pack(1) causes GCC to use per-byte access which is not
+// relevant for hardware registers and video memory
+
+//#pragma pack(1)
 typedef struct
 {
   uint8_t FB[CGA_FRAMEBUFFER_SIZE];			// Framebuffer
@@ -55,7 +58,7 @@ typedef struct
   uint8_t unused2[12200];				// 
   uint8_t CHARGEN[4096];				// offset 60K
 } CGA_Reg;
-#pragma pack(0)
+//#pragma pack(0)
 
 #define CGA             ((CGA_Reg*)(0xF0040000))
 
