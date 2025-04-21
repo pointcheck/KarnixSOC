@@ -423,7 +423,7 @@ void cga_text_print(uint8_t *framebuffer, int x, int y, int fg_color, int bg_col
 		return;
 
 	uint32_t *fb = (uint32_t*) framebuffer;
-	uint32_t attributes = (fg_color << 8) | (bg_color << 16);
+	uint32_t attributes = (bg_color << 16) | (fg_color << 8);
 
 	if(x < 0)
 		x = cga_get_cursor_x();
