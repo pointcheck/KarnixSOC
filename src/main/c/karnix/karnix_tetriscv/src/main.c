@@ -19,10 +19,6 @@
 #define	USE_SRAM	1	// If set, test and use SRAM for Heap, otherwise use RAM.
 //#define	PRINT_STATS	1	// If set, prints IRQ and buffer statistics once a second
 
-// LIBC stuff
-extern void __sinit(void *);
-extern unsigned int _IMPURE_DATA;
-
 volatile uint32_t uart_config_reset_counter = 0;
 volatile uint32_t reg_irq_counter = 0;
 volatile uint32_t reg_sys_counter = 0;
@@ -155,11 +151,6 @@ void show_greetings(void) {
 	_sprite_idx++;
 }
 
-extern const struct __sFILE_fake __sf_fake_stdin;
-extern const struct __sFILE_fake __sf_fake_stdout;
-extern const struct __sFILE_fake __sf_fake_stderr;
-extern unsigned int _IMPURE_DATA; /* reference to .data.impure_data section */
-
 int main(void) {
 
 	csr_clear(mstatus, MSTATUS_MIE); // Disable Machine interrupts during hardware init
@@ -187,14 +178,6 @@ int main(void) {
         printk("\r\n*** Adjusting global REENT structure:\r\n");
 
 	__sinit(&_IMPURE_DATA); // Init LIBC impure_data structure
-
-	#ifdef GCC_SIFIVE
-        *(uint32_t*)&_impure_ptr = (uint32_t)&_IMPURE_DATA;
-        *(uint32_t*)&_global_impure_ptr = (uint32_t)_impure_ptr;
-        _impure_ptr->_stdin = (__FILE *)&__sf_fake_stdin;
-        _impure_ptr->_stdout = (__FILE *)&__sf_fake_stdout;
-        _impure_ptr->_stderr = (__FILE *)&__sf_fake_stderr;
-	#endif
 
         printk("_impure_ptr: %p, stdout: %p\r\n",
                 (unsigned int)_impure_ptr, (unsigned int)(_impure_ptr->_stdout));
@@ -408,6 +391,8 @@ int main(void) {
 	uint64_t lastTime = get_mtime();
 
 	gameOver = 2; // show greetings
+
+show_greetings();
 
 	while(1) {
 		static int _scroll = 700;
