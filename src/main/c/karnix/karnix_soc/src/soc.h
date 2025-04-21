@@ -40,6 +40,7 @@
 //#define	SYSTEM_CLOCK_HZ	65000000
 //#define	SYSTEM_CLOCK_HZ	62000000
 #define	SYSTEM_CLOCK_HZ	60000000
+#define	MONITOR_ADDRESS	0xa00e0000	// Address of the Monitor entry point
 
 static inline uint64_t get_mtime(void) {
 	return MTIME;
