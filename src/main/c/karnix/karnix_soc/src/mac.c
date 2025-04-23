@@ -52,10 +52,10 @@ void sys_arch_unprotect(sys_prot_t pval) {
 
 int mac_init(struct netif* iface) {
 
-	//printf("mac_init() begin\r\n");
+	//xprintf("mac_init() begin\r\n");
 
 	if(iface == NULL) {
-		printf("mac_init() iface is NULL !!!\r\n");
+		xprintf("mac_init() iface is NULL !!!\r\n");
 		return ERR_ARG;
 	}
 
@@ -76,7 +76,7 @@ int mac_init(struct netif* iface) {
 	delay_us(10000);
 	mac_setCtrl(MAC, 0);
 
-	printf("mac_init() done\r\n");
+	xprintf("mac_init() done\r\n");
 
 	return ERR_OK;
 }
@@ -105,7 +105,7 @@ int mac_lwip_init(void)
 
 	// Add netif to LWIP (netif_add calls our driver initialization function)
 	if (netif_add(&default_netif, &active_config.ip_addr, &active_config.netmask, &active_config.gw_addr, NULL, mac_init, ethernet_input) == NULL) {
-		printf("mac_lwip_init() netif_add failed!\r\n");
+		xprintf("mac_lwip_init() netif_add failed!\r\n");
         	return -1;
 	}
 
@@ -115,7 +115,7 @@ int mac_lwip_init(void)
 	if(active_config.options & CONFIG_OPTION_USE_DHCP)
 		dhcp_start(&default_netif);
 	
-	//printf("mac_lwip_init() done, ARP_TMR_INTERVAL = %d ms, IP_TMR_INTERVAL = %d ms\r\n", ARP_TMR_INTERVAL, IP_TMR_INTERVAL);
+	//xprintf("mac_lwip_init() done, ARP_TMR_INTERVAL = %d ms, IP_TMR_INTERVAL = %d ms\r\n", ARP_TMR_INTERVAL, IP_TMR_INTERVAL);
 
 	return 0;
 }
@@ -127,10 +127,10 @@ void mac_poll(void)
 	uint32_t ts_now = sys_now();
 
 
-	//printf("mac_poll() ts_now = %d, ts_etharp = %d, ts_ipreass = %d\r\n", ts_now, ts_etharp, ts_ipreass);
+	//xprintf("mac_poll() ts_now = %d, ts_etharp = %d, ts_ipreass = %d\r\n", ts_now, ts_etharp, ts_ipreass);
 
 	if(ts_now <= ts_etharp || ts_now <= ts_ipreass) {
-		//printf("mac_poll() timer overlap!\r\n");
+		//xprintf("mac_poll() timer overlap!\r\n");
 		ts_etharp = ts_ipreass = ts_now;
 		return;
 	}
@@ -170,7 +170,7 @@ void mac_poll(void)
 	#endif
 
 	if(PLIC->IRQLINE & PLIC_IRQ_MAC) {
-		//printf("mac_poll() stuck RX packet...\r\n");
+		//xprintf("mac_poll() stuck RX packet...\r\n");
 		mac_rx();
 	}
 
@@ -191,7 +191,7 @@ void mac_rx(void) {
 	uint32_t word;
 	uint8_t *payload;
 
-	//print("mac_rx() begin\r\n");
+	//xprint("mac_rx() begin\r\n");
 	
 	while(mac_rxPending(MAC)) {
 
@@ -199,10 +199,10 @@ void mac_rx(void) {
 		words = (bits+31)/32;
 		bytes_left = (bits+7)/8;
 
-		//print("mac_rx() reading %d bytes (%d bits)\r\n", bytes_left, bits);
+		//xprint("mac_rx() reading %d bytes (%d bits)\r\n", bytes_left, bits);
 
 		if(bytes_left > 2048) {
-			printf("mac_rx() RX FIFO error, bytes_left = %d bytes (%d bits)\r\n", bytes_left, bits);
+			xprintf("mac_rx() RX FIFO error, bytes_left = %d bytes (%d bits)\r\n", bytes_left, bits);
 			fflush(stdout);
 
 			// Reset MAC
@@ -219,14 +219,14 @@ void mac_rx(void) {
 		buffer_len += ETH_PAD_SIZE; /* allow room for Ethernet padding */
 		#endif
 
-		//printf("mac_rx() pbuf_alloc = %d, bytes_left = %d, bits = %d, words = %d\r\n", buffer_len, bytes_left, bits, words);
+		//xprintf("mac_rx() pbuf_alloc = %d, bytes_left = %d, bits = %d, words = %d\r\n", buffer_len, bytes_left, bits, words);
 
 		p = pbuf_alloc(PBUF_RAW, buffer_len, PBUF_POOL);
   
 		if(p == NULL) {
 			GPIO->OUTPUT |= GPIO_OUT_LED2; // Error indicator
 
-			printf("mac_rx() pbuf_alloc(%d) error, bytes_left = %d, bits = %d, words = %d !!!\r\n", buffer_len, bytes_left, bits, words);
+			xprintf("mac_rx() pbuf_alloc(%d) error, bytes_left = %d, bits = %d, words = %d !!!\r\n", buffer_len, bytes_left, bits, words);
 			LINK_STATS_INC(link.memerr);
 			LINK_STATS_INC(link.drop);
 
@@ -237,7 +237,7 @@ void mac_rx(void) {
 				bytes_left -= 4;
 			}
 
-			printf("mac_rx() RX FIFO cleared\r\n");
+			xprintf("mac_rx() RX FIFO cleared\r\n");
 			goto mac_rx_end;
 		}
 
@@ -246,7 +246,7 @@ void mac_rx(void) {
 		pbuf_header(p, -ETH_PAD_SIZE); /* drop the padding word */
 		#endif
 
-		//printf("mac_rx() bytes_left = %d, p = %p, p->len = %d, p->next = %p\r\n", bytes_left, p, p->len, p->next);
+		//xprintf("mac_rx() bytes_left = %d, p = %p, p->len = %d, p->next = %p\r\n", bytes_left, p, p->len, p->next);
 
 		q = NULL;
 		byteId = 0;
@@ -263,7 +263,7 @@ void mac_rx(void) {
 					if(q == NULL) {
 						GPIO->OUTPUT |= GPIO_OUT_LED2; // Error indicator
 
-						print("mac_rx() not enough space in pbuf!\r\n");
+						xprintf("mac_rx() not enough space in pbuf!\r\n");
 
 						LINK_STATS_INC(link.memerr);
 						LINK_STATS_INC(link.drop);
@@ -290,7 +290,7 @@ void mac_rx(void) {
 
 				frags++;
 
-				//printf("\r\nmac_rx() q_left = %d, payload = %p\r\n", q_left, payload);
+				//xprintf("\r\nmac_rx() q_left = %d, payload = %p\r\n", q_left, payload);
 			}
 		
 			if(byteId == 0) {
@@ -301,7 +301,7 @@ void mac_rx(void) {
 			*payload = (uint8_t) word;
 			word = word >> 8;
 
-			//printf("%02X ", (uint8_t)*payload);
+			//xprintf("%02X ", (uint8_t)*payload);
 
 			byteId = (byteId + 1) & 0x03;
 
@@ -314,7 +314,7 @@ void mac_rx(void) {
 		payload = (uint8_t*) p->payload;
 
 		#if MAC_DEBUG
-		printf("mac_rx() %02x:%02x:%02x:%02x:%02x:%02x <- %02x:%02x:%02x:%02x:%02x:%02x type: 0x%02x%02x, fragments = %d, bytes_left = %d, q_left = %d, words = %d, packet_len = %d, last word = 0x%08x, byteId = %d\r\n", 
+		xprintf("mac_rx() %02x:%02x:%02x:%02x:%02x:%02x <- %02x:%02x:%02x:%02x:%02x:%02x type: 0x%02x%02x, fragments = %d, bytes_left = %d, q_left = %d, words = %d, packet_len = %d, last word = 0x%08x, byteId = %d\r\n", 
 			payload[0], payload[1], payload[2], payload[3], payload[4], payload[5],
 			payload[6], payload[7], payload[8], payload[9], payload[10], payload[11],
 			payload[12], payload[13],
@@ -333,7 +333,7 @@ void mac_rx(void) {
 
 		if((rc = default_netif.input(p, &default_netif)) != ERR_OK) {
 			GPIO->OUTPUT |= GPIO_OUT_LED2; // Error indicator
-			printf("mac_rx() default_netif.input() error %d\r\n", rc);
+			xprintf("mac_rx() default_netif.input() error %d\r\n", rc);
 		}
 
 
@@ -345,18 +345,18 @@ void mac_rx(void) {
 	mac_rx_end:
 	;
 
-	//printf("mac_rx() done\r\n");
+	//xprintf("mac_rx() done\r\n");
 }
 
 
 err_t mac_tx_packet(struct netif *netif, struct pbuf *p) {
 	struct pbuf *q;
 
-	//printf("mac_tx_packet() begin\r\n");
+	//xprintf("mac_tx_packet() begin\r\n");
   
 	if(netif == NULL || p == NULL) {
 		GPIO->OUTPUT |= GPIO_OUT_LED2; // Error indicator
-		//printf("mac_tx_packet() wrong args, netif = %p, p = %p\r\n", netif, p);
+		//xprintf("mac_tx_packet() wrong args, netif = %p, p = %p\r\n", netif, p);
 		return ERR_ARG;
 	}
 
@@ -376,7 +376,7 @@ err_t mac_tx_packet(struct netif *netif, struct pbuf *p) {
         uint32_t bits = frame_size*8;
         uint32_t words = (bits+31)/32;
 
-	//printf("mac_tx_packet() frame_size = %d, frame_frags = %d\r\n", frame_size, frame_frags);
+	//xprintf("mac_tx_packet() frame_size = %d, frame_frags = %d\r\n", frame_size, frame_frags);
 	
 	// wait for MAC controller to get ready to send
         while(!mac_txReady(MAC));
@@ -402,7 +402,7 @@ err_t mac_tx_packet(struct netif *netif, struct pbuf *p) {
         	payload = (uint8_t*) q->payload;
 		q_left = q->len;
 
-		//printf("mac_tx_packet() q = %p, q_left = %d, payload = %p\r\n", q, q_left, payload);
+		//xprintf("mac_tx_packet() q = %p, q_left = %d, payload = %p\r\n", q, q_left, payload);
 
 		while(q_left) {
 			
@@ -418,13 +418,13 @@ err_t mac_tx_packet(struct netif *netif, struct pbuf *p) {
 
 			byte_idx = (byte_idx + 1) & 0x03;
 
-			//printf("%02X ", *payload);
+			//xprintf("%02X ", *payload);
 
 			payload++;
 			q_left--;
 		}
 
-		//printf("\r\n");
+		//xprintf("\r\n");
 	}
 
 	// Write remaining tail
@@ -434,13 +434,13 @@ err_t mac_tx_packet(struct netif *netif, struct pbuf *p) {
 
 		words_sent++;
 
-		//printf("mac_tx_packet() word = %08X\r\n", word);
+		//xprintf("mac_tx_packet() word = %08X\r\n", word);
 	}
 
 	payload = (uint8_t*) p->payload;
 
 	#if MAC_DEBUG
-	printf("mac_tx_packet() %02x:%02x:%02x:%02x:%02x:%02x <- %02x:%02x:%02x:%02x:%02x:%02x type: 0x%02x%02x, byte_idx = %d, words sent = %d, frame_size = %d, frame_frags = %d\r\n", 
+	xprintf("mac_tx_packet() %02x:%02x:%02x:%02x:%02x:%02x <- %02x:%02x:%02x:%02x:%02x:%02x type: 0x%02x%02x, byte_idx = %d, words sent = %d, frame_size = %d, frame_frags = %d\r\n", 
 		payload[0], payload[1], payload[2], payload[3], payload[4], payload[5],
 		payload[6], payload[7], payload[8], payload[9], payload[10], payload[11],
 		payload[12], payload[13],
@@ -454,7 +454,7 @@ err_t mac_tx_packet(struct netif *netif, struct pbuf *p) {
   
 	LINK_STATS_INC(link.xmit);
 
-	//printf("mac_tx_packet() done\r\n");
+	//xprintf("mac_tx_packet() done\r\n");
 
 	return ERR_OK;
 }
@@ -464,7 +464,7 @@ void mac_print_stats(void) {
 
 	#ifdef LINK_STATS
 	char str[256];
-	snprintf(str, 256, "NETLINK: ip_addr = %s, rx = %d, tx = %d, err = %d, drop = %d, lenerr = %d, chkerr = %d\r\n", 
+	snprintf(str, 256, "NET:\tip_addr = %s, rx = %d, tx = %d, err = %d, drop = %d, lenerr = %d, chkerr = %d\r\n", 
 		inet_ntoa(default_netif.ip_addr),
 		lwip_stats.link.recv,
 		lwip_stats.link.xmit,
@@ -473,9 +473,7 @@ void mac_print_stats(void) {
 		lwip_stats.link.lenerr,
 		lwip_stats.link.chkerr
 	);
-	print(str);
-	#else
-	print("mac_print_stats() NO STATs\r\n", 
+	xprintf(str);
 	#endif
 
 
