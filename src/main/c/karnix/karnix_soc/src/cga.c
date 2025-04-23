@@ -319,7 +319,7 @@ void cga_set_scroll(int scrl) {
  * scroll_delay - delay in microseconds between steps.
  *
  */
-void cga_text_scroll_up(int scroll_delay) {
+void cga_text_scroll_up(uint32_t scroll_delay) {
 	uint32_t *fb = (uint32_t*) CGA->FB;
 	uint32_t tmp;
 
@@ -362,7 +362,7 @@ void cga_text_scroll_up(int scroll_delay) {
  * scroll_delay - delay in microseconds between steps.
  *
  */
-void cga_text_scroll_down(int scroll_delay) {
+void cga_text_scroll_down(uint32_t scroll_delay) {
 	uint32_t *fb = (uint32_t*) CGA->FB;
 	uint32_t tmp;
 
@@ -436,7 +436,13 @@ void cga_text_print(uint8_t *framebuffer, int x, int y, int fg_color, int bg_col
 	for(int i = 0; text[i]; i++) {
 		if(text[i] == '\n') {
 			fb += CGA_TEXT_WIDTH;
-			y++;
+			if(y >= CGA_TEXT_HEIGHT-1) {
+				uint32_t *fb = (uint32_t*) framebuffer;
+				for(int j = 0; j < CGA_TEXT_WIDTH; j++)
+					fb[j] = attributes | 0x20;
+				cga_text_scroll_up(CGA_TEXT_SCROLL_DELAY);
+			} else
+				y++;
 		} else if(text[i] == '\r') {
 			fb -= (fb - (uint32_t*)framebuffer) % CGA_TEXT_WIDTH;
 			x=0;
@@ -509,8 +515,15 @@ void cga_text_print(uint8_t *framebuffer, int x, int y, int fg_color, int bg_col
 		}
 
 		if(x >= CGA_TEXT_WIDTH) {
-			y++;
 			x = x % CGA_TEXT_WIDTH;
+
+			if(y >= CGA_TEXT_HEIGHT-1) {
+				uint32_t *fb = (uint32_t*) framebuffer;
+				for(int j = 0; j < CGA_TEXT_WIDTH; j++)
+					fb[j] = attributes | 0x20;
+				cga_text_scroll_up(CGA_TEXT_SCROLL_DELAY);
+			} else
+				y++;
 		}
 	}
 

@@ -14,6 +14,7 @@ extern const char font_12x16[];
 #define	CGA_FRAMEBUFFER_SIZE	(CGA_VIDEO_WIDTH*CGA_VIDEO_HEIGHT*2/8)
 #define	CGA_OR_FONT		0x08
 #define	CGA_OR_BG		0x80
+#define	CGA_TEXT_SCROLL_DELAY	300
 
 #define	CGA_CTRL_VIDEO_EN		(1 << 31)	
 #define	CGA_CTRL_BLANKING_EN		(1 << 30)	
@@ -78,8 +79,8 @@ void cga_draw_pixel(int x, int y, int color);
 void cga_draw_line(int x1, int y1, int x2, int y2, int color);
 void cga_text_print(uint8_t *framebuffer, int x, int y, int fg_color, int bg_color, char *text);
 void cga_set_scroll(int scrl);
-void cga_text_scroll_up(int scroll_delay);
-void cga_text_scroll_down(int scroll_delay);
+void cga_text_scroll_up(uint32_t scroll_delay);
+void cga_text_scroll_down(uint32_t scroll_delay);
 void cga_set_cursor_xy(int x, int y);
 void cga_set_cursor_style(int top, int bottom);
 
@@ -97,6 +98,10 @@ static inline int cga_get_cursor_x(void) {
 
 static inline int cga_get_cursor_y(void) {
 	return (cga_read_reg(&CGA->CTRL2) & CGA_CTRL2_CURSOR_Y) >> CGA_CTRL2_CURSOR_Y_SHIFT;
+}
+
+static inline int cga_get_scroll(void) {
+	return (cga_read_reg(&CGA->CTRL) & ~CGA_CTRL_V_SCROLL) >> CGA_CTRL_V_SCROLL_SHIFT;
 }
 
 static inline void cga_wait_vblank(void) {
