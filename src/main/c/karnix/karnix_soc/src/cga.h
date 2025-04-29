@@ -14,7 +14,7 @@ extern const char font_12x16[];
 #define	CGA_FRAMEBUFFER_SIZE	(CGA_VIDEO_WIDTH*CGA_VIDEO_HEIGHT*2/8)
 #define	CGA_OR_FONT		0x08
 #define	CGA_OR_BG		0x80
-#define	CGA_TEXT_SCROLL_DELAY	300
+#define	CGA_TEXT_SCROLL_DELAY	600
 
 #define	CGA_CTRL_VIDEO_EN		(1 << 31)	
 #define	CGA_CTRL_BLANKING_EN		(1 << 30)	
