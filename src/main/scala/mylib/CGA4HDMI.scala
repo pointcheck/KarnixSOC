@@ -75,33 +75,32 @@ case class Apb3CGA4HDMICtrl(
   val chargen_mem = Mem(Bits(8 bits), wordCount = 16*256 ) // font8x16 x 256
   HexTools.initRam(chargen_mem, charGenHexFile, 0x0l)
 
-  /*
-  // Sync edition of CharGen - uses BRAM
-  var chargen_access = io.apb.PENABLE && io.apb.PSEL(0) && 
+/*
+  // Sync edition of CharGen
+  var chargen_access = io.apb.PENABLE && io.apb.PSEL(0) &&
                   ((io.apb.PADDR & U"xf000") === U"xf000") // 60 * 1024
   when(chargen_access) {
-    io.apb.PRDATA := fb_mem.readWriteSync(
-        address = (io.apb.PADDR >> 2).resized,
-        data  = io.apb.PWDATA.resized,
+    io.apb.PRDATA := chargen_mem.readWriteSync(
+        address = (io.apb.PADDR >> 0).resized,
+        data  = io.apb.PWDATA(7 downto 0),
         enable  = chargen_access,
         write  = io.apb.PWRITE,
-        mask  = 3 
-    )
-    io.apb.PREADY := chargen_access
+        mask  = 1 
+    ).resized
+    io.apb.PREADY := RegNext(chargen_access)
   }
-  */
+*/
 
- /*
-  // Async edition of CharGen - uses too much COMBs and FFs 
+
+  // Async edition of CharGen
   when( io.apb.PENABLE && io.apb.PSEL(0) && ((io.apb.PADDR & U"xf000") === U"xf000")) { // 61440
     when(io.apb.PWRITE) {
       chargen_mem((io.apb.PADDR & 0x0fff).resized) := io.apb.PWDATA(7 downto 0)
-    } otherwise {
-      io.apb.PRDATA := chargen_mem((io.apb.PADDR & 0x0fff).resized).resized
+//    } otherwise {
+//      io.apb.PRDATA := chargen_mem((io.apb.PADDR & 0x0fff).resized).resized
     }
     io.apb.PREADY := True
   }
-  */
   
 
   // Connect palette to APB3 bus
