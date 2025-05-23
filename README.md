@@ -34,7 +34,7 @@ Fmax = 60 MHz on Lattice ECP5 25F grade 7
 
 ## Hardware Requirements
 
-To use this repositiry one needs a board with Lattice ECP5 FPGA chip. Karnix SoC was developped to be run on [Karnix ASB-254](https://github.com/Fabmicro-LLC/Karnix_ASB-254) OSHW board, but it's easy to adopt it to any other board with same FPGA chip.
+To use this repository one needs a board with Lattice ECP5 FPGA chip. Karnix SoC was developped to be ran on [Karnix ASB-254](https://github.com/Fabmicro-LLC/Karnix_ASB-254) OSHW board, but it's easy to adopt it to any other board with same FPGA chip.
 
 If you are interested in porting this SoC to other boards, or to other FPGAs, please let me know.
 
