@@ -100,6 +100,8 @@ case class SpiMasterCtrl(generics : SpiMasterCtrlGenerics) extends Component{
      * ssSetup -> W 0x10 time between chip select enable and the next byte
      * ssHold -> W 0x14 time between the last byte transmission and the chip select disable
      * ssDisable -> W 0x18 time between chip select disable and chip select enable
+     *
+     * rxOccupancy -> 0x1C
      */
 
     def driveFrom(bus : BusSlaveFactory, baseAddress : Int = 0)(generics : SpiMasterCtrlMemoryMappedConfig) = new Area {
@@ -145,6 +147,7 @@ case class SpiMasterCtrl(generics : SpiMasterCtrlGenerics) extends Component{
         val (stream, fifoOccupancy) = rsp.queueWithOccupancy(rspFifoDepth)
         bus.readStreamNonBlocking(stream, address = baseAddress + 0, validBitOffset = 31, payloadBitOffset = 0)
         bus.read(fifoOccupancy, address = baseAddress + 0, 16)
+        bus.read(fifoOccupancy, address = baseAddress + 28, 0)
       }
 
       //Status
