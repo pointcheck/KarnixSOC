@@ -124,9 +124,9 @@ object KarnixSOCConfig{
 
       spi0Config = SpiMasterCtrlMemoryMappedConfig(
         ctrlGenerics = SpiMasterCtrlGenerics(
-          dataWidth      = 16, // transmit 16 bit words
+          dataWidth      = 8, // transmit 8 bit words
           timerWidth     = 16,
-          ssWidth        = 1 // only one CS line
+          ssWidth        = 2 // two CS lines
         ),
         cmdFifoDepth = 16, // CMD is same as TX FIFO
         rspFifoDepth = 16  // RSP is same as RX FIFO
@@ -278,7 +278,7 @@ class KarnixSOC(val config: KarnixSOCConfig) extends Component{
 
     //Peripherals IO
     val gpioA = master(TriStateArray(32 bits))
-    //val gpioB = inout(TriStateArray(Bits(16 bits)))
+    val gpioB = master(TriStateArray(16 bits))
     val uart0 = master(Uart(config.uart0CtrlConfig.uartCtrlConfig))
     val uart1 = master(Uart(config.uart1CtrlConfig.uartCtrlConfig))
     val spiAudioDAC = master(SpiMaster(ssWidth = config.spiAudioDACCtrlConfig.ctrlGenerics.ssWidth))
@@ -376,13 +376,11 @@ class KarnixSOC(val config: KarnixSOCConfig) extends Component{
     )
     gpioACtrl.io.gpio <> io.gpioA
 
-    /*
     val gpioBCtrl = Apb3Gpio(
       gpioWidth = 16,
       withReadSync = true
     )
     gpioBCtrl.io.gpio <> io.gpioB
-    */
 
     val plic = new Apb3MicroPLICCtrl()
     plic.io.IRQLines := 0
@@ -528,7 +526,7 @@ class KarnixSOC(val config: KarnixSOCConfig) extends Component{
       master = apbBridge.io.apb,
       slaves = List(
         gpioACtrl.io.apb -> (0x00000, 4 kB),
-        //gpioBCtrl.io.apb -> (0x01000, 4 kB),
+        gpioBCtrl.io.apb -> (0x01000, 4 kB),
         uart0Ctrl.io.apb -> (0x10000, 4 kB),
         uart1Ctrl.io.apb -> (0x11000, 4 kB),
         timer0Ctrl.io.apb -> (0x20000, 4 kB),
@@ -560,8 +558,8 @@ case class KarnixSOCTopLevel() extends Component{
 	val uart_debug_rxd = in Bool() // mapped to uart_debug_rxd
 	val led = out Bits(4 bits)
 	val key = in Bits(4 bits)
-	//val gpio = out Bits(16 bits)
         val gpio = inout(Analog(Bits(16 bits)))
+	//val gpio = master(TriStateArray(16 bits))
 	val rst_n = out Bool() // Hard-reset pin
 	val eeprom_wp = out Bool()
 	val rs485_txd = out Bool() // mapped to uart_rs485_txd
@@ -594,7 +592,7 @@ case class KarnixSOCTopLevel() extends Component{
         val sram = master(SramInterface(SramLayout(addressWidth = 18, dataWidth = 16)))
         val qspi0 = master(QSPIInterface(QSPILayout(addressWidth = 24, dataWidth = 8)))
         val spiAudioDAC = master(SpiMaster(ssWidth = 1))
-        val spi0 = master(SpiMaster(ssWidth = 1))
+        val spi0 = master(SpiMaster(ssWidth = 2))
         
 	val config = in Bool() // Config reset pin
 
@@ -727,11 +725,20 @@ case class KarnixSOCTopLevel() extends Component{
     */
 
     io.led := karnix_soc.io.gpioA.write.resized
-
     io.eeprom_wp := karnix_soc.io.gpioA.write(30) 
     karnix_soc.io.gpioA.read(3 downto 0) := io.key 
     karnix_soc.io.gpioA.read(30 downto 4) := 0
     karnix_soc.io.gpioA.read(31) := io.config 
+
+    //io.gpio <> karnix_soc.io.gpioB
+    for(idx <- 0 to 15) {
+        when(karnix_soc.io.gpioB.writeEnable(idx)) {
+            io.gpio(idx) := karnix_soc.io.gpioB.write(idx)
+            karnix_soc.io.gpioB.read(idx) := False;
+        } otherwise {
+            karnix_soc.io.gpioB.read(idx) := io.gpio(idx)
+       }
+    }
 
     //io.gpio <> karnix_soc.io.hub
     //io.gpio <> karnix_soc.io.gpioB

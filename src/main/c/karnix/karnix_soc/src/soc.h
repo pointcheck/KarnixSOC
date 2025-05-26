@@ -25,7 +25,6 @@
 #define PWM		((Pwm_Reg*)0xF0030000)
 #define HUB		((Hub_Reg*)(0xF0050000))
 #define PLIC		((PLIC_Reg*)(0xF0060000))
-#define GPIO		((Gpio_Reg*)(0xF0000000))
 #define MAC		((MAC_Reg*)(0xF0070000))
 #define I2C0		((I2C_Reg*)(0xF0090000))
 #define WD		((WD_Reg*)(0xF00A0000))
