@@ -83,7 +83,7 @@ void adns3080_capture_frame(SPI_Reg* reg, int ss, unsigned char *buf) {
 		reg->data = SPI_CMD_SEND_RECEIVE | 0x00; // Receive next pixel
 		delay_us(32 + 10); // tRX + tLOAD
 		uint8_t pixel = reg->data;
-		if(pixel & 0b11000000 == 0b11000000) { // bit7 is always 1, bit6 is 1 for first pixel
+		if((pixel & 0b11000000) == 0b11000000) { // bit7 is always 1, bit6 is 1 for first pixel
 			*buf++ = pixel; // Store first pixel data
 			printk("adns3080: frame found at i = %d\r\n", i);
 			break;
