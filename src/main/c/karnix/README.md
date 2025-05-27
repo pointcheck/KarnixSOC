@@ -11,6 +11,7 @@ The following C code is currently available:
   * [karnix_tetriscv/](karnix_tetriscv/) - TetRISC-V classic Tetris game. Builds for RAM and XIP.
   * [karnix_xip_test/](karnix_xip_test/) - Test for QSPI/XiP controller. Builds for RAM only. Put in RAM during hardware build.
   * [karnix_lwip/](karnix_lwip/) - Adopted LiPW TCP/IP library. Used by Monitor.
+  * [adns3080_test/](adns3080_test/) - Testing tool for ADNS-3080 motion sensor.
 
 
 Please refer to [main README.md](../../../../README.md) for details on Karnix SoC memory address space and software models.
