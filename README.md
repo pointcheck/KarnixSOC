@@ -61,7 +61,30 @@ Please check corresponding READMEs for more details.
 
 ## How to build
 
-1. To generate and synthesize Karnix SoC go to working directory, edit Makefile to set default RAMPROG it should be built with, then issue ```make``` command like in the following:
+1. Install suitable C compiler with RISCV support
+
+For being able to compile Monitor, Bootloader and examples a sutable C compiler is needed. There are a number of them available. We use GCC toolchain from xPack. One can download and install pre-built binaries of xPack with:
+
+```
+wget https://github.com/xpack-dev-tools/riscv-none-elf-gcc-xpack/releases/download/v14.2.0-2/xpack-riscv-none-elf-gcc-14.2.0-2-linux-x64.tar.gz
+tar -zxpf xpack-riscv-none-elf-gcc-14.2.0-2-linux-x64.tar.gz -C /opt/
+```
+
+The URLs may change, so please refer to xPack official repository at https://github.com/xpack-dev-tools to get proper links.
+
+2. Set RISCV_PATH and RISCV_NAME environment variables
+
+Once C compiler is installed, a path to it should be provided to build scripts. To do so set the following environment variables: 
+
+```
+export RISCV_PATH=/opt/xpack-riscv-none-elf-gcc-14.2.0-2
+export RISCV_NAME=riscv-none-elf
+```
+
+Adjust the path above as per your compiler.
+
+
+3. To generate and synthesize Karnix SoC go to working directory, edit Makefile to set default RAMPROG it should be built with, then issue ```make``` command like in the following:
 
 ```
 cd ./scripts/KarnixSOC/ECP5-25F_karnix_board 
@@ -79,13 +102,13 @@ On success the bitstream will be available in ```bin/KarnixSOCTopLevel_25F.bit``
 
 It will include RAMPROG program stored in on-board synthesizable RAM. Default is [karnix_bootloader](src/main/c/karnix/karnix_bootloader/) which scans NOR flash for other programs and run the first one found.
 
-2. Upload bitstream to Karnix board using ```openFPGALoader``` tool as follows:
+4. Upload bitstream to Karnix board using ```openFPGALoader``` tool as follows:
 
 ```
 openFPGALoader -f bin/KarnixSOCTopLevel_25F.bit
 ```
 
-3. Connect your terminal to debug UART port /dev/ttyUSB1 (/dev/ttyU1 on FreeBSD) using 115200 baud.
+5. Connect your terminal to debug UART port /dev/ttyUSB1 (/dev/ttyU1 on FreeBSD) using 115200 baud.
 
 4. Press RESET button and enjoy!
 
