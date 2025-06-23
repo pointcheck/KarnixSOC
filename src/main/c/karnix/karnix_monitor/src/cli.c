@@ -22,7 +22,7 @@
 void welcome(void);
 
 volatile uint32_t console_rx_buf_len = 0;
-volatile uint8_t console_rx_buf[CONSOLE_RX_BUF_SIZE];
+volatile uint8_t console_rx_buf[CONSOLE_RX_BUF_SIZE] = {0};
 volatile uint32_t console_rx_timestamp = 0;
 
 
