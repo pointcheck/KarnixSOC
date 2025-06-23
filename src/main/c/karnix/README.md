@@ -14,7 +14,7 @@ The following C code is currently available:
   * [adns3080_test/](adns3080_test/) - Testing tool for ADNS-3080 motion sensor.
 
 
-Please refer to [main README.md](../../../../README.md) for details on Karnix SoC memory address space and software models.
+Please refer to main [README.md](../../../../README.md) for details on Karnix SoC memory address space and software models.
 
 --
 Regards,
