@@ -42,8 +42,32 @@ extern const char font_12x16[];
 #define	CGA_CTRL2_CURSOR_COLOR_SHIFT	28
 #define	CGA_CTRL2_CURSOR_COLOR		(0x0f << CGA_CTRL2_CURSOR_COLOR_SHIFT)
 
+#define	CGA_CTRL3_HBP_SHIFT	0	// Horizontal Back Porch
+#define	CGA_CTRL3_HBP		(0xffff << CGA_CTRL3_HBP_SHIFT)
+#define	CGA_CTRL3_HFP_SHIFT	16	// Horizontal Front Porch
+#define	CGA_CTRL3_HFP		(0xffff << CGA_CTRL3_HFP_SHIFT)
+#define	CGA_CTRL4_HACTIVE_SHIFT	0	// Horizontal Active Area 
+#define	CGA_CTRL4_HACTIVE	(0xffff << CGA_CTRL4_HACTIVE_SHIFT)
+#define	CGA_CTRL4_HSYNC_SHIFT	16	// Horizontal Sync Width 
+#define	CGA_CTRL4_HSYNC		(0x7fff << CGA_CTRL4_HSYNC_SHIFT)
+#define	CGA_CTRL4_HS_POL_SHIFT	31	// Horizontal Sync Polarity 
+#define	CGA_CTRL4_HS_POL	(0x0001 << CGA_CTRL4_HS_POL_SHIFT)
+
+#define	CGA_CTRL5_VBP_SHIFT	0	// Vertical Back Porch
+#define	CGA_CTRL5_VBP		(0xffff << CGA_CTRL5_VBP_SHIFT)
+#define	CGA_CTRL5_HFP_SHIFT	16	// Vertical Front Porch
+#define	CGA_CTRL5_HFP		(0xffff << CGA_CTRL5_VFP_SHIFT)
+#define	CGA_CTRL6_VACTIVE_SHIFT	0	// Vertical Active Area 
+#define	CGA_CTRL6_VACTIVE	(0xffff << CGA_CTRL6_VACTIVE_SHIFT)
+#define	CGA_CTRL6_VSYNC_SHIFT	16	// Vertical Sync Width 
+#define	CGA_CTRL6_VSYNC		(0x7fff << CGA_CTRL6_VSYNC_SHIFT)
+#define	CGA_CTRL6_VS_POL_SHIFT	31	// Vertical Sync Polarity 
+#define	CGA_CTRL6_VS_POL	(0x0001 << CGA_CTRL6_VS_POL_SHIFT)
+
 #define	CGA_MODE_TEXT		0
 #define	CGA_MODE_GRAPHICS1	1
+
+#define	CGA_NUM_FORMATS		2 // Number of pre-defined video formats
 
 // Note that pragma pack(1) causes GCC to use per-byte access which is not
 // relevant for hardware registers and video memory
@@ -51,15 +75,32 @@ extern const char font_12x16[];
 //#pragma pack(1)
 typedef struct
 {
-  uint8_t FB[CGA_FRAMEBUFFER_SIZE];			// Framebuffer
-  uint8_t unused1[48*1024-CGA_FRAMEBUFFER_SIZE];	//  
-  volatile uint32_t PALETTE[16];				// offset 48K
-  volatile uint32_t CTRL;				// 48K + 64 
-  volatile uint32_t CTRL2;				// 48K + 128 
-  uint8_t unused2[12200];				// 
-  uint8_t CHARGEN[4096];				// offset 60K
+	uint8_t FB[CGA_FRAMEBUFFER_SIZE];		// Framebuffer
+	uint8_t unused1[48*1024-CGA_FRAMEBUFFER_SIZE];	//  
+	volatile uint32_t PALETTE[16];			// offset 48K
+	volatile uint32_t CTRL;				// 48K + 64
+	volatile uint32_t CTRL2;			// 48K + 68
+	volatile uint32_t CTRL3;			// 48K + 72
+	volatile uint32_t CTRL4;			// 48K + 76
+	volatile uint32_t CTRL5;			// 48K + 80
+	volatile uint32_t CTRL6;			// 48K + 84
+	uint8_t unused2[12200];				// 
+	uint8_t CHARGEN[4096];				// offset 60K
 } CGA_Reg;
 //#pragma pack(0)
+
+//#pragma pack(1)
+typedef struct
+{
+	uint32_t CTRL3_HFP_HBP; 
+	uint32_t CTRL4_HSPOL_HSYNC_HACTIVE;
+	uint32_t CTRL5_VFP_VBP; 
+	uint32_t CTRL6_VSPOL_VSYNC_VACTIVE;
+	char *name;
+} CGA_Video_Format;
+//#pragma pack(0)
+
+extern const CGA_Video_Format cga_video_formats[];
 
 #define CGA             ((CGA_Reg*)(0xF0040000))
 

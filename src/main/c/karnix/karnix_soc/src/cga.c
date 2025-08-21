@@ -3,6 +3,25 @@
 #include <string.h>
 #include <stdlib.h>
 
+const CGA_Video_Format cga_video_formats[CGA_NUM_FORMATS] = {
+	// Generic 640x480 supported by most TV and monitors
+	{
+		.CTRL3_HFP_HBP             = 0x00200020,
+		.CTRL4_HSPOL_HSYNC_HACTIVE = 0x00600280,
+		.CTRL5_VFP_VBP             = 0x001B0010,
+		.CTRL6_VSPOL_VSYNC_VACTIVE = 0x000201E0,
+		.name = "Generic 640x480" 
+	},
+	// Addi 1024x600 7" TFT display with 640x480 active area
+	{
+		.CTRL3_HFP_HBP             = 0x01a80028,
+		.CTRL4_HSPOL_HSYNC_HACTIVE = 0x00300280,
+		.CTRL5_VFP_VBP             = 0x008b000d,
+		.CTRL6_VSPOL_VSYNC_VACTIVE = 0x000301e0,
+		.name = "Addi 1024x600 7\""
+	}
+};
+
 void cga_rotate_palette_left(uint32_t palettes_to_rotate) {
 
 	cga_wait_vblank();

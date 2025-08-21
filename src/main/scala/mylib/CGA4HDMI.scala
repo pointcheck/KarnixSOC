@@ -8,14 +8,31 @@ import spinal.lib.misc.HexTools
 import mylib._
 
 case class Apb3CGA4HDMICtrl(
-	horiz_back_porch: Int = 32,
-	horiz_active: Int = 640,
-	horiz_front_porch: Int = 32,
-	horiz_sync: Int = 96,
-	vert_back_porch: Int = 16,
-	vert_active: Int = 480,
-	vert_front_porch: Int = 27,
-	vert_sync: Int = 2,
+	// Generic TV or video monitor
+	default_horiz_back_porch: Int = 32,
+	default_horiz_active: Int = 640,
+	default_horiz_front_porch: Int = 32,
+	default_horiz_sync: Int = 96,
+        default_horiz_sync_pol: Int = 0,
+	default_vert_back_porch: Int = 16,
+	default_vert_active: Int = 480,
+	default_vert_front_porch: Int = 27,
+	default_vert_sync: Int = 2,
+        default_vert_sync_pol: Int = 0,
+/*
+	// Addi 7" TFT, 640x480
+        default_horiz_back_porch: Int = 40,
+        default_horiz_active: Int = 640,
+        default_horiz_front_porch: Int = 424,
+        default_horiz_sync: Int = 48,
+        default_horiz_sync_pol: Int = 0,
+        default_vert_back_porch: Int = 29-16,
+        default_vert_active: Int = 480,
+        default_vert_front_porch: Int = 133+16,
+        default_vert_sync: Int = 3,
+        default_vert_sync_pol: Int = 0,
+*/
+
 	charGenHexFile: String = "font8x16x256.hex"
       ) extends Component {
   val io = new Bundle {
@@ -53,6 +70,28 @@ case class Apb3CGA4HDMICtrl(
   val cursor_blink = cgaCtrl2Word(26 downto 24).asUInt.addTag(crossClockDomain)
   val cursor_blink_enabled = cgaCtrl2Word(27).addTag(crossClockDomain)
   val cursor_color = cgaCtrl2Word(31 downto 28).asUInt.addTag(crossClockDomain)
+
+  val cgaCtrl3Word = busCtrl.createReadWrite(Bits(32 bits), address = 48*1024+72) init(
+          (default_horiz_front_porch << 16) | default_horiz_back_porch);
+  val horiz_back_porch = cgaCtrl3Word(15 downto 0).asUInt.addTag(crossClockDomain)
+  val horiz_front_porch = cgaCtrl3Word(31 downto 16).asUInt.addTag(crossClockDomain)
+
+  val cgaCtrl4Word = busCtrl.createReadWrite(Bits(32 bits), address = 48*1024+76) init(
+          (default_horiz_sync_pol << 31) | (default_horiz_sync << 16) | default_horiz_active);
+  val horiz_active = cgaCtrl4Word(15 downto 0).asUInt.addTag(crossClockDomain)
+  val horiz_sync = cgaCtrl4Word(30 downto 16).asUInt.addTag(crossClockDomain)
+  val horiz_sync_pol = cgaCtrl4Word(31).asUInt.addTag(crossClockDomain)
+
+  val cgaCtrl5Word = busCtrl.createReadWrite(Bits(32 bits), address = 48*1024+80) init(
+          (default_vert_front_porch << 16) | default_vert_back_porch);
+  val vert_back_porch = cgaCtrl5Word(15 downto 0).asUInt.addTag(crossClockDomain)
+  val vert_front_porch = cgaCtrl5Word(31 downto 16).asUInt.addTag(crossClockDomain)
+
+  val cgaCtrl6Word = busCtrl.createReadWrite(Bits(32 bits), address = 48*1024+84) init(
+          (default_vert_sync_pol << 31) | (default_vert_sync << 16) | default_vert_active);
+  val vert_active = cgaCtrl6Word(15 downto 0).asUInt.addTag(crossClockDomain)
+  val vert_sync = cgaCtrl6Word(30 downto 16).asUInt.addTag(crossClockDomain)
+  val vert_sync_pol = cgaCtrl6Word(31).asUInt.addTag(crossClockDomain)
 
   // Define memory block for CGA framebuffer
   //val fb_mem = Mem(Bits(32 bits), wordCount = (320*240*2) / 32)
@@ -168,14 +207,14 @@ case class Apb3CGA4HDMICtrl(
     val vert_total_height = vert_back_porch + vert_active + vert_front_porch + vert_sync
 
     /* Set of counters */
-    val CounterX = Reg(UInt(log2Up(horiz_total_width) bits))
-    val CounterY = Reg(UInt(log2Up(vert_total_height) bits))
-    //val CounterY_ = (scroll_v_dir ? (CounterY - scroll_v) | (CounterY + scroll_v))
-    val CounterY_ = (scroll_v_dir ? (CounterY - BufferCC(scroll_v)) | (CounterY + BufferCC(scroll_v)))
+    val CounterX = Reg(UInt(16 bits))
+    val CounterY = Reg(UInt(16 bits))
+    val CounterY_ = Reg(UInt(16 bits))
     val CounterF = Reg(UInt(7 bits)) // Frame counter, used for cursor blink feature
 
 
     CounterX := (CounterX === horiz_total_width - 1) ? U(0) | CounterX + 1
+    CounterY_ := (scroll_v_dir ? (CounterY - BufferCC(scroll_v)) | (CounterY + BufferCC(scroll_v)))
 
     when(CounterX === horiz_total_width - 1) {
         CounterY := ((CounterY === vert_total_height - 1) ? U(0) | CounterY + 1)
@@ -187,11 +226,11 @@ case class Apb3CGA4HDMICtrl(
 
 
     /* Produce HSYNC, VSYNC and DE based on back/front porches */
-    hSync := (CounterX >= horiz_back_porch + horiz_active + horiz_front_porch) &&
-             (CounterX < horiz_back_porch + horiz_active + horiz_front_porch + horiz_sync)
+    hSync := ((CounterX >= horiz_back_porch + horiz_active + horiz_front_porch) &&
+             (CounterX < horiz_back_porch + horiz_active + horiz_front_porch + horiz_sync)) ^ horiz_sync_pol.asBool
 
-    vSync := (CounterY >= vert_back_porch + vert_active + vert_front_porch) &&
-             (CounterY < vert_back_porch + vert_active + vert_front_porch + vert_sync)
+    vSync := ((CounterY >= vert_back_porch + vert_active + vert_front_porch) &&
+             (CounterY < vert_back_porch + vert_active + vert_front_porch + vert_sync)) ^ vert_sync_pol.asBool
 
     de := (CounterX >= horiz_back_porch && CounterX < horiz_back_porch + horiz_active) &&
           (CounterY >= vert_back_porch && CounterY < vert_back_porch + vert_active)
@@ -217,12 +256,12 @@ case class Apb3CGA4HDMICtrl(
       is(B"00") { // Text mode: 80x30 characters each 8x16 pixels
 
         // Load flag active on each 6th and 7th pixel
-        word_load := (CounterX >= U(horiz_back_porch - 8) && CounterX < U(horiz_back_porch + horiz_active)) &&
-                     (CounterY < vert_back_porch + vert_active + 16) && ((CounterX & U(6)) === U(6))
+        word_load := (CounterX >= horiz_back_porch - U(8)) && CounterX < (horiz_back_porch + horiz_active) &&
+                     (CounterY < vert_back_porch + vert_active + U(16)) && ((CounterX & U(6)) === U(6))
 
         // Index of the 32 bit word in framebuffer memory: addr = (y / 16) * 80 + x/8
         word_address := ((CounterY_ - 16)(9 downto 4) * 80 +
-                         (CounterX - (horiz_back_porch - 8))(9 downto 3)).resized
+                         (CounterX - (horiz_back_porch - U(8)))(9 downto 3)).resized
 
         val char_row = CounterY_(3 downto 0)
         val char_mask = Reg(Bits(8 bits))
@@ -273,7 +312,7 @@ case class Apb3CGA4HDMICtrl(
       is(B"01") { // Graphics mode: 320x240, 2 bits per PEL with full color palette
 
         // Load flag active on each 30 and 31 pixel of 32 bit word
-        word_load := (CounterX >= 0 && CounterX < U(horiz_back_porch + horiz_active)) &&
+        word_load := (CounterX >= 0 && CounterX < (horiz_back_porch + horiz_active)) &&
                      (CounterY_ < vert_back_porch + vert_active) && ((CounterX & U(30)) === U(30))
 
         // Index of the 32 bit word in framebuffer memory: addr = y/2 * 20 + x/2/16
