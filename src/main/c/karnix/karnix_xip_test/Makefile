@@ -26,6 +26,7 @@ SOCDIR=../karnix_soc/src
 # Set list of source code files
 SRCS += $(wildcard src/*.c) $(wildcard src/*.cpp) $(wildcard src/*.S)
 SRCS += $(SOCDIR)/utils.c
+SRCS += $(SOCDIR)/memops.S
 SRCS += $(CRT)
 
 CRT_RAM=$(SOCDIR)/crt_ram.S
