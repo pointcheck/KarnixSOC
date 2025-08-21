@@ -10,6 +10,7 @@ COMPRESSED=yes
 MODEL ?= xip
 
 # Set defines as appropriate
+DEFS += -DCGA_VTY_ENABLE
 #DEFS += -DDEBUG_SBRK	# Enable mamory allocations, sbrk() and init_sbrk() debug
 
 SOCDIR=../karnix_soc/src
@@ -24,6 +25,8 @@ SOCDIR=../karnix_soc/src
 # Set list of source code files
 SRCS += $(wildcard src/*.c) $(wildcard src/*.cpp) $(wildcard src/*.S)
 SRCS += $(SOCDIR)/utils.c
+SRCS += $(SOCDIR)/cga.c
+SRCS += $(SOCDIR)/memops.S
 SRCS += $(CRT)
 
 CRT_RAM=$(SOCDIR)/crt_ram.S

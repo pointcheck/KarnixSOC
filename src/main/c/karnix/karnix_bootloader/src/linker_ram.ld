@@ -13,7 +13,7 @@ ENTRY(crtStart)
 MEMORY {
 
   /* Synthesized RAM */
-  RAM      (rwx): ORIGIN = 0x80000000, LENGTH = 4k
+  RAM      (rwx): ORIGIN = 0x80000000, LENGTH = 16k
 
 }
 
