@@ -261,7 +261,6 @@ void CALL_MONITOR(void)
 }
 
 
-#if(CGA_VTY_ENABLE)
 #include <stdarg.h>
 void xprintf(const char *format, ...)
 {
@@ -275,10 +274,11 @@ void xprintf(const char *format, ...)
 	if(cga_vty_str) {
 		printf(cga_vty_str); // to UART
 		fflush(stdout);
+#if(CGA_VTY_ENABLE)
 		cga_text_print(CGA->FB, -1, -1, 15, 0, cga_vty_str); // to CGA
+#endif
 		free(cga_vty_str);
 	}
 }
-#endif
 
 
