@@ -70,10 +70,13 @@ void cli_cmd_help(char *argv[], int argn) {
 "stats	[period]		- Enable printing statistics each 'period' sec,\r\n"
 "				  use 0 to disable.\r\n"
 "usb	[1/0]			- Enable/disable printing USB data.\r\n"
+"cga	[1/0]			- Choose CGA format: 0 - default, 1 - Addi 7\".\r\n"
 "r[b|d]	[*|addr] [len]		- Read and print 'len' bytes or dwords of mem\r\n"
 "				  beginning at 'addr'.\r\n"
 "w[b|d]	[*|addr] [data] [many]	- Write 'data' byte or dword to mem at 'addr'\r\n"
 "				  as 'many' times.\r\n"
+	);
+	xprintf(
 "addr	[*|addr]		- Set current address pointer to 'addr'.\r\n"
 "call	[*|addr] [args]		- Call subroutine at 'addr', 'args' will be\r\n"
 "				  provided as argv/argn.\r\n"
@@ -83,6 +86,8 @@ void cli_cmd_help(char *argv[], int argn) {
 "type	[*|addr]		- Print ASCII string in mem at 'addr'.\r\n"
 "ihex	[*|addr]		- Input IHEX, decode and store at 'addr' or at\r\n"
 "				  current location.\r\n"
+	);
+	xprintf(
 "ohex	[*|addr] [len] [entry]  - Output 'len' bytes of mem in IHEX format\r\n"
 "				  starting at 'addr'.\r\n"
 "crc	[*|addr] [len] [poly]	- Calc CRC32 of mem block starting at 'addr' and\r\n"
@@ -358,6 +363,32 @@ void cli_cmd_crc32(char *argv[], int argn) {
 	uint32_t crc = crc32(addr, len, 0, poly);
 
 	xprintf("/// crc32: %p\r\n", crc);
+}
+
+
+void cli_cmd_cga(char *argv[], int argn) {
+
+	if(argv[1]) {
+		int format_idx = (uint32_t) strtoul(argv[1], NULL, 0) % CGA_NUM_FORMATS;
+		memcpy((void*)&CGA->CTRL3, (void*)&cga_video_formats[format_idx], sizeof(CGA_Video_Format));
+
+		xprintf("/// cga: loaded video format = %s (%d)\r\n",
+			cga_video_formats[format_idx].name, format_idx);
+	} else {
+		xprintf("/// cga: available video formats:\r\n");
+		for(int i = 0; i < CGA_NUM_FORMATS; i++)
+		xprintf("	%d - %s\r\n", i, cga_video_formats[i]. name);
+
+		xprintf("/// cga: current video format:\r\n");
+	}
+
+	xprintf(
+		"	CTRL3_HFP_HBP:             0x%08X\r\n"
+		"	CTRL4_HSPOL_HSYNC_HACTIVE: 0x%08X\r\n"
+		"	CTRL5_VFP_VBP:             0x%08X\r\n"
+		"	CTRL6_VSPOL_VSYNC_VACTIVE: 0x%08X\r\n",
+		CGA->CTRL3, CGA->CTRL4, CGA->CTRL5, CGA->CTRL6
+	);
 }
 
 
@@ -858,6 +889,11 @@ void cli_process_command(uint8_t *cmdline, uint32_t len) {
 
 	if(argv[0][0] == 'c' && argv[0][1] == 'r') {
 		cli_cmd_crc32(argv, argn);
+		return;
+	}
+
+	if(argv[0][0] == 'c' && argv[0][1] == 'g') {
+		cli_cmd_cga(argv, argn);
 		return;
 	}
 
