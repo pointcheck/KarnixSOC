@@ -19,6 +19,142 @@
 #define	OHEX_BYTES_PER_LINE	16		// num of bytes in IHEX line, should be power of 2
 #define	PATHLEN			257		// Max file name len in 4.2BSD.
 
+void cli_cmd_stats();
+void cli_cmd_usb();
+void cli_cmd_cga();
+void cli_cmd_read_byte();
+void cli_cmd_read_dword();
+void cli_cmd_write_byte();
+void cli_cmd_write_dword();
+void cli_cmd_addr();
+void cli_cmd_call();
+void cli_cmd_copy();
+void cli_cmd_dump();
+void cli_cmd_type();
+void cli_cmd_ihex();
+void cli_cmd_ohex();
+void cli_cmd_crc32();
+void cli_cmd_rz();
+void cli_cmd_reg();
+void cli_cmd_nor();
+void cli_cmd_help();
+
+struct _command_list {
+	char cmd[4];
+	void *func;
+	char *help;
+} command_list[] = {
+	{
+		.cmd = "help",
+		.func = cli_cmd_help,
+		.help = "help|?	[cmd]			- Print help on command 'cmd'"
+	},
+	{
+		.cmd = "?",
+		.func = cli_cmd_help,
+		.help = (char*)-1,
+	},
+	{
+		.cmd = "stat",
+		.func = cli_cmd_stats,
+		.help = "stat	[period]		- Enable printing statistics each 'period' sec,\r\n"
+			"				  use 0 to disable"
+	},
+	{
+		.cmd = "usb",
+		.func = cli_cmd_usb,
+		.help = "usb	[1/0]			- Enable/disable printing USB data"
+	},
+	{
+		.cmd = "cga",
+		.func = cli_cmd_cga,
+		.help = "cga	[1/0]			- Choose CGA format: 0 - default, 1 - Addi 7\""
+	},
+	{
+		.cmd = "rb",
+		.func = cli_cmd_read_byte,
+		.help = "rb|rd	[*|addr] [len]		- Read and print 'len' bytes or dwords of mem\r\n"
+			"				  beginning at 'addr'"
+	},
+	{
+		.cmd = "rd",
+		.func = cli_cmd_read_dword,
+		.help = (char*)-1
+	},
+	{
+		.cmd = "wb",
+		.func = cli_cmd_write_byte,
+		.help = "wb|wd	[*|addr] [data] [many]	- Write 'data' byte or dword to mem at 'addr'\r\n"
+			"				  as 'many' times"
+	},
+	{
+		.cmd = "wd",
+		.func = cli_cmd_write_dword,
+		.help = (char*)-1
+	},
+	{
+		.cmd = "addr",
+		.func = cli_cmd_addr,
+		.help = "addr	[*|addr]		- Set current address pointer to 'addr'"
+	},
+	{
+		.cmd = "call",
+		.func = cli_cmd_call,
+		.help = "call	[*|addr] [args]		- Call subroutine at 'addr', 'args' will be\r\n"
+			"				  provided as argv/argn"
+	},
+	{
+		.cmd = "copy",
+		.func = cli_cmd_copy,
+		.help = "copy	[*|to] [*|from] [len]	- Copy 'len' bytes of memory from 'from' to 'to'"
+	},
+	{
+		.cmd = "dump",
+		.func = cli_cmd_dump,
+		.help = "dump	[*|addr] [len]		- Read 'len' bytes from mem at 'addr' and print\r\n"
+			"				  in ASCII"
+	},
+	{
+		.cmd = "type",
+		.func = cli_cmd_type,
+		.help = "type	[*|addr]		- Print ASCII string in mem at 'addr'"
+	},
+	{
+		.cmd = "ihex",
+		.func = cli_cmd_ihex,
+		.help = "ihex	[*|addr]		- Input IHEX, decode and store at 'addr' or at\r\n"
+			"				  current location"
+	},
+	{
+		.cmd = "ohex",
+		.func = cli_cmd_ohex,
+		.help = "ohex	[*|addr] [len] [entry]  - Output 'len' bytes of mem in IHEX format\r\n"
+			"				  starting at 'addr'"
+	},
+	{
+		.cmd = "crc",
+		.func = cli_cmd_crc32,
+		.help = "crc32	[*|addr] [len] [poly]	- Calc CRC32 of mem block starting at 'addr' and\r\n"
+			"				  size of 'len' bytes"
+	},
+	{
+		.cmd = "rz",
+		.func = cli_cmd_rz,
+		.help = "rz	[*|addr]		- Receive file over ZModem to mem 'addr'"
+	},
+	{
+		.cmd = "reg",
+		.func = cli_cmd_reg,
+		.help = "reg				- Print current context registers"
+	},
+	{
+		.cmd = "nor",
+		.func = cli_cmd_nor,
+		.help = "nor	[?|erase|cp]		- NOR flash operations"
+	}
+};
+
+
 void welcome(void);
 
 volatile uint32_t console_rx_buf_len = 0;
@@ -65,44 +201,29 @@ void cli_prompt(void) {
 
 void cli_cmd_help(char *argv[], int argn) {
 	welcome();
-	xprintf(
-"/// List of commands:\r\n"
-"stats	[period]		- Enable printing statistics each 'period' sec,\r\n"
-"				  use 0 to disable.\r\n"
-"usb	[1/0]			- Enable/disable printing USB data.\r\n"
-"cga	[1/0]			- Choose CGA format: 0 - default, 1 - Addi 7\".\r\n"
-"r[b|d]	[*|addr] [len]		- Read and print 'len' bytes or dwords of mem\r\n"
-"				  beginning at 'addr'.\r\n"
-"w[b|d]	[*|addr] [data] [many]	- Write 'data' byte or dword to mem at 'addr'\r\n"
-"				  as 'many' times.\r\n"
-	);
-	xprintf(
-"addr	[*|addr]		- Set current address pointer to 'addr'.\r\n"
-"call	[*|addr] [args]		- Call subroutine at 'addr', 'args' will be\r\n"
-"				  provided as argv/argn.\r\n"
-"copy	[*|to] [*|from] [len]	- Copy 'len' bytes of memory from 'from' to 'to'\r\n"
-"dump	[*|addr] [len]		- Read 'len' bytes from mem at 'addr' and print\r\n"
-"				  in ASCII.\r\n"
-"type	[*|addr]		- Print ASCII string in mem at 'addr'.\r\n"
-"ihex	[*|addr]		- Input IHEX, decode and store at 'addr' or at\r\n"
-"				  current location.\r\n"
-	);
-	xprintf(
-"ohex	[*|addr] [len] [entry]  - Output 'len' bytes of mem in IHEX format\r\n"
-"				  starting at 'addr'.\r\n"
-"crc	[*|addr] [len] [poly]	- Calc CRC32 of mem block starting at 'addr' and\r\n"
-"				  size of 'len' bytes.\r\n"
-"rz	[*|addr]		- Receive file over ZModem to mem 'addr'.\r\n"
-"reg				- Print current context registers.\r\n"
-"nor	[?|erase|cp]		- NOR flash operations.\r\n"
-"\r\n"
-	);
+
+	if(argv[1] == NULL)
+		argv[1] = "";
+
+	for(int i = 0; i < sizeof(command_list)/sizeof(command_list[0]); i++)
+		if(command_list[i].cmd)
+			if(strnstr(command_list[i].cmd, argv[1], 4)) {
+				// -1 is special case: refers to prev item
+				if((int)command_list[i].help == -1)
+					if(argv[1][0])
+						xprintf("%s\r\n", command_list[i-1].help);
+					else {}
+				else if(command_list[i].help)
+					xprintf("%s\r\n", command_list[i].help);
+			}
+
+	xprintf("\r\n");
 }
 
 
 void cli_cmd_nor_help(char *argv[], int argn) {
 	xprintf(
-"/// List of NOR flash commands:\r\n"
+"List of NOR flash commands:\r\n"
 "nor erase <addr> <len>		- Erase sectors beginnign at 'addr', ending at 'addr+len'.\r\n"
 "nor cp <addr1> <addr2> <len>	- Copy data 'len' bytes of data from memory 'addr2' to NOR flash at 'addr1'\r\n"
 	);
@@ -125,7 +246,7 @@ void cli_cmd_nor_erase(char *argv[], int argn) {
 		len = strtoul(argv[3], NULL, 0);
 
 	#if(DEBUG_CLI)
-		xprintf("/// nor erase: addr = %p, len = %u\r\n", addr, len);
+		xprintf("nor erase: addr = %p, len = %u\r\n", addr, len);
 	#endif
 
 	current_address = (uint32_t) addr; // remember last address used
@@ -147,7 +268,7 @@ void cli_cmd_nor_erase(char *argv[], int argn) {
 
         uint32_t t1= get_mtime();
 
-        xprintf("\r\n/// nor erase: complete %u bytes in %u uS, status = %p\r\n", i, t1-t0, qspi_get_status());
+        xprintf("\r\nnor erase: complete %u bytes in %u uS, status = %p\r\n", i, t1-t0, qspi_get_status());
 }
 
 
@@ -171,7 +292,7 @@ void cli_cmd_nor_copy(char *argv[], int argn) {
 		len = strtoul(argv[4], NULL, 0) & 0xfffffffc;
 
 	#if(DEBUG_CLI)
-		xprintf("/// nor copy: to = %p, from = %p, len = %u\r\n", addr1, addr2, len);
+		xprintf("nor copy: to = %p, from = %p, len = %u\r\n", addr1, addr2, len);
 	#endif
 
 	current_address = (uint32_t) addr1; // remember last address used
@@ -192,7 +313,7 @@ void cli_cmd_nor_copy(char *argv[], int argn) {
 
         uint32_t t1 = get_mtime();
 
-        xprintf("\r\n/// nor copy: complete %d bytes in %u uS, status = 0x%02x\r\n", i*4, t1-t0, qspi_get_status());
+        xprintf("\r\nnor copy: complete %d bytes in %u uS, status = 0x%02x\r\n", i*4, t1-t0, qspi_get_status());
 }
 
 
@@ -208,7 +329,7 @@ void cli_cmd_read_byte(char *argv[], int argn) {
 		len = strtoul(argv[2], NULL, 0);
 
 	#if(DEBUG_CLI)
-		xprintf("/// rb: addr = %p, len = %u\r\n", addr, len);
+		xprintf("rb: addr = %p, len = %u\r\n", addr, len);
 	#endif
 
 	current_address = (uint32_t) addr; // remember last address used
@@ -238,7 +359,7 @@ void cli_cmd_read_dword(char *argv[], int argn) {
 		len = strtoul(argv[2], NULL, 0);
 
 	#if(DEBUG_CLI)
-		xprintf("/// rd: addr = %p, len = %u\r\n", addr, len);
+		xprintf("rd: addr = %p, len = %u\r\n", addr, len);
 	#endif
 
 	current_address = (uint32_t) addr; // remember last address used
@@ -272,7 +393,7 @@ void cli_cmd_copy(char *argv[], int argn) {
 		len = strtoul(argv[3], NULL, 0);
 
 	#if(DEBUG_CLI)
-		xprintf("/// copy: to = %p, from = %p, len = %u\r\n", to, from, len);
+		xprintf("copy: to = %p, from = %p, len = %u\r\n", to, from, len);
 	#endif
 
 	memcpy(to, from, len);
@@ -292,7 +413,7 @@ void cli_cmd_dump(char *argv[], int argn) {
 		len = strtoul(argv[2], NULL, 0);
 
 	#if(DEBUG_CLI)
-		xprintf("/// dump: addr = %p, len = %u\r\n", addr, len);
+		xprintf("dump: addr = %p, len = %u\r\n", addr, len);
 	#endif
 
 	int count = 0;
@@ -327,7 +448,7 @@ void cli_cmd_type(char *argv[], int argn) {
 		addr = (uint8_t*) strtoul(argv[1], NULL, 0);
 
 	#if(DEBUG_CLI)
-		xprintf("/// type: addr = %p\r\n", addr);
+		xprintf("type: addr = %p\r\n", addr);
 	#endif
 
 	current_address = (uint32_t) addr; // remember last address used
@@ -352,7 +473,7 @@ void cli_cmd_crc32(char *argv[], int argn) {
 		poly = strtoul(argv[3], NULL, 0);
 
 	#if(DEBUG_CLI)
-		xprintf("/// crc32: addr = %p, len = %u bytes, polynomial = %p\r\n", addr, len, poly);
+		xprintf("crc32: addr = %p, len = %u bytes, polynomial = %p\r\n", addr, len, poly);
 	#endif
 
 	int count = 0;
@@ -362,7 +483,7 @@ void cli_cmd_crc32(char *argv[], int argn) {
 
 	uint32_t crc = crc32(addr, len, 0, poly);
 
-	xprintf("/// crc32: %p\r\n", crc);
+	xprintf("crc32: %p\r\n", crc);
 }
 
 
@@ -372,14 +493,14 @@ void cli_cmd_cga(char *argv[], int argn) {
 		int format_idx = (uint32_t) strtoul(argv[1], NULL, 0) % CGA_NUM_FORMATS;
 		memcpy((void*)&CGA->CTRL3, (void*)&cga_video_formats[format_idx], sizeof(CGA_Video_Format));
 
-		xprintf("/// cga: loaded video format = %s (%d)\r\n",
+		xprintf("cga: loaded video format = %s (%d)\r\n",
 			cga_video_formats[format_idx].name, format_idx);
 	} else {
-		xprintf("/// cga: available video formats:\r\n");
+		xprintf("cga: available video formats:\r\n");
 		for(int i = 0; i < CGA_NUM_FORMATS; i++)
 		xprintf("	%d - %s\r\n", i, cga_video_formats[i]. name);
 
-		xprintf("/// cga: current video format:\r\n");
+		xprintf("cga: current video format:\r\n");
 	}
 
 	xprintf(
@@ -402,14 +523,14 @@ void cli_cmd_addr(char *argv[], int argn) {
 	current_address = (uint32_t) addr; // remember last address used
 
 	#if(DEBUG_CLI)
-		xprintf("/// addr = %p\r\n", addr);
+		xprintf("addr = %p\r\n", addr);
 	#endif
 }
 
 
 void cli_cmd_reg(char *argv[], int argn) {
 
-	xprintf("/// Context: sp = %p, gp = %p, tp = %p, ra = %p, pc = %p\r\n",
+	xprintf("Context: sp = %p, gp = %p, tp = %p, ra = %p, pc = %p\r\n",
 		context.sp, context.gp, context.tp, context.ra, context.pc);
 }
 
@@ -421,7 +542,7 @@ void cli_cmd_rz(char *argv[], int argn) {
 		addr = (uint32_t*) strtoul(argv[1], NULL, 0);
 
 	#if(DEBUG_CLI)
-		xprintf("/// rx zmodem: addr = %p\r\n", addr);
+		xprintf("rx zmodem: addr = %p\r\n", addr);
 	#endif
 
 	ZModemWriteAddress = addr;
@@ -437,10 +558,10 @@ void cli_cmd_rz(char *argv[], int argn) {
 	csr_set(mstatus, MSTATUS_MIE); // Enable Machine interrupts
 
 	if(rc == 0) {
-		xprintf("/// rx zmodem success: read_bytes = %d, file = %s, crc32 = %p\r\n",
+		xprintf("rx zmodem success: read_bytes = %d, file = %s, crc32 = %p\r\n",
 			ZModemRxBytes, filename, crc32((uint8_t*)addr, ZModemRxBytes, 0, CRC32_POLYNOMIAL));
 	} else {
-		xprintf("/// rx zmodem fail: rc = %d, read_bytes = %u, left_bytes = %u, max = %u\r\n",
+		xprintf("rx zmodem fail: rc = %d, read_bytes = %u, left_bytes = %u, max = %u\r\n",
 				rc, ZModemRxBytes, ZModemBytesleft, 1024*1024);
 	}
 
@@ -464,7 +585,7 @@ void cli_cmd_write_byte(char *argv[], int argn) {
 		many = (uint32_t) strtoul(argv[3], NULL, 0);
 
 	#if(DEBUG_CLI)
-		xprintf("/// wb: addr = %p, value = %02x, many = %d\r\n", addr, value, many);
+		xprintf("wb: addr = %p, value = %02x, many = %d\r\n", addr, value, many);
 	#endif
 
 	current_address = (uint32_t) addr; // remember last address used
@@ -496,7 +617,7 @@ void cli_cmd_write_dword(char *argv[], int argn) {
 		many = (uint32_t) strtoul(argv[3], NULL, 0);
 
 	#if(DEBUG_CLI)
-		xprintf("/// wd: addr = %p, value = %p, many = %d\r\n", addr, value, many);
+		xprintf("wd: addr = %p, value = %p, many = %d\r\n", addr, value, many);
 	#endif
 
 	current_address = (uint32_t) addr; // remember last address used
@@ -523,7 +644,7 @@ void cli_cmd_call(char *argv[], int argn) {
 		addr = (uint32_t*) strtoul(argv[1], NULL, 0);
 
 	#if(DEBUG_CLI)
-		xprintf("/// call: addr = %p, argn = %d\r\n", addr, argn-1);
+		xprintf("call: addr = %p, argn = %d\r\n", addr, argn-1);
 	#endif
 
 	current_address = (uint32_t) addr; // remember last address used
@@ -540,7 +661,7 @@ void cli_cmd_call(char *argv[], int argn) {
 	// so restore context completely.
 	context_restore();
 
-	xprintf("/// call: ret = %p (%d), exec time = %lu millisecs\r\n", rc, rc, t1 - t0);
+	xprintf("call: ret = %p (%d), exec time = %lu millisecs\r\n", rc, rc, t1 - t0);
 }
 
 void cli_cmd_ihex(char *argv[], int argn) {
@@ -552,7 +673,7 @@ void cli_cmd_ihex(char *argv[], int argn) {
 		addr = (uint8_t*) strtoul(argv[1], NULL, 0);
 
 
-	xprintf("/// ihex: addr = %p, press Ctrl-C to break.\r\n", addr);
+	xprintf("ihex: addr = %p, press Ctrl-C to break.\r\n", addr);
 
 	current_address = (uint32_t) addr; // remember last address used
 
@@ -589,7 +710,7 @@ void cli_cmd_ihex(char *argv[], int argn) {
 		}
 
 		if(c == 0x03 || c == 0x04 || c == 0x08 || c == 0x7f) { // Ctrl-C, Ctrl-D or Backspace or DEL
-			xprintf("/// ihex: User interrupt (char = 0x%02x)\r\n", c);
+			xprintf("ihex: User interrupt (char = 0x%02x)\r\n", c);
 			break;
 		}
 
@@ -602,7 +723,7 @@ void cli_cmd_ihex(char *argv[], int argn) {
 			str[idx] = 0;
 
 			#if(DEBUG_CLI>2)
-			xprintf("/// ihex: %s, idx = %d\r\n", str, idx);
+			xprintf("ihex: %s, idx = %d\r\n", str, idx);
 			#endif
 
 			int data_size = strntoul(str, 2, 16);
@@ -610,7 +731,7 @@ void cli_cmd_ihex(char *argv[], int argn) {
 			int len = strlen(str);
 
 			if(len != data_size*2+10) {
-				xprintf("/// ihex: Calculated str size %d mismatches received len %d\r\n", data_size*2+10, len);
+				xprintf("ihex: Calculated str size %d mismatches received len %d\r\n", data_size*2+10, len);
 				goto end_parse;
 			}
 
@@ -625,7 +746,7 @@ void cli_cmd_ihex(char *argv[], int argn) {
 			uint8_t his_sum = (uint8_t) strntoul(str+8+data_size*2, 2, 16);
 
 			if(sum != his_sum) {
-				xprintf("/// ihex: Checksum mismatch: sum = %02x, his = %02x\r\n", sum, his_sum);
+				xprintf("ihex: Checksum mismatch: sum = %02x, his = %02x\r\n", sum, his_sum);
 				goto end_parse;
 			}
 
@@ -687,7 +808,7 @@ void cli_cmd_ihex(char *argv[], int argn) {
 			//	base = strntoul(str+8, 4, 16) << 4;
 
 			#if(DEBUG_CLI>1)
-			xprintf("/// ihex tp: %d, sz: %d, addr: %p\r\n",
+			xprintf("ihex tp: %d, sz: %d, addr: %p\r\n",
 					type, data_size, addr + base + offset);
 			#endif
 
@@ -699,15 +820,15 @@ void cli_cmd_ihex(char *argv[], int argn) {
 
 			if(idx >= 256*2+10) {
 				str[idx] = 0;
-				xprintf("/// Too long: %s\r\n", str);
+				xprintf("Too long: %s\r\n", str);
 				parse_data_flag = 0;
 			}
 		}
 	}
 
-	xprintf("/// ihex: bytes_read = %u, location = %p, crc32 = %p (cksum -o 3)\r\n",
+	xprintf("ihex: bytes_read = %u, location = %p, crc32 = %p (cksum -o 3)\r\n",
 			bytes_read, addr, crc);
-	xprintf("/// ihex: data from file: origin = %p, entry = %p\r\n",
+	xprintf("ihex: data from file: origin = %p, entry = %p\r\n",
 			origin, start32);
 
 }
@@ -726,7 +847,7 @@ void cli_cmd_ohex(char *argv[], int argn) {
 	if(argv[3])
 		start32 = strtoul(argv[3], NULL, 0) - (uint32_t)addr;
 
-	xprintf("/// ohex: addr = %p, len = %u, entry = %p, press Ctrl-C to break.\r\n", addr, len, start32);
+	xprintf("ohex: addr = %p, len = %u, entry = %p, press Ctrl-C to break.\r\n", addr, len, start32);
 
 	current_address = (uint32_t) addr; // remember last address used
 
@@ -744,7 +865,7 @@ void cli_cmd_ohex(char *argv[], int argn) {
 		xprintf("%02X\r\n", sum);
 
 		if(console_rx_buf_len) {
-			xprintf("/// ohex: User interrupt\r\n");
+			xprintf("ohex: User interrupt\r\n");
 			break;
 		}
 
@@ -758,7 +879,7 @@ void cli_cmd_ohex(char *argv[], int argn) {
 		       ":00000001FF\r\n", start32,
 		       (~(4+0+0+5+((start32>>24)&0xff)+((start32>>16)&0xff)+((start32>>8)&0xff)+(start32&0xff)) + 1) & 0xff);
 
-	xprintf("/// ohex: end\r\n%c", 0x4); // send End-of-Transmission (Ctrl-D) in the end
+	xprintf("ohex: end\r\n%c", 0x4); // send End-of-Transmission (Ctrl-D) in the end
 }
 
 void cli_cmd_stats(char *argv[], int argn) {
@@ -775,6 +896,21 @@ void cli_cmd_usb(char *argv[], int argn) {
 		reg_usb_print_stats = strtoul(argv[1], NULL, 0);;
 
 	xprintf("reg_usb_print_stats = %d\r\n", reg_usb_print_stats);
+}
+
+
+void cli_cmd_nor(char *argv[], int argn) {
+	if(argn < 4) {
+		cli_cmd_nor_help(argv, argn);
+		return;
+	}
+
+	if(argv[1][0] == 'e' && argv[1][1] == 'r')
+		cli_cmd_nor_erase(argv, argn);
+	else if(argv[1][0] == 'c' && argv[1][1] == 'p')
+		cli_cmd_nor_copy(argv, argn);
+	else
+		cli_cmd_nor_help(argv, argn);
 }
 
 // Process CLI command once Enter is pressed
@@ -803,7 +939,7 @@ void cli_process_command(uint8_t *cmdline, uint32_t len) {
 
 	if(argn == 0) {
 		#if(DEBUG_CLI)
-		xprintf("/// argn is 0!\r\n");
+		xprintf("argn is 0!\r\n");
 		#endif
 		return;
 	}
@@ -822,121 +958,15 @@ void cli_process_command(uint8_t *cmdline, uint32_t len) {
 
 	// Interpret command
 	
-	if(argv[0][0] == '?' || (argv[0][0] == 'h' && argv[0][1] == 'e')) {
-		cli_cmd_help(argv, argn);
-		return;
-	}
-
-	if(argv[0][0] == 's' && argv[0][1] == 't') {
-		cli_cmd_stats(argv, argn);
-		return;
-	}
-
-	if(argv[0][0] == 'u' && argv[0][1] == 's') {
-		cli_cmd_usb(argv, argn);
-		return;
-	}
-
-	if(argv[0][0] == 'r' && argv[0][1] == 'b') {
-		cli_cmd_read_byte(argv, argn);
-		return;
-	}
-
-	if(argv[0][0] == 'r' && argv[0][1] == 'd') {
-		cli_cmd_read_dword(argv, argn);
-		return;
-	}
-
-	if(argv[0][0] == 'w' && argv[0][1] == 'b') {
-		cli_cmd_write_byte(argv, argn);
-		return;
-	}
-
-	if(argv[0][0] == 'w' && argv[0][1] == 'd') {
-		cli_cmd_write_dword(argv, argn);
-		return;
-	}
-
-	if(argv[0][0] == 'c' && argv[0][1] == 'a') {
-		cli_cmd_call(argv, argn);
-		return;
-	}
-
-	if(argv[0][0] == 'c' && argv[0][1] == 'o') {
-		cli_cmd_copy(argv, argn);
-		return;
-	}
-
-	if(argv[0][0] == 'd' && argv[0][1] == 'u') {
-		cli_cmd_dump(argv, argn);
-		return;
-	}
-
-	if(argv[0][0] == 't' && argv[0][1] == 'y') {
-		cli_cmd_type(argv, argn);
-		return;
-	}
-
-	if(argv[0][0] == 'i' && argv[0][1] == 'h') {
-		cli_cmd_ihex(argv, argn);
-		return;
-	}
-
-	if(argv[0][0] == 'o' && argv[0][1] == 'h') {
-		cli_cmd_ohex(argv, argn);
-		return;
-	}
-
-	if(argv[0][0] == 'c' && argv[0][1] == 'r') {
-		cli_cmd_crc32(argv, argn);
-		return;
-	}
-
-	if(argv[0][0] == 'c' && argv[0][1] == 'g') {
-		cli_cmd_cga(argv, argn);
-		return;
-	}
-
-	if(argv[0][0] == 'a' && argv[0][1] == 'd') {
-		cli_cmd_addr(argv, argn);
-		return;
-	}
-
-	if(argv[0][0] == 'r' && argv[0][1] == 'z') {
-		cli_cmd_rz(argv, argn);
-		return;
-	}
-
-	if(argv[0][0] == 'r' && argv[0][1] == 'e') {
-		cli_cmd_reg(argv, argn);
-		return;
-	}
-
-	//if(strncasecmp(argv[0], "**B01000000", 11) == 0) {
-	if(argv[0][0] == '*' && argv[0][1] == '*' && argv[0][2] == 'B' && argv[0][3] == '0') {
-		cli_cmd_rz(argv, argn);
-		return;
-	}
-
-	if(argv[0][0] == 'n' && argv[0][1] == 'o') {
-
-		if(argn < 4) {
-			cli_cmd_nor_help(argv, argn);
-			return;
-		}
-
-		if(argv[1][0] == 'e' && argv[1][1] == 'r')
-			cli_cmd_nor_erase(argv, argn);
-		else if(argv[1][0] == 'c' && argv[1][1] == 'p')
-			cli_cmd_nor_copy(argv, argn);
-		else
-			cli_cmd_nor_help(argv, argn);
-		return;
-	}
+	for(int i = 0; i < sizeof(command_list)/sizeof(command_list[0]); i++)
+		if(command_list[i].cmd && command_list[i].func)
+			if(strnstr(command_list[i].cmd, argv[0], 4)) {
+				((void (*)(char *argv[], int arg)) command_list[i].func)(argv, argn);
+				return;
+			}
 
 	if(argv[0][0] != 0)
-		xprintf("/// Unknown command: %s\r\n", argv[0]);
-
+		xprintf("Unknown command: %s\r\n", argv[0]);
 }
 
 
