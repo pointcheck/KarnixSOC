@@ -65,9 +65,9 @@
 #define	USB10_CMD(X)		(((X) >> USB10_CMD_S) >> USB10_CMD_M)
 #define	USB10_CMD_SET(X)	(((X) & USB10_CMD_M) << USB10_CMD_S)
 
-#define	USB10_CMD_NONE			0x00
-#define	USB10_CMD_SEND_TOKEN		0x01	// Send arbitrary token
-#define	USB10_CMD_SEND_SHORT_TOKEN	0x02	// Send arbitrary token
+#define	USB10_CMD_NOP			0x00	// No-operation (does nothing) 
+#define	USB10_CMD_SEND_TOKEN		0x01	// Send token with CRC5
+#define	USB10_CMD_SEND_SHORT_TOKEN	0x02	// Send short token
 #define	USB10_CMD_SEND_DATA		0x03	// Send data packet
 #define	USB10_CMD_BUS_RESET		0x04	// Initiate Bus Reset state
 
@@ -124,15 +124,15 @@
 
 #pragma pack(1)
 typedef struct {
-	volatile uint32_t STATUS;
-	volatile uint32_t COMMAND;
-	volatile uint32_t RECV_DATA_LOW;
-	volatile uint32_t RECV_DATA_HIGH;
-	volatile uint32_t SEND_DATA_LOW;
-	volatile uint32_t SEND_DATA_HIGH;
-	volatile uint32_t RX_STATUS;
-	volatile uint32_t CONTROL;
-	volatile uint32_t RX_STATUS2;
+	volatile uint32_t STATUS;		// Controller Status register
+	volatile uint32_t COMMAND;		// Command register
+	volatile uint32_t RECV_DATA_LOW;	// Received data register, low 32 bits 
+	volatile uint32_t RECV_DATA_HIGH;	// Received data register, high 32 bits
+	volatile uint32_t SEND_DATA_LOW;	// Send data register, low 32 bits
+	volatile uint32_t SEND_DATA_HIGH;	// Send data register, high 32 bits
+	volatile uint32_t RX_STATUS;		// Receiver status register 1
+	volatile uint32_t CONTROL;		// And configuration register 
+	volatile uint32_t RX_STATUS2;		// Receive status register 2
 } USB10_Reg;
 
 typedef struct {
