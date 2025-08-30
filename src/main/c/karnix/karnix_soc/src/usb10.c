@@ -22,7 +22,15 @@ struct _usb10_last_data_pid {
 	uint8_t recv;
 } usb10_last_data_pid[MAX_ADDRESSES][MAX_ENDPOINTS];
 
-int usb10_wait_cmd_complete(USB10_Reg* reg, int timeout) {
+static inline void usb10_write_reg(volatile uint32_t* reg, uint32_t val) {
+	asm volatile ("sw %0, (%1)" :  : "r"(val), "r"(reg));
+}
+
+static inline uint32_t usb10_read_reg(volatile uint32_t* reg) {
+	return *reg;
+}
+
+static inline int usb10_wait_cmd_complete(USB10_Reg* reg, int timeout) {
 
 	int i;
 
@@ -40,7 +48,7 @@ int usb10_wait_cmd_complete(USB10_Reg* reg, int timeout) {
 }
 
 
-int usb10_wait_while_busy(USB10_Reg* reg, int timeout) {
+static inline int usb10_wait_while_busy(USB10_Reg* reg, int timeout) {
 
 	int i;
 
@@ -65,7 +73,7 @@ int usb10_bus_reset(USB10_Reg* reg, int wait_us)
 
 	// RESET
 
-	sub10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
+	usb10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
 			USB10_CMD_SET(USB10_CMD_BUS_RESET));
 			
 	if(!usb10_wait_cmd_complete(reg, 600000)) { // ~30ms timeout
@@ -118,14 +126,14 @@ int usb10_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request_data,
 	again_setup:
 
 	// Prepare DATA to be sent 
-	sub10_write_reg(&reg->SEND_DATA_LOW, *(uint32_t*)(request_data + 0));
-	sub10_write_reg(&reg->SEND_DATA_HIGH, *(uint32_t*)(request_data + 4));
+	usb10_write_reg(&reg->SEND_DATA_LOW, *(uint32_t*)(request_data + 0));
+	usb10_write_reg(&reg->SEND_DATA_HIGH, *(uint32_t*)(request_data + 4));
 
 	int data_pid = (usb10_last_data_pid[address][0].sent == USB10_PID_DATA0) ? 
 		USB10_PID_DATA1 : USB10_PID_DATA0;
 
 	// SETUP I/O with 0:0
-	sub10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
+	usb10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
 			USB10_CMD_SET_PID(USB10_PID_SETUP) |
 			USB10_CMD_SET_ADDR(address) |
 			USB10_CMD_SET_ENDP(0) |
@@ -138,7 +146,7 @@ int usb10_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request_data,
 		goto fail;
 	}
 
-	sub10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
+	usb10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
 			USB10_CMD_SET_LEN(8*8-1) |
 			USB10_CMD_SET_PID(data_pid) |
 			USB10_CMD_SET(USB10_CMD_SEND_DATA));
@@ -200,7 +208,7 @@ int usb10_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request_data,
 
 		again_data:
 
-		sub10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
+		usb10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
 				USB10_CMD_SET_PID(USB10_PID_IN) |
 				USB10_CMD_SET_ADDR(address) |
 				USB10_CMD_SET_ENDP(0) |
@@ -256,7 +264,7 @@ int usb10_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request_data,
 
 		// Send ACK for received packet
 
-		sub10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
+		usb10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
 				USB10_CMD_SET_PID(USB10_PID_ACK) |
 				USB10_CMD_SET(USB10_CMD_SEND_SHORT_TOKEN));
 
@@ -377,7 +385,7 @@ int usb10_in_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 
 		again_data:
 
-		sub10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
+		usb10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
 				USB10_CMD_SET_PID(USB10_PID_IN) |
 				USB10_CMD_SET_ADDR(address) |
 				USB10_CMD_SET_ENDP(endpoint) |
@@ -430,7 +438,7 @@ int usb10_in_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 //				USB10_CMD_SET_PID(USB10_PID_NAK) |
 //				USB10_CMD_SET(USB10_CMD_SEND_SHORT_TOKEN);
 			
-			sub10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
+			usb10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
 				USB10_CMD_SET_PID(USB10_PID_NAK) |
 				USB10_CMD_SET(USB10_CMD_SEND_SHORT_TOKEN));
 			
@@ -453,7 +461,7 @@ int usb10_in_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 
 		// Send ACK for received packet
 
-		sub10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
+		usb10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
 				USB10_CMD_SET_PID(USB10_PID_ACK) |
 				USB10_CMD_SET(USB10_CMD_SEND_SHORT_TOKEN));
 
@@ -581,13 +589,13 @@ int usb10_out_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 
 		// Prepare data to send, if such were provided
 		if(request_size && request_data) {
-			sub10_write_reg(&reg->SEND_DATA_LOW, *(uint32_t*)(request_data + 0));
-			sub10_write_reg(&reg->SEND_DATA_HIGH, *(uint32_t*)(request_data + 4));
+			usb10_write_reg(&reg->SEND_DATA_LOW, *(uint32_t*)(request_data + 0));
+			usb10_write_reg(&reg->SEND_DATA_HIGH, *(uint32_t*)(request_data + 4));
 		}
 
 		// Send OUT token first
 				
-		sub10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
+		usb10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
 				USB10_CMD_SET_PID(USB10_PID_OUT) |
 				USB10_CMD_SET_ADDR(address) |
 				USB10_CMD_SET_ENDP(endpoint) |
@@ -600,7 +608,7 @@ int usb10_out_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 		}
 
 		// Send DATA packet
-		sub10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
+		usb10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
 				USB10_CMD_SET_LEN(packet_size_bits) |
 				USB10_CMD_SET_PID(data_pid) |
 				USB10_CMD_SET(USB10_CMD_SEND_DATA));

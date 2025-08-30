@@ -6,65 +6,78 @@
 
 #define	USB10_EP0		0
 
+// Get ERROR bit of the STATUS word
 #define	USB10_STATUS_ERROR_S	30
 #define	USB10_STATUS_ERROR_M	0x01
 #define	USB10_STATUS_ERROR(X)	(((X) >> USB10_STATUS_ERROR_S) & USB10_STATUS_ERROR_M)
 #define	USB10_STATUS_ERROR_BIT	(USB10_STATUS_ERROR_M << USB10_STATUS_ERROR_S)	
 
+// Get REPORT bit of the STATUS word
 #define	USB10_STATUS_REPORT_S	29	
 #define	USB10_STATUS_REPORT_M	0x01
 #define	USB10_STATUS_REPORT(X)	(((X) >> USB10_STATUS_REPORT_S) & USB10_STATUS_REPORT_M)
 #define	USB10_STATUS_REPORT_BIT	(USB10_STATUS_REPORT_M << USB10_STATUS_REPORT_S)	
 
+// Get BUSY bit of the status word
 #define	USB10_STATUS_BUSY_S	28	
 #define	USB10_STATUS_BUSY_M	0x01
 #define	USB10_STATUS_BUSY(X)	(((X) >> USB10_STATUS_BUSY_S) & USB10_STATUS_BUSY_M)
 #define	USB10_STATUS_BUSY_BIT	(USB10_STATUS_BUSY_M << USB10_STATUS_BUSY_S)
 
+// Get RECEIVED bit of the STATUS word
 #define	USB10_STATUS_RECEIVED_S		27
 #define	USB10_STATUS_RECEIVED_M		0x01
 #define	USB10_STATUS_RECEIVED(X)	(((X) >> USB10_STATUS_RECEIVED_S) & USB10_STATUS_RECEIVED_M)
 #define	USB10_STATUS_RECEIVED_BIT	(USB10_STATUS_RECEIVED_M << USB10_STATUS_RECEIVED_S)
 
+// Get CRC16_OK bit of STATUS word
 #define	USB10_STATUS_CRC16_OK_S		26
 #define	USB10_STATUS_CRC16_OK_M		0x01
 #define	USB10_STATUS_CRC16_OK(X)	(((X) >> USB10_STATUS_CRC16_OK_S) & USB10_STATUS_CRC16_OK_M)
 #define	USB10_STATUS_CRC16_OK_BIT	(USB10_STATUS_CRC16_OK_M << USB10_STATUS_CRC16_OK_S)
 
+// Get FSM state
 #define	USB10_STATUS_STATE_S	0	
 #define	USB10_STATUS_STATE_M	0xff
 #define	USB10_STATUS_STATE(X)	(((X) >> USB10_STATUS_PID_S) & USB10_STATUS_PID_M)
 
+// Get and set START bit of COMMAND word
 #define	USB10_CMD_START_S	31
 #define	USB10_CMD_START_M	0x01
 #define	USB10_CMD_START(X)	(((X) >> USB10_CMD_START_S) & USB10_CMD_START_M)
 #define	USB10_CMD_START_BIT	(USB10_CMD_START_M << USB10_CMD_START_S)
 
+// Get and set ADDR bits of COMMAND word
 #define	USB10_CMD_ADDR_S	24
 #define	USB10_CMD_ADDR_M	0x7f
 #define	USB10_CMD_ADDR(X)	(((X) >> USB10_CMD_ADDR_S) & USB10_CMD_ADDR_M)
 #define	USB10_CMD_SET_ADDR(X)	(((X) & USB10_CMD_ADDR_M) << USB10_CMD_ADDR_S)
 
+// Get and set ENDP bits of COMMAND word
 #define	USB10_CMD_ENDP_S	20	
 #define	USB10_CMD_ENDP_M	0x0f
 #define	USB10_CMD_ENDP(X)	(((X) >> USB10_CMD_ENDP_S) & USB10_CMD_ENDP_M)
 #define	USB10_CMD_SET_ENDP(X)	(((X) & USB10_CMD_ENDP_M) << USB10_CMD_ENDP_S)
 
+// Get and set command length bits of COMMAND word
 #define	USB10_CMD_LEN_S		8
 #define	USB10_CMD_LEN_M		0xfff
 #define	USB10_CMD_LEN(X)	(((X) >> USB10_CMD_LEN_S) & USB10_CMD_LEN_M)
 #define	USB10_CMD_SET_LEN(X)	(((X) & USB10_CMD_LEN_M) << USB10_CMD_LEN_S)
 
+// Get and set PID bits of COMMAND word
 #define	USB10_CMD_PID_S		4
 #define	USB10_CMD_PID_M		0x0f
 #define	USB10_CMD_PID(X)	(((X) >> USB10_CMD_PID_S) & USB10_CMD_PID_M)
 #define	USB10_CMD_SET_PID(X)	(((X) & USB10_CMD_PID_M) << USB10_CMD_PID_S)
 
+// Get and set command bits of COMMAND word
 #define	USB10_CMD_S		0
 #define	USB10_CMD_M		0x0f
 #define	USB10_CMD(X)		(((X) >> USB10_CMD_S) >> USB10_CMD_M)
 #define	USB10_CMD_SET(X)	(((X) & USB10_CMD_M) << USB10_CMD_S)
 
+// Supported command that can be written to COMMAND word
 #define	USB10_CMD_NOP			0x00	// No-operation (does nothing) 
 #define	USB10_CMD_SEND_TOKEN		0x01	// Send token with CRC5
 #define	USB10_CMD_SEND_SHORT_TOKEN	0x02	// Send short token
@@ -257,7 +270,6 @@ extern USB10_InterfaceDescriptorUnion usb10_interface_descr;
 extern USB10_EndpointDescriptorUnion usb10_endpoint_descr;
 
 
-int usb10_wait_cmd_complete(USB10_Reg* reg, int timeout); 
 int usb10_bus_reset(USB10_Reg* reg, int wait_us);
 int usb10_device_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request_data,
 	uint8_t* response_data, uint32_t response_size);
@@ -283,13 +295,6 @@ int usb10_out_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 
 int usb10_hid_set_led(USB10_Reg* reg, uint8_t address, uint8_t endpoint, uint8_t leds);
 
-static inline void sub10_write_reg(volatile uint32_t* reg, uint32_t val) {
-	asm volatile ("sw %0, (%1)" :  : "r"(val), "r"(reg));
-}
-
-static inline uint32_t usb10_read_reg(volatile uint32_t* reg) {
-	return *reg;
-}
 
 #endif /* __USB10_H__ */
 
