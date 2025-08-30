@@ -227,11 +227,12 @@ A README.md file from [karnix/example](src/main/c/karnix/example) has gory detai
 
 ## USB 1.0 Support
 
-Karnix SoC has simplified but extendable implementation of USB 1.0 that supports many Low Speed HID devices like keyboards, mice and gamepads. USB 1.0 protocol is implemented in HAL using hardware assisted primitives to send/receive USB tokens and data. Note, that USB is increadibly complex thing, currently only Low Speed devices are supported.
+Karnix SoC has simplified but extendable implementation of USB 1.0 that supports many Low Speed HID devices like keyboards, mice and gamepads. USB 1.0 protocol is implemented in HAL using hardware assisted primitives to send/receive USB tokens and data. Note, that USB is increadibly complex thing, hence only Low Speed is currently supported.
 
 Files involved:
 
 - [./src/main/scala/mylib/Apb3USB10.scala](src/main/scala/mylib/Apb3USB10.scala) - USB 1.0 controller written in SpinalHDL.
+- [./doc/graphs/USB10/USBMain.dot.png](doc/graphs/USB10/USBMain.dot.png) - USB 1.0 controller main FSM state flow diagram.
 - [./src/main/c/karnix/karnix_soc/src/usb10.c](src/main/c/karnix/karnix_soc/src/usb10.c) - USB 1.0 protocol implemented in C.
 - [./src/main/c/karnix/karnix_soc/src/keyboard.c](src/main/c/karnix/karnix_soc/src/keyboard.c) - Basic support for HID keyboard.
 - [./src/main/c/karnix/karnix_soc/src/defkeymap.c](src/main/c/karnix/karnix_soc/src/defkeymap.c) - Default keymap for EN/US keyboards.
