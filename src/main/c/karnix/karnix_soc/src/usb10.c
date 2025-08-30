@@ -137,7 +137,7 @@ int usb10_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request_data,
 			USB10_CMD_SET_PID(USB10_PID_SETUP) |
 			USB10_CMD_SET_ADDR(address) |
 			USB10_CMD_SET_ENDP(0) |
-			USB10_CMD_SET(USB10_CMD_SEND_TOKEN));
+			USB10_CMD_SET(USB10_CMD_SEND_LONG_TOKEN));
  
 
 	if(!usb10_wait_cmd_complete(reg, 20000)) { // ~2ms timeout
@@ -212,7 +212,7 @@ int usb10_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request_data,
 				USB10_CMD_SET_PID(USB10_PID_IN) |
 				USB10_CMD_SET_ADDR(address) |
 				USB10_CMD_SET_ENDP(0) |
-				USB10_CMD_SET(USB10_CMD_SEND_TOKEN));
+				USB10_CMD_SET(USB10_CMD_SEND_LONG_TOKEN));
 
 		timeout = 2500;
 		while(timeout--)
@@ -389,7 +389,7 @@ int usb10_in_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 				USB10_CMD_SET_PID(USB10_PID_IN) |
 				USB10_CMD_SET_ADDR(address) |
 				USB10_CMD_SET_ENDP(endpoint) |
-				USB10_CMD_SET(USB10_CMD_SEND_TOKEN));
+				USB10_CMD_SET(USB10_CMD_SEND_LONG_TOKEN));
 
 		timeout = 25000;
 		while(timeout--)
@@ -599,7 +599,7 @@ int usb10_out_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 				USB10_CMD_SET_PID(USB10_PID_OUT) |
 				USB10_CMD_SET_ADDR(address) |
 				USB10_CMD_SET_ENDP(endpoint) |
-				USB10_CMD_SET(USB10_CMD_SEND_TOKEN));
+				USB10_CMD_SET(USB10_CMD_SEND_LONG_TOKEN));
 				
 		if(!usb10_wait_cmd_complete(reg, 20000)) { // 2ms timeout
 			usb10_printf("%s: hung after %s packet!\r\n", USB10_OUT_REQUEST_STR, "OUT");

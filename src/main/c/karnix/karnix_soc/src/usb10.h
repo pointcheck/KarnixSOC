@@ -79,9 +79,9 @@
 
 // Supported command that can be written to COMMAND word
 #define	USB10_CMD_NOP			0x00	// No-operation (does nothing) 
-#define	USB10_CMD_SEND_TOKEN		0x01	// Send token with CRC5
-#define	USB10_CMD_SEND_SHORT_TOKEN	0x02	// Send short token
-#define	USB10_CMD_SEND_DATA		0x03	// Send data packet
+#define	USB10_CMD_SEND_LONG_TOKEN	0x01	// Send long token with CRC5
+#define	USB10_CMD_SEND_SHORT_TOKEN	0x02	// Send short token (no CRC)
+#define	USB10_CMD_SEND_DATA		0x03	// Send data packet with CRC16
 #define	USB10_CMD_BUS_RESET		0x04	// Initiate Bus Reset state
 
 #define	USB10_STATE_UNCONNECTED	0
