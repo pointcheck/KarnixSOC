@@ -630,8 +630,8 @@ case class USBReceiver() extends USBSendReceive(hasStrobe = false, hasToKJ = fal
     }
 }
 
-object USBPhase extends SpinalEnum{
-  val StateUnconnected, StateWaitCMDorSYNC, StateKeepAlive, StateSendToken, StateSendShortToken,
+object USBMain extends SpinalEnum{
+  val StateUnconnected, StateWaitCMDorSYNC, StateKeepAlive, StateSendLongToken, StateSendShortToken,
       StateSendData, StateSendReset, StateReceive
       = newElement()
 }
@@ -653,7 +653,7 @@ case class Apb3USB10Ctrl(
     val test = out Bool()
   }
 
-  import USBPhase._
+  import USBMain._
   import USBCommand._
 
 
@@ -696,8 +696,8 @@ case class Apb3USB10Ctrl(
   val received_crc16 = usbReceiverStatusWord(31 downto 16).addTag(crossClockDomain)
 
   val usbControlWord = busCtrl.createReadWrite(Bits(32 bits), address = 28) init(22500) // keepalive: 15 ms at 1.5 MHz
-  val enable = usbControlWord(31).addTag(crossClockDomain)
-  val keepalive = usbControlWord(30).addTag(crossClockDomain)
+  val bus_enable = usbControlWord(31).addTag(crossClockDomain)
+  val keepalive_enable = usbControlWord(30).addTag(crossClockDomain)
   val reset_delay = usbControlWord(15 downto 0).asUInt.addTag(crossClockDomain)
 
   val usbReceiverStatusWord2 = busCtrl.createReadOnly(Bits(32 bits), address = 32) init(0)
@@ -708,7 +708,7 @@ case class Apb3USB10Ctrl(
 
   val usbClockDomain = ClockDomain(
     clock = io.usb_clk,
-    reset = enable,
+    reset = bus_enable,
     config = ClockDomainConfig(resetKind = SYNC, resetActiveLevel = LOW),
     frequency = FixedFrequency(usbFrequency)
   )
@@ -754,11 +754,53 @@ case class Apb3USB10Ctrl(
     received_flag := received
     busy_flag := busy
     crc16_ok_flag := crc16_ok
-
     fsm_state := state.asBits
 
-    // Check device presence
-    when(!io.usb.usb_dm && !io.usb.usb_dp && state =/= StateSendReset) {
+
+    val send_long_token = new USBSendToken()
+    send_long_token.io.pid := 0
+    send_long_token.io.addr := 0
+    send_long_token.io.endp := 0
+    send_long_token.io.valid := False
+    send_long_token.io.clock_div := USBSlowSpeedClockDiv
+
+    val send_short_token = new USBSendShortToken()
+    send_short_token.io.pid := 0
+    send_short_token.io.valid := False
+    send_short_token.io.clock_div := USBSlowSpeedClockDiv
+
+    val send_data = new USBSendData()
+    send_data.io.pid := 0
+    send_data.io.data := 0
+    send_data.io.len := 0xfff // zero data bits
+    send_data.io.valid := False
+    send_data.io.clock_div := USBSlowSpeedClockDiv
+
+    val send_bus_reset = new USBBusReset()
+    send_bus_reset.io.valid := False
+    send_bus_reset.io.delay := reset_delay
+    send_bus_reset.io.clock_div := USBSlowSpeedClockDiv
+
+    val send_keepalive = new USBKeepAlive() // this is for Slow Speed bus only
+    send_keepalive.io.valid := False
+    send_keepalive.io.clock_div := USBSlowSpeedClockDiv
+
+    val receiver = new USBReceiver()
+    receiver.io.valid := False
+
+    val bus_error = !io.usb.usb_dm && !io.usb.usb_dp; // Both DP and DM low means nothing is connected 
+    val bus_present = io.usb.usb_dm && !io.usb.usb_dp; // Low Speed device connected
+    val bus_activity = !io.usb.usb_dm && io.usb.usb_dp; // Polarity change indicates some activity
+
+    //io.test := send_bus_reset.io.test|send_long_token.io.test|send_data.io.test
+    //io.test := busy
+    //io.test := receiver.io.test
+    //io.test := received
+    io.test := crc16_ok 
+
+    // Guard timer T1 checks for error state on the bus
+
+    when(bus_error && state =/= StateSendReset) {
       T1 := T1 + 1
       when(T1 === USBLowSpeedErrorClocks) { // DM/DP is low for quite some time ?
         T1 := 0
@@ -775,49 +817,14 @@ case class Apb3USB10Ctrl(
     }
 
 
-    val send_token = new USBSendToken()
-    send_token.io.pid := 0
-    send_token.io.addr := 0
-    send_token.io.endp := 0
-    send_token.io.valid := False
-    send_token.io.clock_div := USBSlowSpeedClockDiv
-
-    val send_short_token = new USBSendShortToken()
-    send_short_token.io.pid := 0
-    send_short_token.io.valid := False
-    send_short_token.io.clock_div := USBSlowSpeedClockDiv
-
-    val send_data = new USBSendData()
-    send_data.io.pid := 0
-    send_data.io.data := 0
-    send_data.io.len := 0xfff // zero data bits
-    send_data.io.valid := False
-    send_data.io.clock_div := USBSlowSpeedClockDiv
-
-    val bus_reset = new USBBusReset()
-    bus_reset.io.valid := False
-    bus_reset.io.delay := reset_delay
-    bus_reset.io.clock_div := USBSlowSpeedClockDiv
-
-    val send_keepalive = new USBKeepAlive() // this is for Slow Speed bus only
-    send_keepalive.io.valid := False
-    send_keepalive.io.clock_div := USBSlowSpeedClockDiv
-
-    val receiver = new USBReceiver()
-    receiver.io.valid := False
-
-    //io.test := bus_reset.io.test|send_token.io.test|send_data.io.test
-    //io.test := busy
-    //io.test := receiver.io.test
-    //io.test := received
-    io.test := crc16_ok 
+    // Main FSM
 
     switch(state) {
 
       is(StateUnconnected) { // Unconnected
         report := False
 
-        when(io.usb.usb_dm && !io.usb.usb_dp) {
+        when(bus_present) {
           busy := False
           cmd_start := False
           error := False
@@ -832,7 +839,7 @@ case class Apb3USB10Ctrl(
         when(cmd_start) {
           switch(cmd) {
             is(CMDSendToken.asBits.resize(4)) {
-              state := StateSendToken
+              state := StateSendLongToken
               busy := True
               received := False
             }
@@ -859,13 +866,13 @@ case class Apb3USB10Ctrl(
           }
         }
 
-        when(!io.usb.usb_dm && io.usb.usb_dp) { // Activity on the bus ?
+        when(bus_activity) { // Activity on the bus ?
           state := StateReceive
           busy := True
           received := False
         }
 
-        when(keepalive && !(!io.usb.usb_dm && !io.usb.usb_dp)) { // Keepalive enabled and not Error state ?
+        when(keepalive_enable && !(!io.usb.usb_dm && !io.usb.usb_dp)) { // Keepalive enabled and not Error state ?
           T2 := T2 + 1
 
           when(T2 === USBLowSpeedKeepAliveClocks) {
@@ -876,14 +883,14 @@ case class Apb3USB10Ctrl(
 
       }
 
-      is(StateSendToken) { // Connected, send Token
-        send_token.io.pid := cmd_pid
-        send_token.io.addr := cmd_addr
-        send_token.io.endp := cmd_endp
-        send_token.io.valid := True
-        send_token.io.usb_dm <> io.usb.usb_dm
-        send_token.io.usb_dp <> io.usb.usb_dp
-        when(send_token.io.ready) {
+      is(StateSendLongToken) { // Connected, send Token
+        send_long_token.io.pid := cmd_pid
+        send_long_token.io.addr := cmd_addr
+        send_long_token.io.endp := cmd_endp
+        send_long_token.io.valid := True
+        send_long_token.io.usb_dm <> io.usb.usb_dm
+        send_long_token.io.usb_dp <> io.usb.usb_dp
+        when(send_long_token.io.ready) {
           state := StateWaitCMDorSYNC
           report := True
           cmd_start := False
@@ -923,10 +930,10 @@ case class Apb3USB10Ctrl(
       }
 
       is(StateSendReset) { // Bus Reset condition (D+ and D- are low for 11ms)
-        bus_reset.io.valid := True
-        bus_reset.io.usb_dm <> io.usb.usb_dm
-        bus_reset.io.usb_dp <> io.usb.usb_dp
-        when(bus_reset.io.ready) {
+        send_bus_reset.io.valid := True
+        send_bus_reset.io.usb_dm <> io.usb.usb_dm
+        send_bus_reset.io.usb_dp <> io.usb.usb_dp
+        when(send_bus_reset.io.ready) {
           state := StateWaitCMDorSYNC
           report := True
           cmd_start := False
