@@ -16,7 +16,7 @@ class USB_IO extends Bundle {
     val clock_div = in UInt(8 bits)
     val test      = out Bool()
 
-    ready := False // default value, it will changed in implementation
+    ready := False // default value, it will be changed in implementation
 }
 
 class USBSendReceive(var hasStrobe : Boolean = true,
@@ -75,7 +75,7 @@ class USBSendReceive(var hasStrobe : Boolean = true,
 
 }
 
-class USBSendToken extends USBSendReceive {
+class USBSendLongToken extends USBSendReceive {
 
     val io = new USB_IO {
 	val pid       = in Bits(4 bits)
@@ -98,6 +98,7 @@ class USBSendToken extends USBSendReceive {
                         io.endp(1) ## io.endp(2) ## io.endp(3)) ^ B"11111"
     val buffer = crc5_out.reversed ## io.endp ## io.addr ## ~io.pid ## io.pid ## B"10000000"
     val bit_count = Reg(UInt(6 bits)).addTag(crossClockDomain)
+    val bit_to_send = buffer(bit_count(4 downto 0))
 
     io.test := clock_strobe
 
@@ -134,10 +135,10 @@ class USBSendToken extends USBSendReceive {
         io.usb_dm := False
         io.usb_dp := False
       } otherwise {
-        when(toKJ(buffer(bit_count(4 downto 0)))) { // DATA: 0 - 'J' or 1 - 'K'
+        when(toKJ(bit_to_send)) { // 'K' (True)
           io.usb_dm := False
           io.usb_dp := True
-        } otherwise {
+        } otherwise { // 'J' (False)
           io.usb_dm := True
           io.usb_dp := False
         }
@@ -157,6 +158,7 @@ case class USBSendShortToken() extends USBSendReceive {
 
     val buffer = ~io.pid ## io.pid ## B"10000000"
     val bit_count = Reg(UInt(5 bits)).addTag(crossClockDomain)
+    val bit_to_send = buffer(bit_count(3 downto 0))
 
     io.test := clock_strobe
 
@@ -197,10 +199,10 @@ case class USBSendShortToken() extends USBSendReceive {
         io.usb_dm := False
         io.usb_dp := False
       } otherwise {
-        when(toKJ(buffer(bit_count(3 downto 0)))) { // DATA: 0 - 'J' or 1 - 'K'
+        when(toKJ(bit_to_send)) { // 'K' (True)
           io.usb_dm := False
           io.usb_dp := True
-        } otherwise {
+        } otherwise { // 'J' (False)
           io.usb_dm := True
           io.usb_dp := False
         }
@@ -226,7 +228,7 @@ case class USBSendData() extends USBSendReceive(hasCRC16 = true) {
     val bit_count = Reg(UInt(13 bits)).addTag(crossClockDomain) // 8192 bits max
     val state = Reg(UInt(3 bits)).addTag(crossClockDomain) init(0)
     val ones = Reg(UInt(3 bits)).addTag(crossClockDomain) init(0)
-    val one_bit = False
+    val bit_to_send = False
     val stuffing = False
 
     io.test := clock_strobe //io.valid
@@ -251,11 +253,11 @@ case class USBSendData() extends USBSendReceive(hasCRC16 = true) {
 
       switch(state) {
         is(0) { // sending SYNC + PID
-          val one_bit = sync_pid_buffer(bit_count(3 downto 0))
-          when(toKJ(one_bit)) { // DATA: 0 - 'J' or 1 - 'K'
+          val bit_to_send = sync_pid_buffer(bit_count(3 downto 0))
+          when(toKJ(bit_to_send)) { // 'K' (True)
             io.usb_dm := False
             io.usb_dp := True
-          } otherwise {
+          } otherwise { // 'J' (False)
             io.usb_dm := True
             io.usb_dp := False
           }
@@ -268,23 +270,22 @@ case class USBSendData() extends USBSendReceive(hasCRC16 = true) {
           }
         }
         is(1) { // sending DATA block
-          one_bit := io.data(bit_count(5 downto 0))
-          val out_bit = one_bit
+          bit_to_send := io.data(bit_count(5 downto 0))
           when(ones === 6) {
             stuffing := True
           }
           when(stuffing) {
-            out_bit := False
+            bit_to_send := False
           }
           when(clock_strobe) {
-            when(one_bit) {
+            when(bit_to_send) {
               ones := ones + 1
             } otherwise {
               ones := 0
             }
           }
           when(clock_strobe && !stuffing) {
-            val crc_byte_next = one_bit ## crc_byte(7 downto 1)
+            val crc_byte_next = bit_to_send ## crc_byte(7 downto 1)
             crc_byte := crc_byte_next
             when(bit_count(2 downto 0) === U"111") {
               crc16 := calc_crc16_usb(crc16, crc_byte_next.reversed)
@@ -294,10 +295,10 @@ case class USBSendData() extends USBSendReceive(hasCRC16 = true) {
               bit_count := 0
             }
           }
-          when(toKJ(out_bit)) { // DATA: 0 - 'J' or 1 - 'K'
+          when(toKJ(bit_to_send)) { // 'K' (True)
             io.usb_dm := False
             io.usb_dp := True
-          } otherwise {
+          } otherwise { // 'J' (False)
             io.usb_dm := True
             io.usb_dp := False
           }
@@ -305,16 +306,15 @@ case class USBSendData() extends USBSendReceive(hasCRC16 = true) {
         is(2) { // sending CRC16 block
           // CRC out is reversed and XORed
           val crc_rev = ~crc16.reversed
-          one_bit := crc_rev(bit_count(3 downto 0))
-          val out_bit = one_bit
+          bit_to_send := crc_rev(bit_count(3 downto 0))
           when(ones === 6) {
             stuffing := True
           }
           when(stuffing) {
-            out_bit := False
+            bit_to_send := False
           }
           when(clock_strobe) {
-            when(one_bit) {
+            when(bit_to_send) {
               ones := ones + 1
             } otherwise {
               ones := 0
@@ -325,7 +325,7 @@ case class USBSendData() extends USBSendReceive(hasCRC16 = true) {
             io.usb_dp := False
             state := 3
           } otherwise {
-            when(toKJ(out_bit)) { // DATA: 0 - 'J' or 1 - 'K'
+            when(toKJ(bit_to_send)) { // DATA: 0 - 'J' or 1 - 'K'
               io.usb_dm := False
               io.usb_dp := True
             } otherwise {
@@ -557,17 +557,17 @@ case class USBReceiver() extends USBSendReceive(hasStrobe = false, hasToKJ = fal
               T0 := 0
             }
             when(T0 === bit_len(7 downto 1).resized) { // sample one symbol in the middle of tick
-              var one_bit = (io.usb_dp === last_symbol) // convert to bit
+              var bit_received = (io.usb_dp === last_symbol) // convert symbol to bit
               last_symbol := io.usb_dp
-              when(one_bit) {
+              when(bit_received) {
                 ones := ones + 1
               } otherwise {
                 ones := 0
               }
               when(ones =/= 6) { // save current bit
                 bit_count := bit_count + 1
-                packet(bit_count) := one_bit
-		received_crc16 := one_bit ## received_crc16(15 downto 1)
+                packet(bit_count) := bit_received
+		received_crc16 := bit_received ## received_crc16(15 downto 1)
                 when(bit_count > 23 && bit_count(2 downto 0) === U("000")) {
 			calculated_crc16 := calc_crc16_usb(calculated_crc16, received_crc16(7 downto 0).reversed)
 		}
@@ -757,7 +757,7 @@ case class Apb3USB10Ctrl(
     fsm_state := state.asBits
 
 
-    val send_long_token = new USBSendToken()
+    val send_long_token = new USBSendLongToken()
     send_long_token.io.pid := 0
     send_long_token.io.addr := 0
     send_long_token.io.endp := 0
