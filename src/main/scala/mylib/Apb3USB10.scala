@@ -85,18 +85,18 @@ class USBSendLongToken extends USBSendReceive {
 
     def calc_crc5_usb(din: Bits) : Bits = {
       val ret = Bits(5 bits)
-      ret(0) := din(10) ^ din(9) ^ din(6) ^ din(5) ^ din(3) ^ din(0) ^ True
-      ret(1) := din(10) ^ din(7) ^ din(6) ^ din(4) ^ din(1) ^ True
-      ret(2) := din(10) ^ din(9) ^ din(8) ^ din(7) ^ din(6) ^ din(3) ^ din(2) ^ din(0) ^ True
-      ret(3) := din(10) ^ din(9) ^ din(8) ^ din(7) ^ din(4) ^ din(3) ^ din(1)
-      ret(4) := din(10) ^ din(9) ^ din(8) ^ din(5) ^ din(4) ^ din(2) ^ True
-      return ret
+      val din_rev = din.reversed;
+      ret(0) := din_rev(10) ^ din_rev(9) ^ din_rev(6) ^ din_rev(5) ^ din_rev(3) ^ din_rev(0) ^ True
+      ret(1) := din_rev(10) ^ din_rev(7) ^ din_rev(6) ^ din_rev(4) ^ din_rev(1) ^ True
+      ret(2) := din_rev(10) ^ din_rev(9) ^ din_rev(8) ^ din_rev(7) ^ din_rev(6) ^ din_rev(3) ^ din_rev(2) ^ din_rev(0) ^ True
+      ret(3) := din_rev(10) ^ din_rev(9) ^ din_rev(8) ^ din_rev(7) ^ din_rev(4) ^ din_rev(3) ^ din_rev(1)
+      ret(4) := din_rev(10) ^ din_rev(9) ^ din_rev(8) ^ din_rev(5) ^ din_rev(4) ^ din_rev(2) ^ True
+      return ret.reversed ^ B"11111"
     }
 
-    val crc5_out = calc_crc5_usb(io.addr(0) ## io.addr(1) ## io.addr(2) ## io.addr(3) ##
-                        io.addr(4) ## io.addr(5) ## io.addr(6) ## io.endp(0) ##
-                        io.endp(1) ## io.endp(2) ## io.endp(3)) ^ B"11111"
-    val buffer = crc5_out.reversed ## io.endp ## io.addr ## ~io.pid ## io.pid ## B"10000000"
+
+    val crc5_out = calc_crc5_usb(io.endp ## io.addr)
+    val buffer = crc5_out ## io.endp ## io.addr ## ~io.pid ## io.pid ## B"10000000"
     val bit_count = Reg(UInt(6 bits)).addTag(crossClockDomain)
     val bit_to_send = buffer(bit_count(4 downto 0))
 
