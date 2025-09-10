@@ -20,38 +20,38 @@ class USB_IO extends Bundle {
 }
 
 class USBSendReceive(var hasStrobe  : Boolean = true,
-                     var hasToKJ    : Boolean = true,
+                     var hasSendKJ  : Boolean = true,
                      var szBitcount : Int = 0,
                      var hasCRC16   : Boolean = false) extends Component {
 
-    if(hasToKJ) { hasStrobe = true; if(szBitcount == 0) szBitcount = 13;  }
+    if(hasSendKJ) { hasStrobe = true; if(szBitcount == 0) szBitcount = 13;  }
 
     val clock_div    = (hasStrobe   ) generate Reg(UInt(8 bits)).addTag(crossClockDomain)
     val clock_strobe = (hasStrobe   ) generate False
     val bit_count    = (szBitcount>0) generate Reg(UInt(szBitcount bits)).addTag(crossClockDomain)
-    val stuffing     = (hasToKJ     ) generate False
-    val ones         = (hasToKJ     ) generate Reg(UInt(3 bits)).addTag(crossClockDomain)
-    val last_kj      = (hasToKJ     ) generate Reg(Bool()).addTag(crossClockDomain)
+    val stuffing     = (hasSendKJ   ) generate False
+    val ones         = (hasSendKJ   ) generate Reg(UInt(3 bits)).addTag(crossClockDomain)
+    val last_kj      = (hasSendKJ   ) generate Reg(Bool()).addTag(crossClockDomain)
 
-    def reset_last_kj(io: USB_IO) = hasToKJ generate {
+    def reset_last_kj(io: USB_IO) = hasSendKJ generate {
       when(!io.valid) {
         last_kj := False // 'J'
       }
     }
 
-    def sendKJ(io: USB_IO, input_bit: Bool) = hasToKJ generate {
-      val symbol = Bool()
+    def sendKJ(io: USB_IO, input_bit: Bool) = hasSendKJ generate {
+      val new_kj = Bool()
 
       // convert bit to K/J symbol depending on last symbol sent
       when(clock_strobe && ((input_bit === False) || stuffing)) {
-        last_kj := !last_kj // Transition
-        symbol := !last_kj
+        new_kj := !last_kj // Transition
+        last_kj := new_kj
       } otherwise { // No transition
-        symbol := last_kj
+        new_kj := last_kj
       }
 
       // Transmit symbol, USB 1.0 Low Speed
-      when(symbol) { // 'K' (True)
+      when(new_kj) { // 'K' (True)
         io.usb_dm := False
         io.usb_dp := True
       } otherwise { // 'J' (False)
@@ -116,7 +116,7 @@ class USBSendReceive(var hasStrobe  : Boolean = true,
       }
     }
 
-    def make_stuffing(io: USB_IO, bit_to_send: Bool) = hasToKJ generate {
+    def make_stuffing(io: USB_IO, bit_to_send: Bool) = hasSendKJ generate {
       when(io.valid) {
 
         when(ones === 6) {
@@ -343,7 +343,7 @@ case class USBSendData() extends USBSendReceive(hasCRC16 = true, szBitcount = 13
 
 }
 
-case class USBBusReset() extends USBSendReceive(hasToKJ = false) {
+case class USBBusReset() extends USBSendReceive(hasSendKJ = false) {
     val io = new USB_IO {
 	val delay     = in UInt(16 bits)
     }
@@ -374,7 +374,7 @@ case class USBBusReset() extends USBSendReceive(hasToKJ = false) {
     }
 }
 
-case class USBKeepAlive() extends USBSendReceive(hasToKJ = false, hasStrobe = true, szBitcount = 2) {
+case class USBKeepAlive() extends USBSendReceive(hasSendKJ = false, hasStrobe = true, szBitcount = 2) {
 
     val io = new USB_IO;
 
@@ -397,7 +397,7 @@ case class USBKeepAlive() extends USBSendReceive(hasToKJ = false, hasStrobe = tr
     }
 }
 
-case class USBReceiver() extends USBSendReceive(hasStrobe = false, hasToKJ = false, hasCRC16 = true, szBitcount = 7) {
+case class USBReceiver() extends USBSendReceive(hasStrobe = false, hasSendKJ = false, hasCRC16 = true, szBitcount = 7) {
     val io = new USB_IO {
         val packet    = out Bits(128 bits) // PID(8) + DATA(64) + CRC16(16) + ALIGN
         val bits_recv = out UInt(7 bits)
