@@ -1,0 +1,70 @@
+digraph USBReceiver {
+
+	//labelloc="t";
+	//label="USB 1.0 Controller USBSendData FSM";
+
+	rankdir=TB; // Layout from top to bottom
+	node [shape=Mrecord]; // Shape of the nodes
+	//graph [splines = ortho];
+
+	//layout=twopi
+	//root=StateUnconnected
+
+	StatePrepForCal [penwidth=3, label = "{Prepare for Calibration|io.ready := False;\nbit_count := 0;\nT0 : = 0; state := 0;}"];
+
+	StatePrepForCal-> StateCalibrateK; StateCalibrateK [label = "{Calibrate 'K' duration|T0++;}"];
+
+	StateCalibrateK -> CalibrateKTimeout_diamond; CalibrateKTimeout_diamond [shape = "diamond", label = "T0 === 255"];
+	CalibrateKTimeout_diamond -> StateReady0; StateReady0[label = "StateReady"];
+
+
+	StateCalibrateK -> JReceived_diamond; JReceived_diamond [shape = "diamond", label = "!io.usb_dp && io.usb_dm"];
+ 	JReceived_diamond -> StateCalibrateK_box[label = "'J'"]; StateCalibrateK_box [shape = "box", label = "bit_count++;"];
+	StateCalibrateK_box -> StateCalibrateJ[label = "'J'"]; StateCalibrateJ [label = "{Calibrate 'J' duration|T0++;}"];
+
+	StateCalibrateJ -> StateCalibrateJTimeout_diamond; StateCalibrateJTimeout_diamond[shape = "diamond", label = "T0 === 255"];
+	StateCalibrateJTimeout_diamond -> StateReady1; StateReady1[label = "StateReady"];
+
+	StateCalibrateJ -> KReceived_diamond; KReceived_diamond [shape = "diamond", label = "io.usb_dp && !io.usb_dm"];
+	KReceived_diamond -> StateCalibrateJ_box[label = "'K'"]; StateCalibrateJ_box [shape = "box", label = "bit_count++;"]
+	StateCalibrateJ_box -> StateCalibrateJ_diamond[label = "'K'"]; StateCalibrateJ_diamond [shape = "diamond", label = "bit_count === 3"];
+	StateCalibrateJ_diamond -> StateWaitEndOfSYNC0_box; StateWaitEndOfSYNC0_box[shape = "box", label = "bit_duration := (T0 + 1) / 4;"];
+	StateWaitEndOfSYNC0_box -> StateWaitEndOfSYNC0; StateWaitEndOfSYNC0[label = "Wait End of SYNC"];
+	
+	StateCalibrateJ_diamond -> StateCalibrateK
+
+	
+
+	StateWaitEndOfSYNC[penwidth=2, label = "{Wait End of SYNC|T0 := 0;}"];
+	StateWaitEndOfSYNC -> StateWaitEndOfSYNC_KReceived_diamond[label = "'K'"]; StateWaitEndOfSYNC_KReceived_diamond[shape = "diamond", label = "io.usb_dp && !io.usb_dm"];
+	StateWaitEndOfSYNC_KReceived_diamond -> StateWaitEndOfSYNC_KReceived_box[label = "'K'"]; StateWaitEndOfSYNC_KReceived_box[shape = "box", label = "T0++;"];
+	StateWaitEndOfSYNC_KReceived_diamond -> StateWaitEndOfSYNC_SomeElseReceived_box; StateWaitEndOfSYNC_SomeElseReceived_box[shape = "box", label = "T0 := 0;"];
+	
+
+	StateWaitEndOfSYNC_KReceived_box -> StateWaitEndOfSYNC_End_Timeout; StateWaitEndOfSYNC_End_Timeout[shape = "diamond", label = "T0 === 255"];
+	StateWaitEndOfSYNC_End_Timeout -> StateReady2; StateReady2[label = "StateReady"];
+	
+	StateWaitEndOfSYNC_KReceived_box -> StateWaitEndOfSYNC_End_diamond; StateWaitEndOfSYNC_End_diamond[shape = "diamond", label = "T0 === bit_duration * 2"];
+	StateWaitEndOfSYNC_End_diamond -> StateRecevingData0[label = "'K' 'K'"]; StateRecevingData0[label = "Receive Data"]
+	
+
+
+	StateRecevingData[penwidth=2, label = "{Receive Data|T0 := 0; bit_count := 0;\nlast_dp := False;}"];
+	StateRecevingData -> StateRecevingData_ValidData_diamond; StateRecevingData_ValidData_diamond[shape = "diamond", label = "io.usb_dp =/= io.usb_dm"];
+	StateRecevingData_ValidData_diamond -> StateRecevingData_ValidData_box[label = "Valid data ?"]; StateRecevingData_ValidData_box[shape = "box", label = "last_dp := io.usb_dp;\nT0++;"];
+	StateRecevingData_ValidData_box -> StateRecevingData_ValidData_ReSync_diamond; StateRecevingData_ValidData_ReSync_diamond[shape = "diamond", label = "last_dp =/= io.usb_dp"];
+	StateRecevingData_ValidData_ReSync_diamond -> StateRecevingData_ValidData_ReSync_box[label = "Edge ?"]; StateRecevingData_ValidData_ReSync_box[shape = "box", label = "/* Re-Sync */\nT0 := 0;"]
+	StateRecevingData_ValidData_box -> StateRecevingData_ValidData_BitDuration_diamond; StateRecevingData_ValidData_BitDuration_diamond[shape = "diamond", label = "T0 === bit_duration / 2"];
+	StateRecevingData_ValidData_BitDuration_diamond -> StateRecevingData_ValidData_BitDuration_box[label = "Time to sample"];
+	StateRecevingData_ValidData_BitDuration_box[shape = "box", label = " Sample on symbol"]
+	
+
+	
+
+
+	
+	StateReady [label = "{StateReady|io.ready := True}"]
+
+
+}
+

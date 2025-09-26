@@ -1,0 +1,53 @@
+digraph USBSendLongToken {
+
+	//labelloc="t";
+	//label="USB 1.0 Controller USBSendLongToken FSM";
+
+	rankdir=TB; // Layout from top to bottom
+	node [shape=Mrecord]; // Shape of the nodes
+	//graph [splines = ortho];
+
+	//layout=twopi
+	//root=StateUnconnected
+
+
+	Init [penwidth=3, label = "{USBSendLongToken|bit_count := 0; io.ready := False;\ncrc5_out := calc_crc5_usb(io.endp ## io.addr);\nbuffer := crc5_out ## io.endp ## io.addr ## ~io.pid ## io.pid ## B\"10000000\";}"];
+	Init -> Valid_box; Valid_box [shape = diamond, label = "valid ?"];
+	//Valid_box -> Init [label = "False"];
+	Valid_box -> ClockDiv; ClockDiv [penwidth=2, label = "{Clock Divider|clock_div++}"];
+	ClockDiv -> Strobe_box; Strobe_box [shape = diamond, label = "clock_div === io.clock_div"];
+	Strobe_box -> CountBits; CountBits [penwidth=2, label = "{Bit Counter|clock_div := 0\nbit_count++}"];
+	//Strobe_box -> ClockDiv;
+
+	CountBits -> LessThan32_box:n; LessThan32_box [shape = diamond, label = "bit_count < 32"];
+	LessThan32_box -> SendBit; SendBit [shape = record, label = "{SendBit|bit_to_send := buffer(bit_count);\nsendKJ(bit_to_send);}"];
+
+	CountBits -> Is3233:n; Is3233 [shape = diamond, label = "bit_count === 32\nor\nbit_count === 33"]; Is3233 -> Is3233_box; Is3233_box [shape = record, label = "{Send EOP: 'SE0'|io.usb_dm := False\nio.usb_dp := False}"];
+
+	CountBits -> Is3435_box:n; Is3435_box [shape = diamond, label = "bit_count === 34\nor\nbit_count === 35"];
+	Is3435_box -> Is3435:n; Is3435 [shape = record, label = "{Send EOP: 'J'|io.usb_dm := True\nio.usb_dp := False}"];
+
+	CountBits -> Is36:n; Is36 [shape = diamond, label = "bit_count === 36"]; Is36 -> Is36_box; Is36_box [shape = record, label = "{Ready, Send EOP: 'J'|io.usb_dm := True\nio.usb_dp := False\nio.ready := True\nbit_count := 36}"];
+
+	subgraph cluster_1 {
+		
+		label="sendKJ()"
+		labeljust=right
+		rankdir=TB;
+		color=blue;
+		graph[margin="20"]
+
+		sendKJ [label = "{sendKJ(bit_to_send)|last_kj := new_kj;}", rankjustify=min]; sendKJ -> sendKJ_check; sendKJ_check [shape = diamond, label = "bit_to_send ?"];
+		sendKJ_check -> sendKJ_remain:n [label = "1"]; sendKJ_remain [shape = box, label = "new_kj := last_kj;"];
+		sendKJ_check -> sendKJ_transition:n [label = "0"]; sendKJ_transition [shape = box, label = "new_kj := !last_kj;"];
+		sendKJ_remain -> sendKJ_symbol:n;
+		sendKJ_transition -> sendKJ_symbol:n;
+		sendKJ_symbol [shape = diamond, label = "new_kj ?"];
+		sendKJ_symbol -> sendKJ_symbolK:n [label = "K"];
+		sendKJ_symbol -> sendKJ_symbolJ:n [label = "J"];
+		sendKJ_symbolK [shape = box, label = "io.usb_dm := False;\nio.usb_dp := True;"];
+		sendKJ_symbolJ [shape = box, label = "io.usb_dm := True;\nio.usb_dp := False;"];
+	}
+
+}
+

@@ -1,0 +1,96 @@
+digraph USBSendData {
+
+	//labelloc="t";
+	//label="USB 1.0 Controller USBSendData FSM";
+
+	rankdir=TB; // Layout from top to bottom
+	node [shape=Mrecord]; // Shape of the nodes
+	//graph [splines = ortho];
+
+	//layout=twopi
+	//root=StateUnconnected
+
+	Init [penwidth=3, label = "{USBSendData|state := 0; io.ready := False;}"];
+	Init -> Valid_box; Valid_box [shape = diamond, label = "valid === True"];
+	Valid_box -> SendSYNCPID; SendSYNCPID [penwidth=2, label = "{State 0: Send SYNC and PID|bit_count := 0;stuffing := False;\nsync_pid_buffer = ~io.pid ## io.pid ## B\"10000000\";}"];
+
+	SendSYNCPID -> LessThan16_box:n; LessThan16_box [shape = diamond, label = "bit_count < 16"];
+	LessThan16_box -> SendSyncBit; SendSyncBit [shape = record, label = "{SendSyncBit|bit_to_send := sync_pid_buffer(bit_count);\nsendKJ(bit_to_send);}"];
+
+
+	SendSyncBit -> IsStuffing; IsStuffing [shape = diamond, label = "stuffing === False"];
+	IsStuffing -> SendSyncBit_count; SendSyncBit_count [shape = box, label = "bit_count++"];
+
+	LessThan16_box -> SendData:n;
+	SendData [penwidth=2, label = "{State 1: Send data bits|bit_count := 0;\ncrc16_buf := B\"16'hFFFF\";}"]
+	SendData -> LessThanLen_box; LessThanLen_box [shape = diamond, label = "bit_count < io.len"] 
+	LessThanLen_box -> SendDataBit; SendDataBit [shape = record, label = "{SendDataBit|bit_to_send := io.data(bit_count);\nsendKJ(bit_to_send);}"]; 
+
+	SendDataBit -> IsStuffing_box; IsStuffing_box [shape = diamond, label = "stuffing === False"]
+
+	IsStuffing_box -> CalcCRC16; CalcCRC16 [shape = record, label = "{ShiftInBitForCRC16|crc_byte := bit_to_send ## crc_byte(7 downto 1);\nbit_count++;}"]
+	CalcCRC16 -> CalcCRC16_box; CalcCRC16_box [shape = diamond, label = "bit_count(2 downto 0) === 7"]
+	CalcCRC16_box -> CalcCRC16_Calc; CalcCRC16_Calc [shape = record, label = "{crc_buf := calc_crc16_usb(crc16_buf, crc_byte)}"]
+
+
+	LessThanLen_box -> SendCRC16;
+	SendCRC16 [penwidth=2, label = "{State 2: Send CRC16 bits|bit_count := 0;}"];
+	SendCRC16 -> SendCRC16LessThan16_box; SendCRC16LessThan16_box [shape = diamond, label = "bit_count < 16"];
+	SendCRC16LessThan16_box -> SendCRC16Bit; SendCRC16Bit [shape = record, label = "{SendCRC16Bit|bit_to_send := crc16_buf(bit_count);\nsendKJ(bit_to_send);}"];
+	SendCRC16Bit -> SendCRC16IsStuffing; SendCRC16IsStuffing [shape = diamond, label = "stuffing === False"];
+	SendCRC16IsStuffing -> SendCRC16Count; SendCRC16Count [shape = box, label = "bit_count++"];
+
+	SendCRC16LessThan16_box -> SendEOP_EOP1;
+	SendEOP_EOP1 [penwidth=2, label = "{State 3: Send EOP SE0|io.usb_dm := False\nio.usb_dp := False}"];
+	SendEOP_EOP1 -> SendEOP_EOP2
+	SendEOP_EOP2 [penwidth=2, label = "{State 4: Send EOP SE0|io.usb_dm := Flse\nio.usb_dp := False}"];
+	SendEOP_EOP2 -> SendEOP_EOP3
+	SendEOP_EOP3 [penwidth=2, label = "{State 5: Send EOP J|io.usb_dm := True\nio.usb_dp := False}"];
+	SendEOP_EOP3 -> Ready 
+	Ready [penwidth=2, label = "{State 6: Ready|io.usb_dm := True\nio.usb_dp := False;\nio.ready := True}"];
+	Ready -> Init
+
+	subgraph cluster_1 {
+		
+		label="sendKJ()"
+		labeljust=right
+		rankdir=TB;
+		color=blue;
+		graph[margin="20"]
+
+		sendKJ [label = "{sendKJ(bit_to_send)|last_kj := new_kj;}", rankjustify=min];
+		sendKJ -> _make_stuffing; _make_stuffing [shape = record, label = "bit_to_send := make_stuffing(bit_to_send)"];
+		_make_stuffing -> sendKJ_check;
+		sendKJ_check [shape = diamond, label = "bit_to_send ?"];
+		sendKJ_check -> sendKJ_remain:n [label = "1"]; sendKJ_remain [shape = box, label = "new_kj := last_kj;"];
+		sendKJ_check -> sendKJ_transition:n [label = "0"]; sendKJ_transition [shape = box, label = "new_kj := !last_kj;"];
+		sendKJ_remain -> sendKJ_symbol:n;
+		sendKJ_transition -> sendKJ_symbol:n;
+		sendKJ_symbol [shape = diamond, label = "new_kj ?"];
+		sendKJ_symbol -> sendKJ_symbolK:n [label = "K"];
+		sendKJ_symbol -> sendKJ_symbolJ:n [label = "J"];
+		sendKJ_symbolK [shape = box, label = "io.usb_dm := False;\nio.usb_dp := True;"];
+		sendKJ_symbolJ [shape = box, label = "io.usb_dm := True;\nio.usb_dp := False;"];
+	}
+
+	sendKJ_symbolK -> make_stuffing [style = invis];
+	sendKJ_symbolJ -> make_stuffing [style = invis];
+
+	subgraph cluster_2 {
+		
+		label="make_stuffing()"
+		labeljust=right
+		rankdir=TB;
+		color=blue;
+		graph[margin="20"]
+
+		make_stuffing [label = "{make_stuffing(bit_to_send)|ones := ones + bit_to_send;\nret := bit_to_send;}", rankjustify=min];
+		make_stuffing -> make_stuffing_isone; make_stuffing_isone [shape = diamond, label = "bit_to_send ?"];
+		make_stuffing_isone -> make_stuffing_check [label = "1"]; make_stuffing_check [shape = diamond, label = "ones === 6 ?"];
+		make_stuffing_isone -> make_stuffing_reset [label = "0"]; make_stuffing_reset [shape = record, label = "ones := 0;\nstuffing := False;"];
+		make_stuffing_check -> make_stuffing_do:n [label = "True"]; make_stuffing_do [shape = box, label = "ones := 0;\nstuffing := True;\nret := False;"];
+		make_stuffing_check -> make_stuffing_dont:n [label = "False"]; make_stuffing_dont [shape = box, label = "stuffing := False;"];
+	}
+
+}
+

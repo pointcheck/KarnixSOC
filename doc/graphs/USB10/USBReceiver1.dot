@@ -1,0 +1,34 @@
+digraph USBReceiver {
+
+	subgraph cluster_1 {
+	
+		label = "Phase 1. Calibration"
+		node [shape=Mrecord]; // Shape of the nodes
+		rankdir=TB; // Layout from top to bottom
+	
+		StatePrepForCal [penwidth=3, label = "{Prepare for Calibration|io.ready := False;\nbit_count := 0;\nT0 : = 0; state := 0;}"];
+	
+		StatePrepForCal-> StateCalibrateK; StateCalibrateK [label = "{Calibrate 'K' duration|T0++;}"];
+	
+		StateCalibrateK -> CalibrateKTimeout_diamond; CalibrateKTimeout_diamond [shape = "diamond", label = "T0 === 255"];
+		CalibrateKTimeout_diamond -> StateReady0[label = "Timeout ?"]; StateReady0[label = "StateReady"];
+	
+	
+		StateCalibrateK -> JReceived_diamond; JReceived_diamond [shape = "diamond", label = "!io.usb_dp && io.usb_dm"];
+	 	JReceived_diamond -> StateCalibrateK_box[label = "'J'"]; StateCalibrateK_box [shape = "box", label = "bit_count++;"];
+		StateCalibrateK_box -> StateCalibrateJ[label = "'J'"]; StateCalibrateJ [label = "{Calibrate 'J' duration|T0++;}"];
+	
+		StateCalibrateJ -> StateCalibrateJTimeout_diamond; StateCalibrateJTimeout_diamond[shape = "diamond", label = "T0 === 255"];
+		StateCalibrateJTimeout_diamond -> StateReady1[label = "Timeout ?"]; StateReady1[label = "StateReady"];
+	
+		StateCalibrateJ -> KReceived_diamond; KReceived_diamond [shape = "diamond", label = "io.usb_dp && !io.usb_dm"];
+		KReceived_diamond -> StateCalibrateJ_box[label = "'K'"]; StateCalibrateJ_box [shape = "box", label = "bit_count++;"]
+		StateCalibrateJ_box -> StateCalibrateJ_diamond[label = "'K'"]; StateCalibrateJ_diamond [shape = "diamond", label = "bit_count === 3"];
+		StateCalibrateJ_diamond -> StateWaitEndOfSYNC0_box; StateWaitEndOfSYNC0_box[shape = "box", label = "bit_duration := (T0 + 1) / 4;"];
+		StateWaitEndOfSYNC0_box -> StateWaitEndOfSYNC0; StateWaitEndOfSYNC0[label = "Wait End of SYNC"];
+		
+		//StateCalibrateJ_diamond -> StateCalibrateK
+	}
+		
+}
+

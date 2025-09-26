@@ -1,0 +1,23 @@
+digraph USBReceiver {
+
+	subgraph cluster_2 {
+		label = "Phase 2. Wait End of SYNC"
+		rankdir=TB; // Layout from top to bottom
+		node [shape=Mrecord]; // Shape of the nodes
+	
+		StateWaitEndOfSYNC[penwidth=2, label = "{Wait End of SYNC|T0 := 0;}"];
+		StateWaitEndOfSYNC -> StateWaitEndOfSYNC_KReceived_diamond; StateWaitEndOfSYNC_KReceived_diamond[shape = "diamond", label = "io.usb_dp && !io.usb_dm"];
+		StateWaitEndOfSYNC_KReceived_diamond -> StateWaitEndOfSYNC_KReceived_box[label = "'K'"]; StateWaitEndOfSYNC_KReceived_box[shape = "box", label = "T0++;"];
+		StateWaitEndOfSYNC_KReceived_diamond -> StateReady11[label = "not 'K'"]; StateReady11[label = "StateReady"];
+		
+	
+		StateWaitEndOfSYNC_KReceived_box -> StateWaitEndOfSYNC_End_Timeout; StateWaitEndOfSYNC_End_Timeout[shape = "diamond", label = "T0 === 255"];
+		StateWaitEndOfSYNC_End_Timeout -> StateReady2[label = "Timeout ?"]; StateReady2[label = "StateReady"];
+		
+		StateWaitEndOfSYNC_KReceived_box -> StateWaitEndOfSYNC_End_diamond; StateWaitEndOfSYNC_End_diamond[shape = "diamond", label = "T0 === bit_duration * 2"];
+		StateReady2 -> StateWaitEndOfSYNC_End_diamond[style = "invis"];
+		StateWaitEndOfSYNC_End_diamond -> StateRecevingData0[label = "'K' 'K'"]; StateRecevingData0[label = "Receive Data"]
+	}	
+	
+}
+
