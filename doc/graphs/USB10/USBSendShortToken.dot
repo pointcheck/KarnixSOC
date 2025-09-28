@@ -12,12 +12,13 @@ digraph USBSendShortToken {
 
 
 	Init [penwidth=3, label = "{USBSendShortToken|bit_count := 0;\nio.ready := False;\nbuffer := ~io.pid ## io.pid ## B\"10000000\";}"];
-	Init -> Valid_box; Valid_box [shape = diamond, label = "io.valid ?"];
+	Init -> Valid_box:n; Valid_box [shape = diamond, label = "io.valid ?"];
 	//Valid_box -> Init [label = "False"];
-	Valid_box -> ClockDiv; ClockDiv [penwidth=2, label = "{Clock Divider|clock_div++;}"];
-	ClockDiv -> Strobe_box; Strobe_box [shape = diamond, label = "clock_div === io.clock_div"];
+	Valid_box -> ClockDiv:n; ClockDiv [penwidth=2, label = "{Clock Divider|clock_div++;}"];
+	ClockDiv -> Strobe_box:n; Strobe_box [shape = diamond, label = "clock_div === io.clock_div"];
 	Strobe_box -> CountBits[label = "clock_strobe ?"]; CountBits [penwidth=2, label = "{Bit Counter|clock_div := 0;\nbit_count++;}"];
-	//Strobe_box -> ClockDiv;
+	Valid_box:w -> Init:w;
+	Strobe_box:w -> ClockDiv:w;
 
 	CountBits -> LessThan16_box:n; LessThan16_box [shape = diamond, label = "bit_count < 16"];
 	LessThan16_box -> SendBit; SendBit [shape = record, label = "{SendBit|bit_to_send := buffer(bit_count);\nsendKJ(bit_to_send);}"];
@@ -27,7 +28,7 @@ digraph USBSendShortToken {
 	CountBits -> Is1819_box:n; Is1819_box [shape = diamond, label = "bit_count === 18\nor\nbit_count === 19"];
 	Is1819_box -> Is1819:n; Is1819 [shape = record, label = "{Send EOP: 'J'|io.usb_dm := True;\nio.usb_dp := False;}"];
 
-	CountBits -> Is20:n; Is20 [shape = diamond, label = "bit_count === 20"]; Is20 -> Is20_box; Is20_box [shape = record, label = "{Ready, Send EOP: 'J'|io.usb_dm := True;\nio.usb_dp := False;\nio.ready := True;\nbit_count := 20;}"];
+	CountBits -> Is20:n; Is20 [shape = diamond, label = "bit_count === 20"]; Is20 -> Is20_box; Is20_box [penwidth=2, shape = Mrecord, label = "{Ready, Send EOP: 'J'|io.usb_dm := True;\nio.usb_dp := False;\nio.ready := True;\nbit_count := 20;}"];
 
 	subgraph cluster_1 {
 		

@@ -1,6 +1,5 @@
 TARGETS += USBMain.png USBMain.pdf
-TARGETS += USBSendReset.png USBSendReset.pdf
-TARGETS += USBKeepAlive.png USBKeepAlive.pdf
+TARGETS += USBSendSE0.png USBSendSE0.pdf
 TARGETS += USBSendShortToken.png USBSendShortToken.pdf
 TARGETS += USBSendLongToken.png USBSendLongToken.pdf
 TARGETS += USBSendData.png USBSendData.pdf
