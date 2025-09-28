@@ -1,0 +1,26 @@
+digraph USBSendReset {
+
+	//labelloc="t";
+	//label="USB 1.0 Controller USBSendReset FSM";
+
+	rankdir=TB; // Layout from top to bottom
+	node [shape=Mrecord]; // Shape of the nodes
+	//graph [splines = ortho];
+
+	//layout=twopi
+	//root=StateUnconnected
+
+
+	Init [penwidth=3, label = "{USBSendReset|io.ready := False;\nclock_div := 0;\ndelay_count := 0\n/* SE0 */\nio.usb_dm := False;\nio.usb_dp := False;}"];
+	Init -> Valid_box; Valid_box [shape = diamond, label = "io.valid ?"];
+	Valid_box -> ClockDiv; ClockDiv [penwidth=2, label = "{Clock Divider|clock_div++;}"];
+	Valid_box:e -> Init:e;
+	ClockDiv -> Strobe_box; Strobe_box [shape = diamond, label = "clock_div === io.clock_div"];
+	Strobe_box -> DelayCounter[label = "clock_strobe ?"]; DelayCounter [penwidth=2, label = "{Delay Counter|clock_div := 0;\ndelay_count++;}"];
+	Strobe_box:e -> ClockDiv:e;
+	DelayCounter -> DelayCounterTop_box:n; DelayCounterTop_box[shape = diamond, label = "delay_count === io.delay"];
+	DelayCounterTop_box -> Ready; Ready[penwidth=2, shape = Mrecord, label = "{Ready|io.ready := True;\n/* 'J' */\nio.usb_dm := True;\nio.usb_dp := False;}"];
+	DelayCounterTop_box:w -> ClockDiv;
+
+}
+

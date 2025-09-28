@@ -1,0 +1,26 @@
+digraph USBKeepAlive {
+
+	//labelloc="t";
+	//label="USB 1.0 Controller USBKeepAlive FSM";
+
+	rankdir=TB; // Layout from top to bottom
+	node [shape=Mrecord]; // Shape of the nodes
+	//graph [splines = ortho];
+
+	//layout=twopi
+	//root=StateUnconnected
+
+
+	Init [penwidth=3, label = "{USBKeepAlive|io.ready := False;\nclock_div := 0;\ndelay_count := 0\n/* SE0 */\nio.usb_dm := False;\nio.usb_dp := False;}"];
+	Init -> Valid_box; Valid_box [shape = diamond, label = "io.valid ?"];
+	Valid_box -> ClockDiv; ClockDiv [penwidth=2, label = "{Clock Divider|clock_div++;}"];
+	Valid_box:e -> Init:e;
+	ClockDiv -> Strobe_box; Strobe_box [shape = diamond, label = "clock_div === io.clock_div"];
+	Strobe_box -> BitCounter[label = "clock_strobe ?"]; BitCounter [penwidth=2, label = "{Bit Counter|clock_div := 0;\nbit_count++;}"];
+	Strobe_box:e -> ClockDiv:e;
+	BitCounter -> BitCounterTop_box:n; BitCounterTop_box[shape = diamond, label = "bit_count === 2"];
+	BitCounterTop_box -> Ready; Ready[penwidth=2, shape = Mrecord, label = "{Ready|io.ready := True;\n/* 'J' */\nio.usb_dm := True;\nio.usb_dp := False;}"];
+	BitCounterTop_box:w -> ClockDiv;
+
+}
+

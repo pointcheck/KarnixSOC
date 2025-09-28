@@ -11,7 +11,7 @@ digraph USBSendData {
 	//root=StateUnconnected
 
 	Init [penwidth=3, label = "{USBSendData|state := 0; io.ready := False;}"];
-	Init -> Valid_box; Valid_box [shape = diamond, label = "valid === True"];
+	Init -> Valid_box; Valid_box [shape = diamond, label = "io.valid ?"];
 	Valid_box -> SendSYNCPID; SendSYNCPID [penwidth=2, label = "{State 0: Send SYNC and PID|bit_count := 0;stuffing := False;\nsync_pid_buffer = ~io.pid ## io.pid ## B\"10000000\";}"];
 
 	SendSYNCPID -> LessThan16_box:n; LessThan16_box [shape = diamond, label = "bit_count < 16"];

@@ -12,11 +12,11 @@ digraph USBSendShortToken {
 
 
 	Init [penwidth=3, label = "{USBSendShortToken|bit_count := 0;\nio.ready := False;\nbuffer := ~io.pid ## io.pid ## B\"10000000\";}"];
-	Init -> Valid_box; Valid_box [shape = diamond, label = "valid ?"];
+	Init -> Valid_box; Valid_box [shape = diamond, label = "io.valid ?"];
 	//Valid_box -> Init [label = "False"];
 	Valid_box -> ClockDiv; ClockDiv [penwidth=2, label = "{Clock Divider|clock_div++;}"];
 	ClockDiv -> Strobe_box; Strobe_box [shape = diamond, label = "clock_div === io.clock_div"];
-	Strobe_box -> CountBits; CountBits [penwidth=2, label = "{Bit Counter|clock_div := 0;\nbit_count++;}"];
+	Strobe_box -> CountBits[label = "clock_strobe ?"]; CountBits [penwidth=2, label = "{Bit Counter|clock_div := 0;\nbit_count++;}"];
 	//Strobe_box -> ClockDiv;
 
 	CountBits -> LessThan16_box:n; LessThan16_box [shape = diamond, label = "bit_count < 16"];
