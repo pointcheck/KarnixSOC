@@ -343,40 +343,10 @@ case class USBSendData() extends USBSendReceive(hasCRC16 = true, szBitcount = 13
 
 }
 
-case class USBBusReset() extends USBSendReceive(hasSendKJ = false) {
+case class USBSendSE0() extends USBSendReceive(hasSendKJ = false, hasStrobe = true, szBitcount = 16) {
     val io = new USB_IO {
-	val delay     = in UInt(16 bits)
+	val len     = in UInt(16 bits) // number of bit intervals
     }
-
-    val delay_count = Reg(UInt(16 bits)).addTag(crossClockDomain)
-
-    make_clock_strobe(io)
-
-    io.test := clock_strobe
-
-    when(io.valid) {
-
-      when(clock_strobe) {
-        delay_count := delay_count + 1
-      }
-
-      when(clock_strobe && delay_count === io.delay) { // Ready, EOP: 'J'
-        io.usb_dm := True
-        io.usb_dp := False
-        io.ready := True
-      } otherwise {
-        io.usb_dm := False // '00'
-        io.usb_dp := False
-      }
-
-    } otherwise {
-      delay_count := 0
-    }
-}
-
-case class USBKeepAlive() extends USBSendReceive(hasSendKJ = false, hasStrobe = true, szBitcount = 2) {
-
-    val io = new USB_IO;
 
     make_clock_strobe(io)
     inc_bit_count(io)
@@ -385,15 +355,14 @@ case class USBKeepAlive() extends USBSendReceive(hasSendKJ = false, hasStrobe = 
 
     when(io.valid) {
 
-      when(clock_strobe && bit_count === 2) { // Ready, 'J'
+      when(clock_strobe && bit_count === io.len) { // Ready, EOP: 'J'
         io.usb_dm := True
         io.usb_dp := False
         io.ready := True
       } otherwise {
-        io.usb_dm := False // 'SE00'
+        io.usb_dm := False // SE0 
         io.usb_dp := False
       }
-
     }
 }
 
@@ -408,7 +377,7 @@ case class USBReceiver() extends USBSendReceive(hasStrobe = false, hasSendKJ = f
     override val ones = Reg(UInt(3 bits)).addTag(crossClockDomain)
     val calculated_crc16 = Reg(Bits(16 bits)).addTag(crossClockDomain) init(0)
     val received_crc16 = Reg(Bits(16 bits)).addTag(crossClockDomain) init(0)
-    val bit_len = Reg(UInt(8 bits)).addTag(crossClockDomain) init(0)
+    val bit_duration = Reg(UInt(8 bits)).addTag(crossClockDomain) init(0)
     val state = Reg(UInt(3 bits)).addTag(crossClockDomain) init(0)
     val T0 = Reg(UInt(8 bits)).addTag(crossClockDomain) init(0) // Bit timer
     val T1 = Reg(UInt(8 bits)) init(0) // EOP timer
@@ -438,13 +407,13 @@ case class USBReceiver() extends USBSendReceive(hasStrobe = false, hasSendKJ = f
             state := 1
             bit_count := 0
             ones := 0
-            bit_len := 7 // default is 8 clocks
+            bit_duration := 7 // default is 8 clocks
             packet := 0
             calculated_crc16 := B"16'hFFFF"
             ready := False
             last_dp := True
             last_symbol := True
-            T0 := 0
+            T0 := 1 // compensation for init state which takes just one clock
             T1 := 0
             T2 := 0
           }
@@ -466,8 +435,8 @@ case class USBReceiver() extends USBSendReceive(hasStrobe = false, hasSendKJ = f
           when(io.usb_dp && !io.usb_dm) { // 'K' received
             bit_count := bit_count + 1
             state := 1
-            when(bit_count === 3) { // Two 'KJ' received
-              bit_len := ((T0 + 1) >> 2).resized // calculate bit duration: div by 4
+            when(bit_count === 3) { // TWO 'KJ' cycles received
+              bit_duration := (T0 >> 2).resized // calculate bit duration: div by 4
               state := 3
               T0 := 0
             }
@@ -480,7 +449,7 @@ case class USBReceiver() extends USBSendReceive(hasStrobe = false, hasSendKJ = f
         is(3) { // Wait for end of SYNC: two 'K's
           when(io.usb_dp && !io.usb_dm) { // 'K' received
             T0 := T0 + 1
-            when(T0.asBits === bit_len(6 downto 0) ## B"0") { // T0 = bit_len * 2
+            when(T0.asBits === bit_duration(6 downto 0) ## B"0") { // T0 === bit_duration * 2
               T0 := 0
               state := 4
               bit_count := 0
@@ -500,10 +469,10 @@ case class USBReceiver() extends USBSendReceive(hasStrobe = false, hasSendKJ = f
             when(last_dp =/= io.usb_dp) { // sync on each edge
               T0 := 0
             }
-            when(T0 === bit_len) { // end of symbol ?
+            when(T0 === bit_duration) { // end of symbol ?
               T0 := 0
             }
-            when(T0 === bit_len(7 downto 1).resized) { // sample one symbol in the middle of tick
+            when(T0 === bit_duration(7 downto 1).resized) { // sample one symbol in the middle of tick
               var bit_received = (io.usb_dp === last_symbol) // convert symbol to bit
               last_symbol := io.usb_dp
               when(bit_received) {
@@ -531,7 +500,7 @@ case class USBReceiver() extends USBSendReceive(hasStrobe = false, hasSendKJ = f
 
         is(6) { // EOP received 
           T0 := T0 + 1
-          when(T0 === bit_len) { // wait for 'J' after SE0
+          when(T0 === bit_duration) { // wait for 'J' after SE0
             state := 7
           }
         }
@@ -553,7 +522,7 @@ case class USBReceiver() extends USBSendReceive(hasStrobe = false, hasSendKJ = f
       // Check for EOP (SE0)
       when(!io.usb_dp && !io.usb_dm) {
         T1 := T1 + 1
-        when(T1 === ((bit_len << 1) - U(2))) { // is SE0 for two bit intervals - report EOP
+        when(T1 === ((bit_duration << 1) - U(2))) { // is SE0 for two bit intervals - report EOP
           state := 6
           T0 := 0
         }
@@ -564,7 +533,7 @@ case class USBReceiver() extends USBSendReceive(hasStrobe = false, hasSendKJ = f
       // Check for hung state ('J')
       when(!io.usb_dp && io.usb_dm) {
         T2 := T2 + 1
-        when(T2 === (bit_len << 3)) { // is 'J' for more than 8 clocks - report error!
+        when(T2 === (bit_duration << 3)) { // is 'J' for more than 8 clocks - report error!
           state := 7
         }
       } otherwise {
@@ -645,7 +614,7 @@ case class Apb3USB10Ctrl(
   val usbControlWord = busCtrl.createReadWrite(Bits(32 bits), address = 28) init(22500) // keepalive: 15 ms at 1.5 MHz
   val bus_enable = usbControlWord(31).addTag(crossClockDomain)
   val keepalive_enable = usbControlWord(30).addTag(crossClockDomain)
-  val reset_delay = usbControlWord(15 downto 0).asUInt.addTag(crossClockDomain)
+  val reset_delay_bits = usbControlWord(15 downto 0).asUInt.addTag(crossClockDomain)
 
   val usbReceiverStatusWord2 = busCtrl.createReadOnly(Bits(32 bits), address = 32) init(0)
   val calculated_crc16 = usbReceiverStatusWord2(15 downto 0).addTag(crossClockDomain)
@@ -675,13 +644,13 @@ case class Apb3USB10Ctrl(
     println("Apb3USB10Ctrl::USBSlowSpeedClockDiv = %d".format(usbslowspeedclockdiv));
 
     val USBLowSpeedKeepAliveClocks = UInt(16 bits)
-    val low_speed_keepalive : TimeNumber = 0.9 ms; // Send KeepAlive interval
+    val low_speed_keepalive : TimeNumber = 1.0 ms; // Send KeepAlive interval
     val usblowspeedkeepaliveclocks = (ClockDomain.current.frequency.getValue * low_speed_keepalive + 0.5).toBigInt - 1
     USBLowSpeedKeepAliveClocks := usblowspeedkeepaliveclocks
     println("Apb3USB10Ctrl::USBLowSpeedKeepAliveClocks = %d".format(usblowspeedkeepaliveclocks));
 
     val USBLowSpeedErrorClocks = UInt(16 bits)
-    val low_speed_error : TimeNumber = 0.8 ms; // Tiee to detect disconnect or error
+    val low_speed_error : TimeNumber = 0.8 ms; // Time to detect disconnect or error
     val usblowspeederrorclocks = (ClockDomain.current.frequency.getValue * low_speed_error + 0.5).toBigInt - 1
     USBLowSpeedErrorClocks := usblowspeederrorclocks
     println("Apb3USB10Ctrl::USBLowSpeedErrorClocks = %d".format(usblowspeederrorclocks));
@@ -723,14 +692,10 @@ case class Apb3USB10Ctrl(
     send_data.io.valid := False
     send_data.io.clock_div := USBSlowSpeedClockDiv
 
-    val send_bus_reset = new USBBusReset()
-    send_bus_reset.io.valid := False
-    send_bus_reset.io.delay := reset_delay
-    send_bus_reset.io.clock_div := USBSlowSpeedClockDiv
-
-    val send_keepalive = new USBKeepAlive() // this is for Slow Speed bus only
-    send_keepalive.io.valid := False
-    send_keepalive.io.clock_div := USBSlowSpeedClockDiv
+    val send_se0 = new USBSendSE0()
+    send_se0.io.valid := False
+    send_se0.io.len := 0 
+    send_se0.io.clock_div := USBSlowSpeedClockDiv
 
     val receiver = new USBReceiver()
     receiver.io.valid := False
@@ -739,7 +704,7 @@ case class Apb3USB10Ctrl(
     val bus_present = io.usb.usb_dm && !io.usb.usb_dp; // Low Speed device connected
     val bus_activity = !io.usb.usb_dm && io.usb.usb_dp; // Polarity change indicates some activity
 
-    //io.test := send_bus_reset.io.test|send_long_token.io.test|send_data.io.test
+    //io.test := send_se0.io.test|send_long_token.io.test|send_data.io.test
     //io.test := busy
     //io.test := receiver.io.test
     //io.test := received
@@ -876,11 +841,12 @@ case class Apb3USB10Ctrl(
         }
       }
 
-      is(StateSendReset) { // Bus Reset condition (D+ and D- are low for 11ms)
-        send_bus_reset.io.valid := True
-        send_bus_reset.io.usb_dm <> io.usb.usb_dm
-        send_bus_reset.io.usb_dp <> io.usb.usb_dp
-        when(send_bus_reset.io.ready) {
+      is(StateSendReset) { // Bus Reset condition is SE0 (D+ and D- are lowi) for 11ms
+        send_se0.io.valid := True
+        send_se0.io.usb_dm <> io.usb.usb_dm
+        send_se0.io.usb_dp <> io.usb.usb_dp
+        send_se0.io.len := reset_delay_bits
+        when(send_se0.io.ready) {
           state := StateWaitCMDorSYNC
           report := True
           cmd_start := False
@@ -889,11 +855,12 @@ case class Apb3USB10Ctrl(
         }
       }
 
-      is(StateKeepAlive) { // Send KeepAlive (Low-Speed only)
-        send_keepalive.io.valid := True
-        send_keepalive.io.usb_dm <> io.usb.usb_dm
-        send_keepalive.io.usb_dp <> io.usb.usb_dp
-        when(send_keepalive.io.ready) {
+      is(StateKeepAlive) { // KeepAlive (Low-Speed only) is SE0 for just two bit intervals
+        send_se0.io.valid := True
+        send_se0.io.usb_dm <> io.usb.usb_dm
+        send_se0.io.usb_dp <> io.usb.usb_dp
+        send_se0.io.len := 2 
+        when(send_se0.io.ready) {
           state := StateWaitCMDorSYNC
           cmd_start := False
           busy := False
