@@ -41,13 +41,13 @@ digraph USBSendData {
 	SendCRC16IsStuffing -> SendCRC16Count; SendCRC16Count [shape = box, label = "bit_count++"];
 
 	SendCRC16LessThan16_box -> SendEOP_EOP1;
-	SendEOP_EOP1 [penwidth=2, label = "{State 3: Send EOP SE0|io.usb_dm := False\nio.usb_dp := False}"];
+	SendEOP_EOP1 [penwidth=2, label = "{State 3: Send EOP SE0|io.usb.dm := False\nio.usb.dp := False}"];
 	SendEOP_EOP1 -> SendEOP_EOP2
-	SendEOP_EOP2 [penwidth=2, label = "{State 4: Send EOP SE0|io.usb_dm := Flse\nio.usb_dp := False}"];
+	SendEOP_EOP2 [penwidth=2, label = "{State 4: Send EOP SE0|io.usb.dm := Flse\nio.usb.dp := False}"];
 	SendEOP_EOP2 -> SendEOP_EOP3
-	SendEOP_EOP3 [penwidth=2, label = "{State 5: Send EOP J|io.usb_dm := True\nio.usb_dp := False}"];
+	SendEOP_EOP3 [penwidth=2, label = "{State 5: Send EOP J|io.usb.dm := True\nio.usb.dp := False}"];
 	SendEOP_EOP3 -> Ready 
-	Ready [penwidth=2, label = "{State 6: Ready|io.usb_dm := True\nio.usb_dp := False;\nio.ready := True}"];
+	Ready [penwidth=2, label = "{State 6: Ready|io.usb.dm := True\nio.usb.dp := False;\nio.ready := True}"];
 	Ready -> Init
 
 	subgraph cluster_1 {
@@ -69,8 +69,8 @@ digraph USBSendData {
 		sendKJ_symbol [shape = diamond, label = "new_kj ?"];
 		sendKJ_symbol -> sendKJ_symbolK:n [label = "K"];
 		sendKJ_symbol -> sendKJ_symbolJ:n [label = "J"];
-		sendKJ_symbolK [shape = box, label = "io.usb_dm := False;\nio.usb_dp := True;"];
-		sendKJ_symbolJ [shape = box, label = "io.usb_dm := True;\nio.usb_dp := False;"];
+		sendKJ_symbolK [shape = box, label = "io.usb.dm := False;\nio.usb.dp := True;"];
+		sendKJ_symbolJ [shape = box, label = "io.usb.dm := True;\nio.usb.dp := False;"];
 	}
 
 	sendKJ_symbolK -> make_stuffing [style = invis];

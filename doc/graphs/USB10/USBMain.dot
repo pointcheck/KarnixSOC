@@ -21,7 +21,7 @@ digraph USBMain {
 		label = "";
 	
 		StateWaitCMDorSYNC -> StateSendReset0:n;
-		StateSendReset [penwidth=2, label = "{StateSendReset|send_se0.io.valid := True;\nsend_se0.io.len := 15000;\nsend_se0.io.usb_dm \<\> io.usb.usb_dm;\nsend_se0.io.usb_dp \<\> io.usb.usb_dp;\nbusy_flag := True;}"];
+		StateSendReset [penwidth=2, label = "{StateSendReset|send_se0.io.valid := True;\nsend_se0.io.len := 15000;\nsend_se0.io.usb \<\> io.usb;\nbusy_flag := True;}"];
 		StateSendReset -> StateWaitCMDorSYNC2:n; StateWaitCMDorSYNC2 [shape = diamond, label = ".io.ready"]; StateWaitCMDorSYNC2:s -> StateWaitCMDorSYNC22:n; StateWaitCMDorSYNC22 [label = "{StateWaitCMDorSYNC|busy_flag := False; cmd_start := False;\n}"];
 		StateSendReset-> StateUnconnected3:n; StateUnconnected3 [shape = diamond, label = "bus_error"]; StateUnconnected3:s -> StateUnconnected32:n; StateUnconnected32 [label = "StateUnconnected"];
 		StateUnconnected32:s -> StateKeepAlive0 [style = invis];
@@ -31,10 +31,10 @@ digraph USBMain {
 		StateWaitCMDorSYNC -> StateKeepAlive0:n; StateKeepAlive0 [shape = diamond, label = "keepalive_enable &&\nT2 === SpeedKeepAliveClocks"]; StateKeepAlive0:s -> StateKeepAlive:n;
 		StateKeepAlive -> StateWaitCMDorSYNC1:n; StateWaitCMDorSYNC1 [shape = diamond, label = "send_se0.io.ready"]; StateWaitCMDorSYNC1:s -> StateWaitCMDorSYNC12:n; StateWaitCMDorSYNC12 [label = "{StateWaitCMDorSYNC|busy_flag := False; cmd_start := False;}"];
 		StateKeepAlive -> StateUnconnected1:n; StateUnconnected1 [shape = diamond, label = "bus_error"]; StateUnconnected1:s -> StateUnconnected12; StateUnconnected12 [label = "StateUnconnected"];
-		StateKeepAlive [penwidth=2, label = "{StateKeepAlive|send_se0.io.valid := True;\nsend_se0.io.len := 2;\nsend_se0.io.usb_dm \<\> io.usb.usb_dm;\nsend_se0.io.usb_dp \<\> io.usb.usb_dp;\nbusy_flag := True;}" ]; 
+		StateKeepAlive [penwidth=2, label = "{StateKeepAlive|send_se0.io.valid := True;\nsend_se0.io.len := 2;\nsend_se0.io.usb \<\> io.usb;\nbusy_flag := True;}" ]; 
 		StateUnconnected12:s -> StateReceive0 [style = invis];
 	
-		StateWaitCMDorSYNC -> StateReceive0:n; StateReceive0 [ shape = diamond, label = "bus_activity" ]; StateReceive0:s -> StateReceive; StateReceive [penwidth=2, label = "{StateReceive|receiver.io.valid := True;\nreceiver.io.usb_dm \<\> io.usb.usb_dm;\nreceiver.io.usb_dp \<\> io.usb.usb_dp;\nbusy_flag := True;}"];
+		StateWaitCMDorSYNC -> StateReceive0:n; StateReceive0 [ shape = diamond, label = "bus_activity" ]; StateReceive0:s -> StateReceive; StateReceive [penwidth=2, label = "{StateReceive|receiver.io.valid := True;\nreceiver.io.usb \<\> io.usb;\nbusy_flag := True;}"];
 		StateReceive -> StateWaitCMDorSYNC3:n; StateWaitCMDorSYNC3 [shape = diamond, label = "receiver.io.ready"]; StateWaitCMDorSYNC3:s -> StateWaitCMDorSYNC32; StateWaitCMDorSYNC32 [label = "{StateWaitCMDorSYNC|received_flag := True; busy_flag := False;}"];
 		StateReceive:s -> StateUnconnected4:n; StateUnconnected4 [shape = diamond, label = "bus_error"];
 		StateUnconnected4:s -> StateUnconnected42:n; StateUnconnected42 [label = "StateUnconnected"];
@@ -52,9 +52,9 @@ digraph USBMain {
 		color = invis;
 		label = "";
 	
-		StateWaitCMDorSYNC:e -> StateSendData0:n; StateSendData0 [ shape = diamond, label = "cmd_start && cmd === CMDSendData" ]; StateSendData0:s -> StateSendData; StateSendData [penwidth=2, label = "{StateSendData|send_data.io.valid := True;\nbusy_flag := True;\nsend_data.io.usb_dm \<\> io.usb.usb_dm;\nsend_data.io.usb_dp \<\> io.usb.usb_dp;\nsend_data.io.pid := cmd_pid;\nsend_data.io.len := cmd_len;\nsend_data.io.data := send_data_high ##\n  send_data_low;}"];
-		StateWaitCMDorSYNC:e -> StateSendShortToken0:n; StateSendShortToken0 [ shape = diamond, label = "cmd_start && cmd === CMDSendShortToken" ]; StateSendShortToken0:s -> StateSendShortToken; StateSendShortToken [penwidth=2, label = "{StateSendShortToken|send_short_token.io.valid := True;\nsend_short_token.io.usb_dm \<\> io.usb.usb_dm;\nsend_short_token.io.usb_dp \<\> io.usb.usb_dp;\nsend_short_token.io.pid := cmd_pid;\nbusy_flag := True;}"];
-		StateWaitCMDorSYNC:e -> StateSendLongToken0:n; StateSendLongToken0 [ shape = diamond, label = "cmd_start && cmd === CMDSendLongToken" ]; StateSendLongToken0:s -> StateSendLongToken:n; StateSendLongToken [penwidth=2, label = "{StateSendLongToken|send_long_token.io.valid := True;\nsend_long_token.io.usb_dm \<\>\ io.usb.usb_dm;\nsend_long_token.io.usb_dp \<\> io.usb.usb_dp;\nsend_long_token.io.pid := cmd_pid;\nsend_long_token.io.addr := cmd_addr;\nsend_long_token.io.endp := cmd_endp;\nbusy_flag := True}"];
+		StateWaitCMDorSYNC:e -> StateSendData0:n; StateSendData0 [ shape = diamond, label = "cmd_start && cmd === CMDSendData" ]; StateSendData0:s -> StateSendData; StateSendData [penwidth=2, label = "{StateSendData|send_data.io.valid := True;\nbusy_flag := True;\nsend_data.io.usb \<\> io.usb;\nsend_data.io.pid := cmd_pid;\nsend_data.io.len := cmd_len;\nsend_data.io.data := send_data_high ##\n  send_data_low;}"];
+		StateWaitCMDorSYNC:e -> StateSendShortToken0:n; StateSendShortToken0 [ shape = diamond, label = "cmd_start && cmd === CMDSendShortToken" ]; StateSendShortToken0:s -> StateSendShortToken; StateSendShortToken [penwidth=2, label = "{StateSendShortToken|send_short_token.io.valid := True;\nsend_short_token.io.usb \<\> io.usb;\nsend_short_token.io.pid := cmd_pid;\nbusy_flag := True;}"];
+		StateWaitCMDorSYNC:e -> StateSendLongToken0:n; StateSendLongToken0 [ shape = diamond, label = "cmd_start && cmd === CMDSendLongToken" ]; StateSendLongToken0:s -> StateSendLongToken:n; StateSendLongToken [penwidth=2, label = "{StateSendLongToken|send_long_token.io.valid := True;\nsend_long_token.io.usb \<\>\ io.usb;\nsend_long_token.io.pid := cmd_pid;\nsend_long_token.io.addr := cmd_addr;\nsend_long_token.io.endp := cmd_endp;\nbusy_flag := True}"];
 	
 	
 		StateSendShortToken -> StateWaitCMDorSYNC5:n; StateWaitCMDorSYNC5 [shape = diamond, label = "send_short_token.io.ready"]; StateWaitCMDorSYNC5:s -> StateWaitCMDorSYNC52:n; StateWaitCMDorSYNC52 [label = "{StateWaitCMDorSYNC|cmd_start := False; busy_flag := False;}"];

@@ -14,14 +14,14 @@ digraph USBReceiver {
 		CalibrateKTimeout_diamond -> StateReady0[label = "Timeout ?"]; StateReady0[label = "StateReady"];
 	
 	
-		StateCalibrateK -> JReceived_diamond; JReceived_diamond [shape = "diamond", label = "!io.usb_dp && io.usb_dm"];
+		StateCalibrateK -> JReceived_diamond; JReceived_diamond [shape = "diamond", label = "!io.usb.dp && io.usb.dm"];
 	 	JReceived_diamond -> StateCalibrateK_box[label = "'J'"]; StateCalibrateK_box [shape = "box", label = "bit_count++;"];
 		StateCalibrateK_box -> StateCalibrateJ[label = "'J'"]; StateCalibrateJ [label = "{Calibrate 'J' duration|T0++;}"];
 	
 		StateCalibrateJ -> StateCalibrateJTimeout_diamond; StateCalibrateJTimeout_diamond[shape = "diamond", label = "T0 === 255"];
 		StateCalibrateJTimeout_diamond -> StateReady1[label = "Timeout ?"]; StateReady1[label = "StateReady"];
 	
-		StateCalibrateJ -> KReceived_diamond; KReceived_diamond [shape = "diamond", label = "io.usb_dp && !io.usb_dm"];
+		StateCalibrateJ -> KReceived_diamond; KReceived_diamond [shape = "diamond", label = "io.usb.dp && !io.usb.dm"];
 		KReceived_diamond -> StateCalibrateJ_box[label = "'K'"]; StateCalibrateJ_box [shape = "box", label = "bit_count++;"]
 		StateCalibrateJ_box -> StateCalibrateJ_diamond[label = "'K'"]; StateCalibrateJ_diamond [shape = "diamond", label = "bit_count === 3"];
 		StateCalibrateJ_diamond -> StateWaitEndOfSYNC0_box; StateWaitEndOfSYNC0_box[shape = "box", label = "bit_duration := T0  >> 2;"];

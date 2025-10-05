@@ -12,20 +12,20 @@ digraph USBReceiver {
 		//StateReady31 -> StateRecevingData_SE0_diamond[style = "invis"]
 
 	
-		StateRecevingData -> StateRecevingData_ValidData_diamond; StateRecevingData_ValidData_diamond[shape = "diamond", label = "io.usb_dp =/= io.usb_dm"];
-		StateRecevingData_ValidData_diamond -> StateRecevingData_ValidData_box[label = "Valid data ?"]; StateRecevingData_ValidData_box[shape = "box", label = "T0++;\nlast_dp := io.usb_dp;"];
+		StateRecevingData -> StateRecevingData_ValidData_diamond; StateRecevingData_ValidData_diamond[shape = "diamond", label = "io.usb.dp =/= io.usb.dm"];
+		StateRecevingData_ValidData_diamond -> StateRecevingData_ValidData_box[label = "Valid data ?"]; StateRecevingData_ValidData_box[shape = "box", label = "T0++;\nlast_dp := io.usb.dp;"];
 		StateRecevingData_ValidData_box:w -> StateRecevingData_ValidData_Timeout_diamond; StateRecevingData_ValidData_Timeout_diamond[shape = "diamond", label = "T0 === 255"];
 		StateRecevingData_ValidData_Timeout_diamond -> StateReady3[label = "Timeout ?"]; StateReady3[label = "StateReady"]
 	
 
-		StateRecevingData -> StateRecevingData_SE0_diamond; StateRecevingData_SE0_diamond[shape = "diamond", label = "!io.usb_dp\nand\n!io.usb_dm"]
+		StateRecevingData -> StateRecevingData_SE0_diamond; StateRecevingData_SE0_diamond[shape = "diamond", label = "!io.usb.dp\nand\n!io.usb.dm"]
 		StateRecevingData_SE0_diamond:s -> StateRecevingData_SE0_Sample_box[label = "SE0 ?"]; StateRecevingData_SE0_Sample_box[shape = "box", label = "T1++;"];
 		StateRecevingData_SE0_Sample_box -> StateRecevingData_SE0_Sample_diamond; StateRecevingData_SE0_Sample_diamond[shape = "diamond", label = "T1 === bit_duration"];
 		StateRecevingData_SE0_Sample_diamond -> StateReady32[label = "EOP ?"]; StateReady32[penwidth=3, label = "{StateReady|io.ready := True}"];
 		{StateRecevingData_SE0_diamond:e -> StateRecevingData_SE0_ZeroT1_box; rank = same; StateRecevingData_SE0_ZeroT1_box[shape = "box", label = "T1 := 0;"]}
 
 	
-		StateRecevingData_ValidData_box -> StateRecevingData_ValidData_ReSync_diamond; StateRecevingData_ValidData_ReSync_diamond[shape = "diamond", label = "last_dp =/= io.usb_dp"];
+		StateRecevingData_ValidData_box -> StateRecevingData_ValidData_ReSync_diamond; StateRecevingData_ValidData_ReSync_diamond[shape = "diamond", label = "last_dp =/= io.usb.dp"];
 		//StateReady3 -> StateRecevingData_ValidData_ReSync_diamond[style = "invis"];
 	
 		StateRecevingData_ValidData_ReSync_diamond -> StateRecevingData_ValidData_ReSync_box[label = "Edge ?"]; StateRecevingData_ValidData_ReSync_box[shape = "box", label = "/* Re-Sync */\nT0 := 0;"]
@@ -34,7 +34,7 @@ digraph USBReceiver {
 	
 		StateRecevingData_ValidData_box:e -> StateRecevingData_ValidData_HalfBitDuration_diamond; StateRecevingData_ValidData_HalfBitDuration_diamond[shape = "diamond", label = "T0 === bit_duration / 2"];
 		StateRecevingData_ValidData_HalfBitDuration_diamond -> StateRecevingData_ValidData_HalfBitDuration_box[label = "Time to sample"];
-		StateRecevingData_ValidData_HalfBitDuration_box[shape = "box", label = "/* Sample one bin */\nbit_received := (io.usb_dp === last_symbol)\nlast_symbol := io.usb_dp;"]
+		StateRecevingData_ValidData_HalfBitDuration_box[shape = "box", label = "/* Sample one bin */\nbit_received := (io.usb.dp === last_symbol)\nlast_symbol := io.usb.dp;"]
 		
 		StateRecevingData_ValidData_HalfBitDuration_box:w -> StateRecevingData_ValidData_IsOne_diamond; StateRecevingData_ValidData_IsOne_diamond[shape = "diamond", label = "bit_received === True"];
 		StateRecevingData_ValidData_IsOne_diamond -> StateRecevingData_ValidData_One_box[label = "'1'"]; StateRecevingData_ValidData_One_box[shape = "box", label = "ones++;"]

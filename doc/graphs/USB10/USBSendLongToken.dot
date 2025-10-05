@@ -23,12 +23,12 @@ digraph USBSendLongToken {
 	CountBits -> LessThan32_box:n; LessThan32_box [shape = diamond, label = "bit_count < 32"];
 	LessThan32_box -> SendBit; SendBit [shape = record, label = "{SendBit|bit_to_send := buffer(bit_count);\nsendKJ(bit_to_send);}"];
 
-	CountBits -> Is3233:n; Is3233 [shape = diamond, label = "bit_count === 32\nor\nbit_count === 33"]; Is3233 -> Is3233_box; Is3233_box [shape = record, label = "{Send EOP: 'SE0'|io.usb_dm := False\nio.usb_dp := False}"];
+	CountBits -> Is3233:n; Is3233 [shape = diamond, label = "bit_count === 32\nor\nbit_count === 33"]; Is3233 -> Is3233_box; Is3233_box [shape = record, label = "{Send EOP: 'SE0'|io.usb.dm := False\nio.usb.dp := False}"];
 
 	CountBits -> Is3435_box:n; Is3435_box [shape = diamond, label = "bit_count === 34\nor\nbit_count === 35"];
-	Is3435_box -> Is3435:n; Is3435 [shape = record, label = "{Send EOP: 'J'|io.usb_dm := True\nio.usb_dp := False}"];
+	Is3435_box -> Is3435:n; Is3435 [shape = record, label = "{Send EOP: 'J'|io.usb.dm := True\nio.usb.dp := False}"];
 
-	CountBits -> Is36:n; Is36 [shape = diamond, label = "bit_count === 36"]; Is36 -> Is36_box; Is36_box [penwidth=2, shape = Mrecord, label = "{Ready, Send EOP: 'J'|io.usb_dm := True\nio.usb_dp := False\nio.ready := True\nbit_count := 36}"];
+	CountBits -> Is36:n; Is36 [shape = diamond, label = "bit_count === 36"]; Is36 -> Is36_box; Is36_box [penwidth=2, shape = Mrecord, label = "{Ready, Send EOP: 'J'|io.usb.dm := True\nio.usb.dp := False\nio.ready := True\nbit_count := 36}"];
 
 	subgraph cluster_1 {
 		
@@ -46,8 +46,8 @@ digraph USBSendLongToken {
 		sendKJ_symbol [shape = diamond, label = "new_kj ?"];
 		sendKJ_symbol -> sendKJ_symbolK:n [label = "K"];
 		sendKJ_symbol -> sendKJ_symbolJ:n [label = "J"];
-		sendKJ_symbolK [shape = box, label = "io.usb_dm := False;\nio.usb_dp := True;"];
-		sendKJ_symbolJ [shape = box, label = "io.usb_dm := True;\nio.usb_dp := False;"];
+		sendKJ_symbolK [shape = box, label = "io.usb.dm := False;\nio.usb.dp := True;"];
+		sendKJ_symbolJ [shape = box, label = "io.usb.dm := True;\nio.usb.dp := False;"];
 	}
 
 }
