@@ -131,8 +131,8 @@ case class Apb3USBCtrl(
     usb_hid_host.usbclk := io.usbclk_12mhz
     //usb_hid_host.usbrst_n := ClockDomain.current.readResetWire
     usb_hid_host.usbrst_n := soft_reset 
-    usb_hid_host.usb_dp <> io.usb.usb_dp
-    usb_hid_host.usb_dm <> io.usb.usb_dm
+    usb_hid_host.usb_dp <> io.usb.dp
+    usb_hid_host.usb_dm <> io.usb.dm
 
     conerr := usb_hid_host.conerr
     report := usb_hid_host.report

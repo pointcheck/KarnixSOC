@@ -9,8 +9,7 @@ import spinal.lib.bus.amba3.apb.{Apb3, Apb3Config, Apb3SlaveFactory}
 import spinal.lib.misc.HexTools
 
 class USB_IO extends Bundle {
-    val usb_dm    = inout(Analog(Bool()))
-    val usb_dp    = inout(Analog(Bool()))
+    val usb       = USBInterface()
     val valid     = in Bool()
     val ready     = out Bool()
     val clock_div = in UInt(8 bits)
@@ -41,18 +40,18 @@ class USBSendReceive(var hasStrobe  : Boolean = true,
     }
 
     def sendK(io: USB_IO) = {
-      io.usb_dm := False
-      io.usb_dp := True
+      io.usb.dm := False
+      io.usb.dp := True
     }
 
     def sendJ(io: USB_IO) = {
-      io.usb_dm := True 
-      io.usb_dp := False 
+      io.usb.dm := True 
+      io.usb.dp := False 
     }
 
     def sendSE0(io: USB_IO) = {
-      io.usb_dm := False 
-      io.usb_dp := False 
+      io.usb.dm := False 
+      io.usb.dp := False 
     }
 
 
@@ -393,7 +392,7 @@ case class USBReceiver() extends USBSendReceive(hasStrobe = false, hasSendKJ = f
       switch(state) {
 
         is(0) { // SYNC: begin calibration
-          when(io.usb_dp && !io.usb_dm) { // First 'K' - start calibration
+          when(io.usb.dp && !io.usb.dm) { // First 'K' - start calibration
             state := 1
             bit_count := 0
             ones := 0
@@ -411,7 +410,7 @@ case class USBReceiver() extends USBSendReceive(hasStrobe = false, hasSendKJ = f
 
         is(1) { // SYNC: 'K' is going, waiting for 'J'
           T0 := T0 + 1
-          when(!io.usb_dp && io.usb_dm) { // 'J' received
+          when(!io.usb.dp && io.usb.dm) { // 'J' received
             bit_count := bit_count + 1
             state := 2
           }
@@ -422,7 +421,7 @@ case class USBReceiver() extends USBSendReceive(hasStrobe = false, hasSendKJ = f
 
         is(2) { // SYNC: 'J' is going, waiting for 'K'
           T0 := T0 + 1
-          when(io.usb_dp && !io.usb_dm) { // 'K' received
+          when(io.usb.dp && !io.usb.dm) { // 'K' received
             bit_count := bit_count + 1
             state := 1
             when(bit_count === 3) { // TWO 'KJ' cycles received
@@ -437,7 +436,7 @@ case class USBReceiver() extends USBSendReceive(hasStrobe = false, hasSendKJ = f
         }
 
         is(3) { // Wait for end of SYNC: two 'K's
-          when(io.usb_dp && !io.usb_dm) { // 'K' received
+          when(io.usb.dp && !io.usb.dm) { // 'K' received
             T0 := T0 + 1
             when(T0.asBits === bit_duration(6 downto 0) ## B"0") { // T0 === bit_duration * 2
               T0 := 0
@@ -453,18 +452,18 @@ case class USBReceiver() extends USBSendReceive(hasStrobe = false, hasSendKJ = f
         }
 
         is(4) { // Receiving data
-          when(io.usb_dp =/= io.usb_dm) { // Valid data are only when DP != DM
+          when(io.usb.dp =/= io.usb.dm) { // Valid data are only when DP != DM
             T0 := T0 + 1
-            last_dp := io.usb_dp
-            when(last_dp =/= io.usb_dp) { // sync on each edge
+            last_dp := io.usb.dp
+            when(last_dp =/= io.usb.dp) { // sync on each edge
               T0 := 0
             }
             when(T0 === bit_duration) { // end of symbol ?
               T0 := 0
             }
             when(T0 === bit_duration(7 downto 1).resized) { // sample one symbol in the middle of tick
-              var bit_received = (io.usb_dp === last_symbol) // convert symbol to bit
-              last_symbol := io.usb_dp
+              var bit_received = (io.usb.dp === last_symbol) // convert symbol to bit
+              last_symbol := io.usb.dp
               when(bit_received) {
                 ones := ones + 1
               } otherwise {
@@ -510,7 +509,7 @@ case class USBReceiver() extends USBSendReceive(hasStrobe = false, hasSendKJ = f
       }
 
       // Check for EOP (SE0)
-      when(!io.usb_dp && !io.usb_dm) {
+      when(!io.usb.dp && !io.usb.dm) {
         T1 := T1 + 1
         when(T1 === ((bit_duration << 1) - U(2))) { // is SE0 for two bit intervals - report EOP
           state := 6
@@ -521,7 +520,7 @@ case class USBReceiver() extends USBSendReceive(hasStrobe = false, hasSendKJ = f
       }
 
       // Check for hung state ('J')
-      when(!io.usb_dp && io.usb_dm) {
+      when(!io.usb.dp && io.usb.dm) {
         T2 := T2 + 1
         when(T2 === (bit_duration << 3)) { // is 'J' for more than 8 clocks - report error!
           state := 7
@@ -547,9 +546,7 @@ object USBCommand extends SpinalEnum(defaultEncoding = binarySequential){
       = newElement()
 }
 
-case class Apb3USB10Ctrl(
-	usbFrequency : HertzNumber = 12.0 MHz
-      ) extends Component {
+case class Apb3USB10Ctrl(usbFrequency : HertzNumber = 12.0 MHz) extends Component {
   val io = new Bundle {
     val apb       = slave(Apb3(addressWidth = 12, dataWidth = 32))
     val usb       = master(USBInterface())
@@ -690,9 +687,9 @@ case class Apb3USB10Ctrl(
     val receiver = new USBReceiver()
     receiver.io.valid := False
 
-    val bus_error = !io.usb.usb_dm && !io.usb.usb_dp; // Both DP and DM low means nothing is connected 
-    val bus_present = io.usb.usb_dm && !io.usb.usb_dp; // Low Speed device connected
-    val bus_activity = !io.usb.usb_dm && io.usb.usb_dp; // Polarity change indicates some activity
+    val bus_error = !io.usb.dm && !io.usb.dp; // Both DP and DM low means nothing is connected 
+    val bus_present = io.usb.dm && !io.usb.dp; // Low Speed device connected
+    val bus_activity = !io.usb.dm && io.usb.dp; // Polarity change indicates some activity
 
     //io.test := send_se0.io.test|send_long_token.io.test|send_data.io.test
     //io.test := busy
@@ -774,7 +771,7 @@ case class Apb3USB10Ctrl(
           received := False
         }
 
-        when(keepalive_enable && !(!io.usb.usb_dm && !io.usb.usb_dp)) { // Keepalive enabled and not Error state ?
+        when(keepalive_enable && !(!io.usb.dm && !io.usb.dp)) { // Keepalive enabled and not Error state ?
           T2 := T2 + 1
 
           when(T2 === USBLowSpeedKeepAliveClocks) {
@@ -790,8 +787,8 @@ case class Apb3USB10Ctrl(
         send_long_token.io.addr := cmd_addr
         send_long_token.io.endp := cmd_endp
         send_long_token.io.valid := True
-        send_long_token.io.usb_dm <> io.usb.usb_dm
-        send_long_token.io.usb_dp <> io.usb.usb_dp
+        send_long_token.io.usb.dm <> io.usb.dm
+        send_long_token.io.usb.dp <> io.usb.dp
         when(send_long_token.io.ready) {
           state := StateWaitCMDorSYNC
           report := True
@@ -804,8 +801,8 @@ case class Apb3USB10Ctrl(
       is(StateSendShortToken) { // Connected, send Short Token
         send_short_token.io.pid := cmd_pid
         send_short_token.io.valid := True
-        send_short_token.io.usb_dm <> io.usb.usb_dm
-        send_short_token.io.usb_dp <> io.usb.usb_dp
+        send_short_token.io.usb.dm <> io.usb.dm
+        send_short_token.io.usb.dp <> io.usb.dp
         when(send_short_token.io.ready) {
           state := StateWaitCMDorSYNC
           report := True
@@ -820,8 +817,8 @@ case class Apb3USB10Ctrl(
         send_data.io.data := send_data_high ## send_data_low // B"64'hAAAAAAAAAAAAAAAA" // 0 //B"01010101010101010101010101010101" ## B"01010101010101010101010101010101" //send_data_high ## send_data_low
         send_data.io.len := cmd_len // in bits - 1
         send_data.io.valid := True
-        send_data.io.usb_dm <> io.usb.usb_dm
-        send_data.io.usb_dp <> io.usb.usb_dp
+        send_data.io.usb.dm <> io.usb.dm
+        send_data.io.usb.dp <> io.usb.dp
         when(send_data.io.ready) {
           state := StateWaitCMDorSYNC
           report := True
@@ -833,8 +830,8 @@ case class Apb3USB10Ctrl(
 
       is(StateSendReset) { // Bus Reset condition is SE0 (D+ and D- are lowi) for 11ms
         send_se0.io.valid := True
-        send_se0.io.usb_dm <> io.usb.usb_dm
-        send_se0.io.usb_dp <> io.usb.usb_dp
+        send_se0.io.usb.dm <> io.usb.dm
+        send_se0.io.usb.dp <> io.usb.dp
         send_se0.io.len := reset_delay_bits
         when(send_se0.io.ready) {
           state := StateWaitCMDorSYNC
@@ -847,8 +844,8 @@ case class Apb3USB10Ctrl(
 
       is(StateKeepAlive) { // KeepAlive (Low-Speed only) is SE0 for just two bit intervals
         send_se0.io.valid := True
-        send_se0.io.usb_dm <> io.usb.usb_dm
-        send_se0.io.usb_dp <> io.usb.usb_dp
+        send_se0.io.usb.dm <> io.usb.dm
+        send_se0.io.usb.dp <> io.usb.dp
         send_se0.io.len := 2 
         when(send_se0.io.ready) {
           state := StateWaitCMDorSYNC
@@ -860,8 +857,8 @@ case class Apb3USB10Ctrl(
 
       is(StateReceive) { // Receive data piece
         receiver.io.valid := True
-        receiver.io.usb_dm <> io.usb.usb_dm
-        receiver.io.usb_dp <> io.usb.usb_dp
+        receiver.io.usb.dm <> io.usb.dm
+        receiver.io.usb.dp <> io.usb.dp
         when(receiver.io.ready) {
           state := StateWaitCMDorSYNC
           received := True
