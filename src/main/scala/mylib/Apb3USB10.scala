@@ -562,6 +562,7 @@ case class Apb3USB10Ctrl(usbFrequency : HertzNumber = 12.0 MHz) extends Componen
 
   val busCtrl = Apb3SlaveFactory(io.apb)
 
+  // 0x00 - STATUS
   val usbStatusWord = busCtrl.createReadOnly(Bits(32 bits), address = 0) init(0)
   val error_flag = usbStatusWord(30).addTag(crossClockDomain)
   val report_flag = usbStatusWord(29).addTag(crossClockDomain)
@@ -573,6 +574,7 @@ case class Apb3USB10Ctrl(usbFrequency : HertzNumber = 12.0 MHz) extends Componen
   // ... reserved for FSM states
   val fsm_state = usbStatusWord(2 downto 0).addTag(crossClockDomain)
 
+  // 0x04 - COMMAND
   val usbCommandWord = busCtrl.createReadWrite(Bits(32 bits), address = 4) init(0)
   val cmd_start = usbCommandWord(31).addTag(crossClockDomain)
   val cmd_addr = usbCommandWord(30 downto 24).addTag(crossClockDomain)
@@ -581,33 +583,39 @@ case class Apb3USB10Ctrl(usbFrequency : HertzNumber = 12.0 MHz) extends Componen
   val cmd_pid = usbCommandWord(7 downto 4).addTag(crossClockDomain)
   val cmd = usbCommandWord(3 downto 0).addTag(crossClockDomain)
 
+  // 0x08 - RECV_DATA_LOW
   val usbDataReceivedLowWord = busCtrl.createReadOnly(Bits(32 bits), address = 8) init(0)
   val received_data_low = usbDataReceivedLowWord(31 downto 0).addTag(crossClockDomain)
 
+  // 0x0C - RECV_DATA_HIGH
   val usbDataReceivedHighWord = busCtrl.createReadOnly(Bits(32 bits), address = 12) init(0)
   val received_data_high = usbDataReceivedHighWord(31 downto 0).addTag(crossClockDomain)
 
+  // 0x10 - SEND_DATA_LOW 
   val usbSendLowWord = busCtrl.createReadWrite(Bits(32 bits), address = 16) init(0)
   val send_data_low = usbSendLowWord(31 downto 0).addTag(crossClockDomain)
 
+  // 0x14 - SEND_DATA_HIGH
   val usbSendHighWord = busCtrl.createReadWrite(Bits(32 bits), address = 20) init(0)
   val send_data_high = usbSendHighWord(31 downto 0).addTag(crossClockDomain)
 
+  // 0x18 - RX_STATUS
   val usbReceiverStatusWord = busCtrl.createReadOnly(Bits(32 bits), address = 24) init(0)
   val received_bits = usbReceiverStatusWord(7 downto 0).addTag(crossClockDomain)
   val received_pid = usbReceiverStatusWord(15 downto 8).addTag(crossClockDomain)
   val received_crc16 = usbReceiverStatusWord(31 downto 16).addTag(crossClockDomain)
 
-  val usbControlWord = busCtrl.createReadWrite(Bits(32 bits), address = 28) init(22500) // keepalive: 15 ms at 1.5 MHz
+  // 0x1C - CONTROL
+  val usbControlWord = busCtrl.createReadWrite(Bits(32 bits), address = 28) init(22500) // Reset delay: 15 ms at 1.5 Mbit/src
   val bus_enable = usbControlWord(31).addTag(crossClockDomain)
   val keepalive_enable = usbControlWord(30).addTag(crossClockDomain)
   val reset_delay_bits = usbControlWord(15 downto 0).asUInt.addTag(crossClockDomain)
 
+  // 0x20 - RX_STATUS2
   val usbReceiverStatusWord2 = busCtrl.createReadOnly(Bits(32 bits), address = 32) init(0)
   val calculated_crc16 = usbReceiverStatusWord2(15 downto 0).addTag(crossClockDomain)
 
   io.interrupt := report_flag
-
 
   val usbClockDomain = ClockDomain(
     clock = io.usb_clk,
@@ -616,26 +624,24 @@ case class Apb3USB10Ctrl(usbFrequency : HertzNumber = 12.0 MHz) extends Componen
     frequency = FixedFrequency(usbFrequency)
   )
 
-//io.test := busy_flag
+  //io.test := busy_flag
 
   val usb_area = new ClockingArea(usbClockDomain) {
 
-//  val usb_area = new Area() {
-
     println("Apb3USB10Ctrl::usbFrequency = %d Hz".format(usbFrequency.toInt));
-
+    
     val USBSlowSpeedClockDiv = UInt(8 bits)
     val low_speed_baudrate : HertzNumber = 1.5 MHz;
     val usbslowspeedclockdiv = (ClockDomain.current.frequency.getValue / low_speed_baudrate + 0.5).toBigInt - 1
     USBSlowSpeedClockDiv := usbslowspeedclockdiv 
     println("Apb3USB10Ctrl::USBSlowSpeedClockDiv = %d".format(usbslowspeedclockdiv));
-
+    
     val USBLowSpeedKeepAliveClocks = UInt(16 bits)
     val low_speed_keepalive : TimeNumber = 1.0 ms; // Send KeepAlive interval
     val usblowspeedkeepaliveclocks = (ClockDomain.current.frequency.getValue * low_speed_keepalive + 0.5).toBigInt - 1
     USBLowSpeedKeepAliveClocks := usblowspeedkeepaliveclocks
     println("Apb3USB10Ctrl::USBLowSpeedKeepAliveClocks = %d".format(usblowspeedkeepaliveclocks));
-
+    
     val USBLowSpeedErrorClocks = UInt(16 bits)
     val low_speed_error : TimeNumber = 0.8 ms; // Time to detect disconnect or error
     val usblowspeederrorclocks = (ClockDomain.current.frequency.getValue * low_speed_error + 0.5).toBigInt - 1
@@ -689,7 +695,7 @@ case class Apb3USB10Ctrl(usbFrequency : HertzNumber = 12.0 MHz) extends Componen
 
     val bus_error = !io.usb.dm && !io.usb.dp; // Both DP and DM low means nothing is connected 
     val bus_present = io.usb.dm && !io.usb.dp; // Low Speed device connected
-    val bus_activity = !io.usb.dm && io.usb.dp; // Polarity change indicates some activity
+    val bus_activity = !io.usb.dm && io.usb.dp; // Polarity change 'K' indicates some activity
 
     //io.test := send_se0.io.test|send_long_token.io.test|send_data.io.test
     //io.test := busy
@@ -771,7 +777,7 @@ case class Apb3USB10Ctrl(usbFrequency : HertzNumber = 12.0 MHz) extends Componen
           received := False
         }
 
-        when(keepalive_enable && !(!io.usb.dm && !io.usb.dp)) { // Keepalive enabled and not Error state ?
+        when(keepalive_enable && !(bus_error)) { // Keepalive enabled and not Error state ?
           T2 := T2 + 1
 
           when(T2 === USBLowSpeedKeepAliveClocks) {
@@ -787,8 +793,7 @@ case class Apb3USB10Ctrl(usbFrequency : HertzNumber = 12.0 MHz) extends Componen
         send_long_token.io.addr := cmd_addr
         send_long_token.io.endp := cmd_endp
         send_long_token.io.valid := True
-        send_long_token.io.usb.dm <> io.usb.dm
-        send_long_token.io.usb.dp <> io.usb.dp
+        send_long_token.io.usb <> io.usb
         when(send_long_token.io.ready) {
           state := StateWaitCMDorSYNC
           report := True
@@ -801,8 +806,7 @@ case class Apb3USB10Ctrl(usbFrequency : HertzNumber = 12.0 MHz) extends Componen
       is(StateSendShortToken) { // Connected, send Short Token
         send_short_token.io.pid := cmd_pid
         send_short_token.io.valid := True
-        send_short_token.io.usb.dm <> io.usb.dm
-        send_short_token.io.usb.dp <> io.usb.dp
+        send_short_token.io.usb <> io.usb
         when(send_short_token.io.ready) {
           state := StateWaitCMDorSYNC
           report := True
@@ -817,8 +821,7 @@ case class Apb3USB10Ctrl(usbFrequency : HertzNumber = 12.0 MHz) extends Componen
         send_data.io.data := send_data_high ## send_data_low // B"64'hAAAAAAAAAAAAAAAA" // 0 //B"01010101010101010101010101010101" ## B"01010101010101010101010101010101" //send_data_high ## send_data_low
         send_data.io.len := cmd_len // in bits - 1
         send_data.io.valid := True
-        send_data.io.usb.dm <> io.usb.dm
-        send_data.io.usb.dp <> io.usb.dp
+        send_data.io.usb <> io.usb
         when(send_data.io.ready) {
           state := StateWaitCMDorSYNC
           report := True
@@ -828,10 +831,9 @@ case class Apb3USB10Ctrl(usbFrequency : HertzNumber = 12.0 MHz) extends Componen
         }
       }
 
-      is(StateSendReset) { // Bus Reset condition is SE0 (D+ and D- are lowi) for 11ms
+      is(StateSendReset) { // Bus Reset condition is SE0 (D+ and D- are low) for 11ms
         send_se0.io.valid := True
-        send_se0.io.usb.dm <> io.usb.dm
-        send_se0.io.usb.dp <> io.usb.dp
+        send_se0.io.usb <> io.usb
         send_se0.io.len := reset_delay_bits
         when(send_se0.io.ready) {
           state := StateWaitCMDorSYNC
@@ -844,8 +846,7 @@ case class Apb3USB10Ctrl(usbFrequency : HertzNumber = 12.0 MHz) extends Componen
 
       is(StateKeepAlive) { // KeepAlive (Low-Speed only) is SE0 for just two bit intervals
         send_se0.io.valid := True
-        send_se0.io.usb.dm <> io.usb.dm
-        send_se0.io.usb.dp <> io.usb.dp
+        send_se0.io.usb <> io.usb
         send_se0.io.len := 2 
         when(send_se0.io.ready) {
           state := StateWaitCMDorSYNC
@@ -857,8 +858,7 @@ case class Apb3USB10Ctrl(usbFrequency : HertzNumber = 12.0 MHz) extends Componen
 
       is(StateReceive) { // Receive data piece
         receiver.io.valid := True
-        receiver.io.usb.dm <> io.usb.dm
-        receiver.io.usb.dp <> io.usb.dp
+        receiver.io.usb <> io.usb
         when(receiver.io.ready) {
           state := StateWaitCMDorSYNC
           received := True
