@@ -5,6 +5,7 @@
 #include <string.h>
 
 #define	USB10_EP0		0
+#define	USB10_UNNUMBERED_DEVICE	0
 
 // Get ERROR bit of the STATUS word
 #define	USB10_STATUS_ERROR_S	30
@@ -271,11 +272,9 @@ extern USB10_EndpointDescriptorUnion usb10_endpoint_descr;
 
 
 int usb10_bus_reset(USB10_Reg* reg, int wait_us);
-int usb10_device_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request_data,
-	uint8_t* response_data, uint32_t response_size);
-int usb10_get_device_descriptor(USB10_Reg* reg, uint8_t address, uint8_t descr_type, uint8_t descr_item,
+int usb10_get_device_descriptor(USB10_Reg* reg, uint8_t address, uint8_t endpoint, uint8_t descr_type, uint8_t descr_item,
 	uint16_t resp_len, void* descr_resp);
-int usb10_set_value(USB10_Reg* reg, uint8_t address, uint8_t bmRequestType, uint8_t bRequest,
+int usb10_set_value(USB10_Reg* reg, uint8_t address, uint8_t endpoint, uint8_t bmRequestType, uint8_t bRequest,
 	uint16_t wValue, uint8_t bIndex, uint16_t wLength);
 
 /* NOTE: descr, config_resp, config_resp, interface_resp and endpoint_resp can be NULL pointers if response is unused. */
@@ -285,13 +284,16 @@ int usb10_scan(USB10_Reg* reg, uint8_t* new_device_address,
 	USB10_InterfaceDescriptorUnion **interface_resp,
 	USB10_EndpointDescriptorUnion **endpoint_resp);
 
-/* NOTE: request_data buffer should be at least 8 bytes long, even if request_size is zero !!! */
 int usb10_in_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 	uint8_t* response_data, uint32_t response_size);
 
 /* NOTE: request_data buffer should be at least 8 bytes long, even if request_size is zero !!! */
 int usb10_out_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 	uint8_t* request_data, uint32_t request_size);
+
+/* NOTE: request_data buffer should be at least 8 bytes long, even if request_size is zero !!! */
+int usb10_setup_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
+	uint8_t *request_data, uint8_t* response_data, uint32_t response_size);
 
 int usb10_hid_set_led(USB10_Reg* reg, uint8_t address, uint8_t endpoint, uint8_t leds);
 

@@ -96,8 +96,8 @@ int usb10_bus_reset(USB10_Reg* reg, int wait_us)
 
 #define	USB10_SETUP_REQUEST_STR	"usb10_setup_request"
 
-int usb10_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request_data,
-	uint8_t* response_data, uint32_t response_size)
+int usb10_setup_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
+	uint8_t *request_data, uint8_t* response_data, uint32_t response_size)
 {
 
 	if(address >= MAX_ADDRESSES)
@@ -120,8 +120,8 @@ int usb10_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request_data,
 	int ret = 0;
 	int bytes_received = 0;
 
-	usb10_last_data_pid[address][0].sent = USB10_PID_DATA1;
-	usb10_last_data_pid[address][0].recv = USB10_PID_DATA0;
+	usb10_last_data_pid[address][endpoint].sent = USB10_PID_DATA1;
+	usb10_last_data_pid[address][endpoint].recv = USB10_PID_DATA0;
 
 	again_setup:
 
@@ -136,7 +136,7 @@ int usb10_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request_data,
 	usb10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
 			USB10_CMD_SET_PID(USB10_PID_SETUP) |
 			USB10_CMD_SET_ADDR(address) |
-			USB10_CMD_SET_ENDP(0) |
+			USB10_CMD_SET_ENDP(endpoint) |
 			USB10_CMD_SET(USB10_CMD_SEND_LONG_TOKEN));
  
 
@@ -211,7 +211,7 @@ int usb10_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request_data,
 		usb10_write_reg(&reg->COMMAND, USB10_CMD_START_BIT |
 				USB10_CMD_SET_PID(USB10_PID_IN) |
 				USB10_CMD_SET_ADDR(address) |
-				USB10_CMD_SET_ENDP(0) |
+				USB10_CMD_SET_ENDP(endpoint) |
 				USB10_CMD_SET(USB10_CMD_SEND_LONG_TOKEN));
 
 		timeout = 2500;
@@ -287,7 +287,7 @@ int usb10_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request_data,
 			goto fail;
 		}
 
-		if(received_pid == usb10_last_data_pid[address][0].recv) {
+		if(received_pid == usb10_last_data_pid[address][endpoint].recv) {
 
 			usb10_printf("%s: received %d dupe data, RX_STATUS = %08X, DATA = %08X:%08X\r\n",
 				USB10_SETUP_REQUEST_STR, i, rx_status,
@@ -306,7 +306,7 @@ int usb10_setup_request(USB10_Reg* reg, uint8_t address, uint8_t *request_data,
 			usb10_read_reg(&reg->RECV_DATA_HIGH), usb10_read_reg(&reg->RECV_DATA_LOW)
 		);
 
-		usb10_last_data_pid[address][0].recv = received_pid; // Remember last received DATA PID
+		usb10_last_data_pid[address][endpoint].recv = received_pid; // Remember last received DATA PID
 
 		if(response_size && response_data) { // collect data if response expected
 			*(uint32_t*)(response_data + i * 8 + 0) = usb10_read_reg(&reg->RECV_DATA_LOW);
@@ -684,7 +684,7 @@ int usb10_out_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 
 #define	USB10_GET_DEVICE_DESCR_STR	"usb10_get_device_descr"
 
-int usb10_get_device_descriptor(USB10_Reg* reg, uint8_t address, uint8_t descr_type, uint8_t descr_item,
+int usb10_get_device_descriptor(USB10_Reg* reg, uint8_t address, uint8_t endpoint, uint8_t descr_type, uint8_t descr_item,
 	uint16_t resp_len, void* descr_resp)
 {
 	int ret = 0;
@@ -701,7 +701,7 @@ int usb10_get_device_descriptor(USB10_Reg* reg, uint8_t address, uint8_t descr_t
 	usb10_printf("%s: %s\r\n", USB10_GET_DEVICE_DESCR_STR, "begin");
 
 	// Begin of transaction
-	if((ret = usb10_setup_request(USB1, address, (uint8_t*)&request, (uint8_t*)descr_resp, resp_len)) < 0) {
+	if((ret = usb10_setup_request(USB1, address, endpoint, (uint8_t*)&request, (uint8_t*)descr_resp, resp_len)) < 0) {
 		usb10_printf("%s(%d): setup ret = %d\r\n", USB10_GET_DEVICE_DESCR_STR, descr_type, ret);
 		return ret;
 	}
@@ -709,7 +709,7 @@ int usb10_get_device_descriptor(USB10_Reg* reg, uint8_t address, uint8_t descr_t
 	bytes_read = ret;
 
 	// End of transaction 
-	if((ret = usb10_out_request(USB1, address, USB10_EP0, NULL, 0)) < 0) {
+	if((ret = usb10_out_request(USB1, address, endpoint, NULL, 0)) < 0) {
 		usb10_printf("%s: out ret = %d\r\n", USB10_GET_DEVICE_DESCR_STR, ret);
 		return ret;
 	}
@@ -721,7 +721,7 @@ int usb10_get_device_descriptor(USB10_Reg* reg, uint8_t address, uint8_t descr_t
 
 #define	USB10_SET_VALUE_STR	"usb10_set_value"
 
-int usb10_set_value(USB10_Reg* reg, uint8_t address, uint8_t bmRequestType, uint8_t bRequest,
+int usb10_set_value(USB10_Reg* reg, uint8_t address, uint8_t endpoint, uint8_t bmRequestType, uint8_t bRequest,
 	uint16_t wValue, uint8_t bIndex, uint16_t wLength)
 {
 	int ret = 0;
@@ -737,14 +737,14 @@ int usb10_set_value(USB10_Reg* reg, uint8_t address, uint8_t bmRequestType, uint
 	usb10_printf("%s: %s\r\n", USB10_SET_VALUE_STR, "begin");
 
 	// Begin of transaction
-	if((ret = usb10_setup_request(USB1, address, (uint8_t*)&request, NULL, 0)) < 0) { 
+	if((ret = usb10_setup_request(USB1, address, endpoint, (uint8_t*)&request, NULL, 0)) < 0) { 
 		usb10_printf("%s: setup ret = %d\r\n", USB10_SET_VALUE_STR, ret);
 		return ret;
 	}
 
 	// End of transaction
 	for(int i = 0; i < 5; i++) {
-		ret = usb10_in_request(USB1, address, USB10_EP0, NULL, 0);
+		ret = usb10_in_request(USB1, address, endpoint, NULL, 0);
 
 		if(ret > 0)
 			break;
@@ -780,7 +780,8 @@ int usb10_scan(USB10_Reg* reg, uint8_t* new_device_address,
 	if((ret = usb10_bus_reset(USB1, 12000)) < 0)
 		goto usb10_error;
 
-	if((ret = usb10_get_device_descriptor(USB1, 0, USB10_DESCR_TYPE_DEVICE, 0, 18, &usb10_device_descr)) < 0)
+	if((ret = usb10_get_device_descriptor(USB1, USB10_UNNUMBERED_DEVICE, USB10_EP0, USB10_DESCR_TYPE_DEVICE,
+					0, 18, &usb10_device_descr)) < 0)
 		goto usb10_error;
 
 	//usb10_printf("\r%s: Device detected: VID/PID = 0x%04X/0x%04X, "
@@ -799,14 +800,16 @@ int usb10_scan(USB10_Reg* reg, uint8_t* new_device_address,
 	int device_address = (usb10_device_address + 1) % MAX_ADDRESSES;
 
 	// Assign new device address to device_address 
-	if((ret = usb10_set_value(USB1, 0, 0x00, USB10_REQ_SET_ADDRESS, device_address, 0, 0)) < 0)
+	if((ret = usb10_set_value(USB1, USB10_UNNUMBERED_DEVICE, USB10_EP0, 0x00, USB10_REQ_SET_ADDRESS,
+				device_address, 0, 0)) < 0)
 		goto usb10_error;
 
 	// Request as many as possible description data
 
 	uint8_t bulk_config_data[256];
 
-	if((ret = usb10_get_device_descriptor(USB1, device_address, USB10_DESCR_TYPE_CONFIG, 0, 255, bulk_config_data)) < 0)
+	if((ret = usb10_get_device_descriptor(USB1, device_address, USB10_EP0, USB10_DESCR_TYPE_CONFIG,
+					0, 255, bulk_config_data)) < 0)
 		goto usb10_error;
 
 	usb10_printf("%s: total config size = %d\r\n", USB10_SCAN_STR, ret);
@@ -846,7 +849,7 @@ int usb10_scan(USB10_Reg* reg, uint8_t* new_device_address,
 	}
 	
 	// Activate 1st configuration
-	if((ret = usb10_set_value(USB1, device_address, 0x00, USB10_REQ_SET_CONFIG, 1, 0, 0)) < 0)
+	if((ret = usb10_set_value(USB1, device_address, USB10_EP0, 0x00, USB10_REQ_SET_CONFIG, 1, 0, 0)) < 0)
 		goto usb10_error;
 
 	usb10_device_address = device_address;	
@@ -917,7 +920,7 @@ int usb10_hid_set_led(USB10_Reg* reg, uint8_t address, uint8_t endpoint, uint8_t
 	usb10_printf("%s: %s\r\n", USB10_HID_SET_LED_STR, "begin");
 
 	// Begin transaction
-	if((ret = usb10_setup_request(USB1, address, (uint8_t*)&request, NULL, 0)) < 0) {
+	if((ret = usb10_setup_request(USB1, address, USB10_EP0, (uint8_t*)&request, NULL, 0)) < 0) {
 		usb10_printf("%s: setup ret = %d\r\n", USB10_HID_SET_LED_STR, ret);
 		return ret;
 	}
