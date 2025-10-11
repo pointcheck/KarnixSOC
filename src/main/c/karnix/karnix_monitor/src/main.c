@@ -333,14 +333,14 @@ void main() {
 						"class/subclass/proto = %d/%d/%d, "
 						"EndpointAddress = %d, Interval = %d, MaxPower = %d mA\r\n",
 						new_device_address,
-						usb10_device_descr.device.idVendor,
-						usb10_device_descr.device.idProduct,
-						usb10_interface_descr.iface.bInterfaceClass,
-						usb10_interface_descr.iface.bInterfaceSubclass,
-						usb10_interface_descr.iface.bInterfaceProtocol,
-						usb10_endpoint_descr.endp.bEndpointAddress & 0x0f,
-						usb10_endpoint_descr.endp.bInterval,
-						usb10_config_descr.config.bMaxPower * 2
+						usb10_device_descr.idVendor,
+						usb10_device_descr.idProduct,
+						usb10_interface_descr.bInterfaceClass,
+						usb10_interface_descr.bInterfaceSubclass,
+						usb10_interface_descr.bInterfaceProtocol,
+						usb10_endpoint_descr.bEndpointAddress & 0x0f,
+						usb10_endpoint_descr.bInterval,
+						usb10_config_descr.bMaxPower * 2
 					);
 
 					cli_prompt();
@@ -353,25 +353,25 @@ void main() {
 
 				// Try to guess response data packet size using class info
 
-				if(usb10_interface_descr.iface.bInterfaceClass == 3 &&
-					  usb10_interface_descr.iface.bInterfaceSubclass == 1 &&
-					  usb10_interface_descr.iface.bInterfaceProtocol == 1) {
+				if(usb10_interface_descr.bInterfaceClass == 3 &&
+					  usb10_interface_descr.bInterfaceSubclass == 1 &&
+					  usb10_interface_descr.bInterfaceProtocol == 1) {
 
 					// We have to check RX packet len (88 bits) to skip empty packets
 
 					response_size = 8; // HID keyboard 
 					device_type = 1;
 
-				} else if(usb10_interface_descr.iface.bInterfaceClass == 3 &&
-				   usb10_interface_descr.iface.bInterfaceSubclass == 1 &&
-				   usb10_interface_descr.iface.bInterfaceProtocol == 2) {
+				} else if(usb10_interface_descr.bInterfaceClass == 3 &&
+				   usb10_interface_descr.bInterfaceSubclass == 1 &&
+				   usb10_interface_descr.bInterfaceProtocol == 2) {
 
 					response_size = 4; // HID mouse
 					device_type = 2;
 
-				} else if(usb10_interface_descr.iface.bInterfaceClass == 3 &&
-					  usb10_interface_descr.iface.bInterfaceSubclass == 0 &&
-				  	  usb10_interface_descr.iface.bInterfaceProtocol == 0) {
+				} else if(usb10_interface_descr.bInterfaceClass == 3 &&
+					  usb10_interface_descr.bInterfaceSubclass == 0 &&
+				  	  usb10_interface_descr.bInterfaceProtocol == 0) {
 
 					response_size = 8; // HID gamepad 
 					device_type = 3;
@@ -401,9 +401,9 @@ void main() {
 						for(int i = 0; i < response_size; i++)
 							xprintf("%02X ", response_data[i]);
 						xprintf(", class = %d/%d/%d, RX_STATUS: 0x%08X, RX_STATUS2: 0x%08X, STATUS: 0x%08X\r\n",
-							usb10_interface_descr.iface.bInterfaceClass,
-							usb10_interface_descr.iface.bInterfaceSubclass, 
-							usb10_interface_descr.iface.bInterfaceProtocol,
+							usb10_interface_descr.bInterfaceClass,
+							usb10_interface_descr.bInterfaceSubclass, 
+							usb10_interface_descr.bInterfaceProtocol,
 							USB1->RX_STATUS, USB1->RX_STATUS2, USB1->STATUS);
 
 						cli_prompt();

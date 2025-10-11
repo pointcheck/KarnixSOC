@@ -265,10 +265,10 @@ typedef union {
 #pragma pack(0)
 
 extern uint8_t usb10_device_address;	// last used device address
-extern USB10_DeviceDescriptorUnion usb10_device_descr;
-extern USB10_ConfigurationDescriptorUnion usb10_config_descr;
-extern USB10_InterfaceDescriptorUnion usb10_interface_descr;
-extern USB10_EndpointDescriptorUnion usb10_endpoint_descr;
+extern USB10_DeviceDescriptor usb10_device_descr;
+extern USB10_ConfigurationDescriptor usb10_config_descr;
+extern USB10_InterfaceDescriptor usb10_interface_descr;
+extern USB10_EndpointDescriptor usb10_endpoint_descr;
 
 
 int usb10_bus_reset(USB10_Reg* reg, int wait_us);
@@ -279,10 +279,10 @@ int usb10_set_value(USB10_Reg* reg, uint8_t address, uint8_t endpoint, uint8_t b
 
 /* NOTE: descr, config_resp, config_resp, interface_resp and endpoint_resp can be NULL pointers if response is unused. */
 int usb10_scan(USB10_Reg* reg, uint8_t* new_device_address,
-	USB10_DeviceDescriptorUnion **descr_resp,
-	USB10_ConfigurationDescriptorUnion **config_resp,
-	USB10_InterfaceDescriptorUnion **interface_resp,
-	USB10_EndpointDescriptorUnion **endpoint_resp);
+	USB10_DeviceDescriptor **descr_resp,
+	USB10_ConfigurationDescriptor **config_resp,
+	USB10_InterfaceDescriptor **interface_resp,
+	USB10_EndpointDescriptor **endpoint_resp);
 
 int usb10_in_request(USB10_Reg* reg, uint8_t address, uint8_t endpoint,
 	uint8_t* response_data, uint32_t response_size);

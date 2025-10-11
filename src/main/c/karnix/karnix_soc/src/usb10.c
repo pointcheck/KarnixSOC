@@ -10,10 +10,10 @@
 	#define	usb10_printf(...)	{ }
 #endif
 
-USB10_DeviceDescriptorUnion usb10_device_descr = {0};
-USB10_ConfigurationDescriptorUnion usb10_config_descr = {0};
-USB10_InterfaceDescriptorUnion usb10_interface_descr = {0};
-USB10_EndpointDescriptorUnion usb10_endpoint_descr = {0};
+USB10_DeviceDescriptor usb10_device_descr = {0};
+USB10_ConfigurationDescriptor usb10_config_descr = {0};
+USB10_InterfaceDescriptor usb10_interface_descr = {0};
+USB10_EndpointDescriptor usb10_endpoint_descr = {0};
 
 uint8_t usb10_device_address = 0;
 
@@ -765,10 +765,10 @@ int usb10_set_value(USB10_Reg* reg, uint8_t address, uint8_t endpoint, uint8_t b
 #define	USB10_SCAN_STR	"usb10_scan"
 
 int usb10_scan(USB10_Reg* reg, uint8_t* new_device_address,
-	USB10_DeviceDescriptorUnion **device_resp,
-	USB10_ConfigurationDescriptorUnion **config_resp,
-	USB10_InterfaceDescriptorUnion **interface_resp,
-	USB10_EndpointDescriptorUnion **endpoint_resp)
+	USB10_DeviceDescriptor **device_resp,
+	USB10_ConfigurationDescriptor **config_resp,
+	USB10_InterfaceDescriptor **interface_resp,
+	USB10_EndpointDescriptor **endpoint_resp)
 {
 	/* NOTE: descr_resp, config_resp, interface_resp and endpoint_resp can be NULL pointers,
 	   so do not use these here, use global data structures instead! */
@@ -788,11 +788,11 @@ int usb10_scan(USB10_Reg* reg, uint8_t* new_device_address,
 	printf("\r%s: Device detected: VID/PID = 0x%04X/0x%04X, "
 		"class/subclass = 0x%02X/0x%02X, bcdUSB = 0x%04X\r\n",
 		USB10_SCAN_STR,
-		usb10_device_descr.device.idVendor,
-		usb10_device_descr.device.idProduct,
-		usb10_device_descr.device.bDeviceClass,
-		usb10_device_descr.device.bDeviceSubClass,
-		usb10_device_descr.device.bcdUSB);
+		usb10_device_descr.idVendor,
+		usb10_device_descr.idProduct,
+		usb10_device_descr.bDeviceClass,
+		usb10_device_descr.bDeviceSubClass,
+		usb10_device_descr.bcdUSB);
 
 	if((ret = usb10_bus_reset(USB1, 12000)) < 0)
 		goto usb10_error;
@@ -860,13 +860,13 @@ int usb10_scan(USB10_Reg* reg, uint8_t* new_device_address,
 		"EPAddress = 0x%02X, Interval = %d ms, MaxPacket = %d\r\n",
 		USB10_SCAN_STR,
 		usb10_device_address,
-		usb10_config_descr.config.wTotalLength,
-		usb10_interface_descr.iface.bInterfaceClass,
-		usb10_interface_descr.iface.bInterfaceSubclass,
-		usb10_interface_descr.iface.bInterfaceProtocol,
-		usb10_endpoint_descr.endp.bEndpointAddress,
-		usb10_endpoint_descr.endp.bInterval,
-		usb10_endpoint_descr.endp.wMaxPacketSize);
+		usb10_config_descr.wTotalLength,
+		usb10_interface_descr.bInterfaceClass,
+		usb10_interface_descr.bInterfaceSubclass,
+		usb10_interface_descr.bInterfaceProtocol,
+		usb10_endpoint_descr.bEndpointAddress,
+		usb10_endpoint_descr.bInterval,
+		usb10_endpoint_descr.wMaxPacketSize);
 
 	ok:
 		// Fill-in returning data structures 
