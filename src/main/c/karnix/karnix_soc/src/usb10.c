@@ -10,12 +10,11 @@
 	#define	usb10_printf(...)	{ }
 #endif
 
+uint8_t usb10_device_address = 0;
 USB10_DeviceDescriptor usb10_device_descr = {0};
 USB10_ConfigurationDescriptor usb10_config_descr = {0};
 USB10_InterfaceDescriptor usb10_interface_descr = {0};
 USB10_EndpointDescriptor usb10_endpoint_descr = {0};
-
-uint8_t usb10_device_address = 0;
 
 struct _usb10_last_data_pid {
 	uint8_t sent;
@@ -762,9 +761,9 @@ int usb10_set_value(USB10_Reg* reg, uint8_t address, uint8_t endpoint, uint8_t b
 }
 
 
-#define	USB10_SCAN_STR	"usb10_scan"
+#define	USB10_SCAN_STR	"usb10_init"
 
-int usb10_scan(USB10_Reg* reg, uint8_t* new_device_address,
+int usb10_init(USB10_Reg* reg, uint8_t* new_device_address,
 	USB10_DeviceDescriptor **device_resp,
 	USB10_ConfigurationDescriptor **config_resp,
 	USB10_InterfaceDescriptor **interface_resp,

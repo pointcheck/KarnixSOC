@@ -278,7 +278,7 @@ int usb10_set_value(USB10_Reg* reg, uint8_t address, uint8_t endpoint, uint8_t b
 	uint16_t wValue, uint8_t bIndex, uint16_t wLength);
 
 /* NOTE: descr, config_resp, config_resp, interface_resp and endpoint_resp can be NULL pointers if response is unused. */
-int usb10_scan(USB10_Reg* reg, uint8_t* new_device_address,
+int usb10_init(USB10_Reg* reg, uint8_t* new_device_address,
 	USB10_DeviceDescriptor **descr_resp,
 	USB10_ConfigurationDescriptor **config_resp,
 	USB10_InterfaceDescriptor **interface_resp,

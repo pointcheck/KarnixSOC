@@ -325,7 +325,7 @@ void main() {
 			uint8_t new_device_address = 0;
 
 			if(usb10_device_address == 0) {
-				if(usb10_scan(USB1, &new_device_address, NULL, NULL, NULL, NULL) == 0) {
+				if(usb10_init(USB1, &new_device_address, NULL, NULL, NULL, NULL) == 0) {
 
 					reg_usb_error_count = 0;
 
