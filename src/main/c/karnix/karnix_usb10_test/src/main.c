@@ -138,13 +138,16 @@ void main() {
 
 			} else if(ret == USB10_IN_ENAK || ret == USB10_IN_ETIMEOUT) { // NAK or timeout (dupe) 
 				// These are legitimate error codes for not ready device, do nothing
+				goto usb_end;
 			} else {
 				if(++reg_usb_error_count > 3) { // More than 3 errors in a row means connection is broken
 					xprintf("\rUSB1 (%d:%d) failed, ret = %d\r\n", usb10_device_address, endpoint, ret);
 					usb10_device_address = 0; // flag USB as broken
-					goto usb_error;
+					goto usb_end;
 				}
 			}
+
+			// Some data processing code can be put here
 
 			if(device_type == 1) { // keyboard
 				if((reg_sys_counter & 0x3ff) == 0x100) { // Send HID all LEDs on
@@ -156,7 +159,7 @@ void main() {
 				}
 			}
 
-			usb_error:;
+			usb_end:;
 		}
 
 	}
