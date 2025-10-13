@@ -59,12 +59,7 @@ static inline int wait_bit_clear_timeout(volatile void* reg, uint32_t mask, uint
 
 #define print print_uart0
 
-#if(CGA_VTY_ENABLE)
 void xprintf(const char *format, ...);
-#else
-	#define	xprintf(...)	{printf( __VA_ARGS__);}
-#endif
-
 
 #endif // _UTILS_H_
 
