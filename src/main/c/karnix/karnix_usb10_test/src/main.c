@@ -1,17 +1,16 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
 #include "soc.h"
 #include "plic.h"
 #include "riscv.h"
+#include "usb10.h"
 #include "utils.h"
 
-const char *WELCOME_TEXT = "Welcome to Karnix Test. Copyright (C) 2024-2025, Fabmicro, LLC.\r\nBuild #%04u at %s %s. Main addr: %p\r\n\r\n";
-	
 extern void __sinit(void *);
 extern unsigned int _IMPURE_DATA;
+
+const char *WELCOME_TEXT = "Welcome to Karnix Test. Copyright (C) 2024-2025, Fabmicro, LLC.\r\nBuild #%04u at %s %s. Main addr: %p\r\n\r\n";
 
 uint32_t reg_sys_counter = 0;
 uint32_t reg_usb_error_count = 0;
@@ -137,7 +136,7 @@ void main() {
 					usb10_interface_descr.bInterfaceProtocol,
 					USB1->RX_STATUS, USB1->RX_STATUS2, USB1->STATUS);
 
-			} else if(ret == -8 || ret == -9) { // STALL,  NAK or dupe
+			} else if(ret == USB10_IN_ENAK || ret == USB10_IN_ETIMEOUT) { // NAK or timeout (dupe) 
 				// These are legitimate error codes for not ready device, do nothing
 			} else {
 				if(++reg_usb_error_count > 3) { // More than 3 errors in a row means connection is broken

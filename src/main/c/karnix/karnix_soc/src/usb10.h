@@ -136,6 +136,11 @@
 #define	MAX_ADDRESSES		4		// How many devices should be supported
 #define	MAX_ENDPOINTS		4		// How many endpoints per device
 
+#define	USB10_IN_ENAK		-8		// Not ready, try again late
+#define	USB10_IN_ETIMEOUT	-9		// Timeout, try again
+#define	USB10_IN_ESTALL		-12		// Fatal error, bus reset required
+
+
 #pragma pack(1)
 typedef struct {
 	volatile uint32_t STATUS;		// Controller Status register
