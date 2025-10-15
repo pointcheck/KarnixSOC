@@ -10,7 +10,7 @@
 extern void __sinit(void *);
 extern unsigned int _IMPURE_DATA;
 
-const char *WELCOME_TEXT = "Welcome to Karnix Test. Copyright (C) 2024-2025, Fabmicro, LLC.\r\nBuild #%04u at %s %s. Main addr: %p\r\n\r\n";
+const char *WELCOME_TEXT = "Welcome to Karnix USB 1.0 Test. Copyright (C) 2024-2025, Fabmicro, LLC.\r\nBuild #%04u at %s %s. Main addr: %p\r\n\r\n";
 
 uint32_t reg_sys_counter = 0;
 uint32_t reg_usb_error_count = 0;
