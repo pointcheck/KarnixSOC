@@ -15,7 +15,7 @@ This simple application will produce the following output if no USB device conne
 ```
 MONITOR[0x80000000]-> call 0xa0100000
 call: addr = 0xa0100000, argn = 1
-Welcome to Karnix Test. Copyright (C) 2024-2025, Fabmicro, LLC.
+Welcome to Karnix USB 1.0 Test. Copyright (C) 2024-2025, Fabmicro, LLC.
 Build #0011 at Oct 13 2025 19:02:21. Main addr: 0xa0100d58
 
 USB1 enabled
@@ -97,16 +97,29 @@ USB1 (1:1) data received: 00 00 00 00 00 00 00 00 , class = 3/1/1, RX_STATUS: 0x
 Now when buttons pressed their corresponding Usage ID codes will be put into stack of currently pressed buttons, like:
 
 ```
-USB1 (1:1) data received: 00 00 09 00 00 00 00 00 , class = 3/1/1, RX_STATUS: 0x6DBF4B58, RX_STATUS2: 0x00006DBF, STATUS: 0x04000001
-USB1 (1:1) data received: 00 00 09 00 00 00 00 00 , class = 3/1/1, RX_STATUS: 0x6DBFC358, RX_STATUS2: 0x00006DBF, STATUS: 0x04000001
-USB1 (1:1) data received: 00 00 09 05 00 00 00 00 , class = 3/1/1, RX_STATUS: 0x6D734B58, RX_STATUS2: 0x00006D73, STATUS: 0x04000001
-USB1 (1:1) data received: 00 00 09 05 00 00 00 00 , class = 3/1/1, RX_STATUS: 0x6D73C358, RX_STATUS2: 0x00006D73, STATUS: 0x04000001
-USB1 (1:1) data received: 00 00 09 05 06 00 00 00 , class = 3/1/1, RX_STATUS: 0xE5734B58, RX_STATUS2: 0x0000E573, STATUS: 0x04000001
-USB1 (1:1) data received: 00 00 09 05 06 00 00 00 , class = 3/1/1, RX_STATUS: 0xE573C358, RX_STATUS2: 0x0000E573, STATUS: 0x04000001
-USB1 (1:1) data received: 00 00 09 05 06 00 00 00 , class = 3/1/1, RX_STATUS: 0xE5734B58, RX_STATUS2: 0x0000E573, STATUS: 0x04000001
+USB1 (1:1) data received: 00 00 04 00 00 00 00 00 , class = 3/1/1, RX_STATUS: 0x70BE4B58, RX_STATUS2: 0x000070BE, STATUS: 0x04000001
+USB1 (1:1) data received: 00 00 04 00 00 00 00 00 , class = 3/1/1, RX_STATUS: 0x70BEC358, RX_STATUS2: 0x000070BE, STATUS: 0x04000001
+USB1 (1:1) data received: 00 00 04 00 00 00 00 00 , class = 3/1/1, RX_STATUS: 0x70BE4B58, RX_STATUS2: 0x000070BE, STATUS: 0x04000001
+USB1 (1:1) data received: 00 00 04 00 00 00 00 00 , class = 3/1/1, RX_STATUS: 0x70BEC358, RX_STATUS2: 0x000070BE, STATUS: 0x04000001
+USB1 (1:1) data received: 00 00 04 05 00 00 00 00 , class = 3/1/1, RX_STATUS: 0x70724B58, RX_STATUS2: 0x00007072, STATUS: 0x04000001
+USB1 (1:1) data received: 00 00 04 05 00 00 00 00 , class = 3/1/1, RX_STATUS: 0x7072C358, RX_STATUS2: 0x00007072, STATUS: 0x04000001
+USB1 (1:1) data received: 00 00 04 05 00 00 00 00 , class = 3/1/1, RX_STATUS: 0x70724B58, RX_STATUS2: 0x00007072, STATUS: 0x04000001
+USB1 (1:1) data received: 00 00 04 05 00 00 00 00 , class = 3/1/1, RX_STATUS: 0x7072C358, RX_STATUS2: 0x00007072, STATUS: 0x04000001
+USB1 (1:1) data received: 00 00 04 05 06 00 00 00 , class = 3/1/1, RX_STATUS: 0xF8724B58, RX_STATUS2: 0x0000F872, STATUS: 0x04000001
+USB1 (1:1) data received: 00 00 04 05 06 00 00 00 , class = 3/1/1, RX_STATUS: 0xF872C358, RX_STATUS2: 0x0000F872, STATUS: 0x04000001
+USB1 (1:1) data received: 00 00 04 05 06 00 00 00 , class = 3/1/1, RX_STATUS: 0xF8724B58, RX_STATUS2: 0x0000F872, STATUS: 0x04000001
+USB1 (1:1) data received: 00 00 04 05 06 00 00 00 , class = 3/1/1, RX_STATUS: 0xF872C358, RX_STATUS2: 0x0000F872, STATUS: 0x04000001
+USB1 (1:1) data received: 00 00 04 05 06 00 00 00 , class = 3/1/1, RX_STATUS: 0xF8724B58, RX_STATUS2: 0x0000F872, STATUS: 0x04000001
+USB1 (1:1) data received: 00 00 04 05 06 00 00 00 , class = 3/1/1, RX_STATUS: 0xF872C358, RX_STATUS2: 0x0000F872, STATUS: 0x04000001
+USB1 (1:1) data received: 00 00 05 06 00 00 00 00 , class = 3/1/1, RX_STATUS: 0xA1374B58, RX_STATUS2: 0x0000A137, STATUS: 0x04000001
+USB1 (1:1) data received: 00 00 05 06 00 00 00 00 , class = 3/1/1, RX_STATUS: 0xA137C358, RX_STATUS2: 0x0000A137, STATUS: 0x04000001
+USB1 (1:1) data received: 00 00 05 06 00 00 00 00 , class = 3/1/1, RX_STATUS: 0xA1374B58, RX_STATUS2: 0x0000A137, STATUS: 0x04000001
+USB1 (1:1) data received: 00 00 05 00 00 00 00 00 , class = 3/1/1, RX_STATUS: 0xA1BFC358, RX_STATUS2: 0x0000A1BF, STATUS: 0x04000001
+USB1 (1:1) data received: 00 00 05 00 00 00 00 00 , class = 3/1/1, RX_STATUS: 0xA1BF4B58, RX_STATUS2: 0x0000A1BF, STATUS: 0x04000001
+USB1 (1:1) data received: 00 00 00 00 00 00 00 00 , class = 3/1/1, RX_STATUS: 0xF4BFC358, RX_STATUS2: 0x0000F4BF, STATUS: 0x04000001
 ```
 
-The above means that 'A' key (code 0x09) was pressed, then 'B' (code 0x05) followed and finally 'C' (code 0x06) was pressed and all three keys were kept pressed and held for a while. Once any of the keys is released its code is removed from the stack.
+The above means that 'A' key (code 0x04) was pressed, then 'B' (code 0x05) followed and finally 'C' (code 0x06) was pressed and all three keys were kept pressed and held for a while. Once any of the keys is released its code is removed from the stack.
 
 When any number of modifier keys are pressed, they are reflected in byte[0] bit field.
 
