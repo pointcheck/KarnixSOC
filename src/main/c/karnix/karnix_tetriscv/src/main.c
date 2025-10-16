@@ -136,7 +136,7 @@ void show_greetings(void) {
 		"\t\t*\t*\t*\n\n\n\n";
 	       
 	memset(videobuf_for_text, 0, VIDEO_BUFFER_SIZE);
-	cga_text_print(videobuf_for_text, 0,  0, 15, 0, (char*)greetings);
+	cga_text_print(videobuf_for_text, 0,  0, 15, 0, 0, (char*)greetings);
 	cga_set_cursor_xy(48, 22);
 
 	memset(videobuf_for_graphics, 0, VIDEO_BUFFER_SIZE);
@@ -392,7 +392,7 @@ int main(void) {
 
 	gameOver = 2; // show greetings
 
-show_greetings();
+	show_greetings();
 
 	while(1) {
 		static int _scroll = 700;
@@ -435,98 +435,89 @@ show_greetings();
 		#endif
 
 		#if(USB10_ENABLE)
-		if(timestamp - reg_usb_timestamp >= 40000) { // Send USB command every 40ms 
+		if(timestamp - reg_usb_timestamp >= 100000) { // Send USB command every 100ms 
 
 			reg_usb_timestamp = timestamp;
 
-			uint8_t new_device_address = 0;
-
 			if(usb10_device_address == 0) {
 
-				// USB Device Detection
+				uint8_t new_device_address = 0;
 
-				if(usb10_scan(USB1, &new_device_address, NULL, NULL) == 0) {
+				if(usb10_init(USB1, &new_device_address, NULL, NULL, NULL, NULL) == 0) {
 
 					reg_usb_error_count = 0;
 
-					// Try to guess device type and response data packet size using class info
-
-					if(usb10_config_resp.conf.iface.bInterfaceClass == 3 &&
-						  usb10_config_resp.conf.iface.bInterfaceSubclass == 1 &&
-						  usb10_config_resp.conf.iface.bInterfaceProtocol == 1) {
-
-						// We have to check RX packet len (88 bits) to skip empty packets
-
-						reg_usb_response_size = 8; // HID keyboard 
-						reg_usb_device_type = 1;
-
-					} else if(usb10_config_resp.conf.iface.bInterfaceClass == 3 &&
-					   usb10_config_resp.conf.iface.bInterfaceSubclass == 1 &&
-					   usb10_config_resp.conf.iface.bInterfaceProtocol == 2) {
-
-						reg_usb_response_size = 4; // HID mouse
-						reg_usb_device_type = 2;
-
-					} else if(usb10_config_resp.conf.iface.bInterfaceClass == 3 &&
-						  usb10_config_resp.conf.iface.bInterfaceSubclass == 0 &&
-					  	  usb10_config_resp.conf.iface.bInterfaceProtocol == 0) {
-
-						reg_usb_response_size = 8; // HID gamepad 
-						reg_usb_device_type = 3;
-
-					} else {
-						reg_usb_response_size = 8; // Unknown
-						reg_usb_device_type = 0;
-					}
-
-					printf("\rUSB1: new device addr = %d, type = %s, VID/PID = 0x%04X/0x%04X, class/subclass/proto = %d/%d/%d\r\n",
+					xprintf("\rUSB1: new device addr = %d, VID/PID = 0x%04X/0x%04X, "
+						"class/subclass/proto = %d/%d/%d, "
+						"EndpointAddress = %d, Interval = %d, MaxPower = %d mA\r\n",
 						new_device_address,
-						reg_usb_device_type == 0 ? "unknown" :
-							(reg_usb_device_type == 1 ? "keyboard" : 
-							(reg_usb_device_type == 2 ? "mouse" : "gamepad")
-						),
-						usb10_descr_resp.descr.idVendor,
-						usb10_descr_resp.descr.idProduct,
-						usb10_config_resp.conf.iface.bInterfaceClass,
-						usb10_config_resp.conf.iface.bInterfaceSubclass,
-						usb10_config_resp.conf.iface.bInterfaceProtocol
+						usb10_device_descr.idVendor,
+						usb10_device_descr.idProduct,
+						usb10_interface_descr.bInterfaceClass,
+						usb10_interface_descr.bInterfaceSubclass,
+						usb10_interface_descr.bInterfaceProtocol,
+						usb10_endpoint_descr.bEndpointAddress & 0x0f,
+						usb10_endpoint_descr.bInterval,
+						usb10_config_descr.bMaxPower * 2
 					);
 				}
-			} else {
-				// Poll USB device for events
 
+			} else {
 				uint8_t endpoint = 1; //should be usb10_config_resp.conf.endp.bEndpointAddress & 0x0f ?
 				uint8_t response_data[8] = {0};
-				
-				int ret = usb10_device_in_request(USB1, usb10_device_address, endpoint,
-						response_data, reg_usb_response_size);
+				int response_size;
 
-				if(ret == 0) {
+				// Try to guess response data packet size using class info
+
+				if(usb10_interface_descr.bInterfaceClass == 3 &&
+					  usb10_interface_descr.bInterfaceSubclass == 1 &&
+					  usb10_interface_descr.bInterfaceProtocol == 1) {
+
+					// We have to check RX packet len (88 bits) to skip empty packets
+
+					response_size = 8; // HID keyboard 
+					reg_usb_device_type = 1;
+
+				} else if(usb10_interface_descr.bInterfaceClass == 3 &&
+				   usb10_interface_descr.bInterfaceSubclass == 1 &&
+				   usb10_interface_descr.bInterfaceProtocol == 2) {
+
+					response_size = 4; // HID mouse
+					reg_usb_device_type = 2;
+
+				} else if(usb10_interface_descr.bInterfaceClass == 3 &&
+					  usb10_interface_descr.bInterfaceSubclass == 0 &&
+				  	  usb10_interface_descr.bInterfaceProtocol == 0) {
+
+					response_size = 8; // HID gamepad 
+					reg_usb_device_type = 3;
+
+				} else {
+					response_size = 8; // Unknown
+					reg_usb_device_type = 0;
+				}
+				
+				// Poll Endpoint for new data
+				int ret = usb10_in_request(USB1, usb10_device_address, endpoint,
+						response_data, response_size);
+
+				if(ret >= 0) {
 
 					reg_usb_error_count = 0;
 
-					#if(0)
-					{
-						printf("\rUSB1 (%d:%d) data received: ", usb10_device_address, endpoint);
-						for(int i = 0; i < reg_usb_response_size; i++)
-							printf("%02X ", response_data[i]);
-						printf(", class = %d/%d/%d, RX_STATUS: 0x%08X, RX_STATUS2: 0x%08X, STATUS: 0x%08X\r\n",
-							usb10_config_resp.conf.iface.bInterfaceClass,
-							usb10_config_resp.conf.iface.bInterfaceSubclass, 
-							usb10_config_resp.conf.iface.bInterfaceProtocol,
-							USB1->RX_STATUS, USB1->RX_STATUS2, USB1->STATUS);
-
-					}
-					#endif
-
-				} else if(ret == -8 || ret == -9) { // STALL,  NAK or dupe
-					// Do nothing
+				} else if(ret == USB10_IN_ENAK || ret == USB10_IN_ETIMEOUT) { // NAK or timeout (dupe) 
+					// No new data, do nothing
+					goto usb_end;
 				} else {
+					// Three errors is enough to disable USB 
 					if(++reg_usb_error_count > 3) {
-						printf("\rUSB1 (%d:%d) failed, ret = %d\r\n", usb10_device_address, endpoint, ret);
+						xprintf("\rUSB1 (%d:%d) failed, ret = %d\r\n", usb10_device_address, endpoint, ret);
 						usb10_device_address = 0; // flag USB as broken
+						goto usb_end;
 					}
 				}
+
+				// Process USB HID data
 
 				switch(reg_usb_device_type) {
 					case 1: // keyboard
@@ -543,13 +534,13 @@ show_greetings();
 						break;
 
 					case 2: // mouse 
-						if(response_data[1] >= 0x80) // left
+						if(response_data[1] >= 0x90) // left
 							keys = last_keys = GPIO_IN_KEY3;
-						if(response_data[1] > 0x0 && response_data[1] < 0x80) // right
+						if(response_data[1] > 0x10 && response_data[1] < 0x80) // right
 							keys = last_keys = GPIO_IN_KEY0;
-						if(response_data[2] >= 0x80) // up 
+						if(response_data[0] & 0x01) // Up 
 							keys = last_keys = GPIO_IN_KEY1;
-						if(response_data[2] > 0x0 && response_data[2] < 0x80) // down 
+						if(response_data[0] & 0x02) // down 
 							keys = last_keys = GPIO_IN_KEY2;
 						break;
 
@@ -564,6 +555,8 @@ show_greetings();
 							keys = last_keys = GPIO_IN_KEY2;
 						break;
 				}
+
+				usb_end: ;
 			}
 
 		}
@@ -673,11 +666,11 @@ show_greetings();
 				"\t#   #  #    #  #    #  #         #     #   #  #   #       #   # \r\n" 
 				"\t ####  #    #  #    #  ######     #####     ##    ######  #    #\r\n"
 				;
-			cga_text_print(videobuf_for_text, 0, 10, 5, 0, (char*)game_over_text);
+			cga_text_print(videobuf_for_text, 0, 10, 5, 0, 0, (char*)game_over_text);
 
 			char score_text[32];
 			snprintf(score_text, 32, ESC_FG "15;Last score: %u", score);
-			cga_text_print(videobuf_for_text, 26, 16, 15, 0, score_text);
+			cga_text_print(videobuf_for_text, 26, 16, 15, 0, 0, score_text);
 			cga_set_cursor_xy(45, 16);
 		}
 

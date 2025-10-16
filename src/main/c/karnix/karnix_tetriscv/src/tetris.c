@@ -168,7 +168,7 @@ void drawArena() {
 	int bufferIndex = 0;
 
 	snprintf(buffer, 512, "\t\t\tScore: %d", score);
-	cga_text_print(CGA->FB, 0, 0, 15, 0, buffer);
+	cga_text_print(CGA->FB, 0, 0, 15, 0, 0, buffer);
 	cga_set_cursor_xy(40, 0);
 
 	for (int y = 0; y < A_HEIGHT + 1; y++) {
@@ -219,7 +219,7 @@ void drawArena() {
 
 	buffer[bufferIndex] = '\0';
 
-	cga_text_print(CGA->FB, 0, 2, 15, 0, buffer);
+	cga_text_print(CGA->FB, 0, 2, 15, 0, 0, buffer);
 
 }
 
