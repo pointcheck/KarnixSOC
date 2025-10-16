@@ -167,13 +167,13 @@ int main(void) {
 
 			char text[32];
 			snprintf(text, 32, "Motion:\t0x%02X\t", motion);
-			cga_text_print(CGA->FB, 36, 0, 15, 0, text);
+			cga_text_print(CGA->FB, 36, 0, 15, 0, 0, text);
 			snprintf(text, 32, "Squal:\t%u\t", squal);
-			cga_text_print(CGA->FB, 36, 1, 15, 0, text);
+			cga_text_print(CGA->FB, 36, 1, 15, 0, 0, text);
 			snprintf(text, 32, "Delta_X:\t%d\t", delta_x);
-			cga_text_print(CGA->FB, 36, 2, 15, 0, text);
+			cga_text_print(CGA->FB, 36, 2, 15, 0, 0, text);
 			snprintf(text, 32, "Delta_Y:\t%d\t", delta_y);
-			cga_text_print(CGA->FB, 36, 3, 15, 0, text);
+			cga_text_print(CGA->FB, 36, 3, 15, 0, 0, text);
 		}
 
 	}
