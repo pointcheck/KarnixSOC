@@ -118,7 +118,7 @@ void cga_rotate_palette_left(uint32_t palettes_to_rotate);
 void cga_fill_screen(char color);
 void cga_draw_pixel(int x, int y, int color);
 void cga_draw_line(int x1, int y1, int x2, int y2, int color);
-void cga_text_print(uint8_t *framebuffer, int x, int y, int fg_color, int bg_color, char *text);
+void cga_text_print(uint8_t *framebuffer, int x, int y, int fg_color, int bg_color, int scroll_delay, char *text);
 void cga_set_scroll(int scrl);
 void cga_text_scroll_up(uint32_t scroll_delay);
 void cga_text_scroll_down(uint32_t scroll_delay);
