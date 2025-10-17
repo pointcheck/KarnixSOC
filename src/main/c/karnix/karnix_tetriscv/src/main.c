@@ -562,8 +562,6 @@ int main(void) {
 		}
 		#endif
 
-
-
 		// Tetris Game screen
 
 		if(gameOver == 0) {
