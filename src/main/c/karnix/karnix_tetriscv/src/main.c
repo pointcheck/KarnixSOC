@@ -27,10 +27,10 @@ volatile uint64_t reg_sys_timestamp = 0;
 #if(USB10_ENABLE)
 #include "usb10.h"
 #include "usb_hid_keys.h"
-volatile uint32_t reg_usb_timestamp = 0;
-volatile uint32_t reg_usb_error_count = 0;
-volatile uint32_t reg_usb_response_size = 0; 
-volatile uint32_t reg_usb_device_type = 0;
+uint32_t reg_usb_timestamp = 0;		// Timestamp of last USB transfer
+uint32_t reg_usb_error_count = 0;	// Number of errors on USB bus
+uint32_t reg_usb_response_size = 0; 	// Recall max transfer size in bytes
+uint32_t reg_usb_device_type = 0;	// Recall device type: 1 - keyboard, 2 - mouse, 3 - gamepad, 0 - unknown
 #endif
 
 #if(AUDIO_ENABLED)
@@ -85,7 +85,7 @@ int _sprite_idx;
 
 void show_greetings(void) {
 
-	const char *greetings = 
+	const char *greetings =
 		ESC_FG "15;\t######  ######  ######  " ESC_FG "5;#####    ####   ####    ####         ##  ##\r\n"
 		ESC_FG "15;\t  ##    ##        ##    " ESC_FG "5;##  ##    ##   ##      ##  ##        ##  ##\r\n"
 		ESC_FG "15;\t  ##    ####      ##    " ESC_FG "5;#####     ##    ####   ##      ####  ##  ##\r\n"
@@ -134,7 +134,7 @@ void show_greetings(void) {
 		"\t" ESC_FG "14;" "@frog" ESC_FG "5; for CC'24 and keeping Russian demoscene running...\r\n"
 		"\n"
 		"\t\t*\t*\t*\n\n\n\n";
-	       
+
 	memset(videobuf_for_text, 0, VIDEO_BUFFER_SIZE);
 	cga_text_print(videobuf_for_text, 0,  0, 15, 0, 0, (char*)greetings);
 	cga_set_cursor_xy(48, 22);
@@ -256,11 +256,11 @@ int main(void) {
 	if(sram_test_write_random_ints(1) == 0) {
 		printf("Enabling SRAM...\r\n");
 		init_sbrk((unsigned int*)SRAM_ADDR_BEGIN, SRAM_SIZE);
-		printf("SRAM at %p is %s!\r\n", SRAM_ADDR_BEGIN, "enabled"); 
+		printf("SRAM at %p is %s!\r\n", SRAM_ADDR_BEGIN, "enabled");
 		// If this prints, we are running with new heap all right
 		// Note, that some garbage can be printed along, that's ok!
 	} else {
-		printf("SRAM at %p is %s!\r\n", SRAM_ADDR_BEGIN, "disabled"); 
+		printf("SRAM at %p is %s!\r\n", SRAM_ADDR_BEGIN, "disabled");
 	}
 	#endif
 
@@ -288,14 +288,14 @@ int main(void) {
 	printf("USB1 enabled\r\n");
 	#endif
 
-	// Reset PLIC interrupt controller and disable all IRQ lines 
+	// Reset PLIC interrupt controller and disable all IRQ lines
 	PLIC->ENABLE = 0;
 	PLIC->POLARITY = 0;
 	PLIC->EDGE = 0;
 	PLIC->PENDING = 0;
 
-	// Configure UART0 IRQ sources: bit(0) - TX interrupts, bit(1) - RX interrupts 
-	UART0->STATUS |= UART_STATUS_RX_IRQ_EN; // Allow only RX interrupts 
+	// Configure UART0 IRQ sources: bit(0) - TX interrupts, bit(1) - RX interrupts
+	UART0->STATUS |= UART_STATUS_RX_IRQ_EN; // Allow only RX interrupts
 	PLIC->EDGE &= ~PLIC_IRQ_UART0;
 	PLIC->POLARITY |= PLIC_IRQ_UART0;
 	PLIC->ENABLE |= PLIC_IRQ_UART0;
@@ -371,7 +371,7 @@ int main(void) {
 	printf("Video double-buffers allocated\r\n");
 
 	// Enable writes to EEPROM
-	GPIO->OUTPUT &= ~GPIO_OUT_EEPROM_WP; 
+	GPIO->OUTPUT &= ~GPIO_OUT_EEPROM_WP;
 
 	GPIO->OUTPUT &= ~(GPIO_OUT_LED0 | GPIO_OUT_LED1 | GPIO_OUT_LED2 | GPIO_OUT_LED3);
 
@@ -415,7 +415,7 @@ int main(void) {
 
 		uint32_t timestamp = get_mtime();
 
-		// Print resource usage statistics 
+		// Print resource usage statistics
 		#if(PRINT_STATS)
 		if(timestamp - reg_sys_timestamp >= 1000000) {
 
@@ -435,7 +435,7 @@ int main(void) {
 		#endif
 
 		#if(USB10_ENABLE)
-		if(timestamp - reg_usb_timestamp >= 100000) { // Send USB command every 100ms 
+		if(timestamp - reg_usb_timestamp >= 100000) { // Send USB command every 100ms
 
 			reg_usb_timestamp = timestamp;
 
@@ -460,56 +460,56 @@ int main(void) {
 						usb10_endpoint_descr.bInterval,
 						usb10_config_descr.bMaxPower * 2
 					);
-				}
 
+					// Try to guess response data packet size using class info
+	
+					if(usb10_interface_descr.bInterfaceClass == 3 &&
+						  usb10_interface_descr.bInterfaceSubclass == 1 &&
+						  usb10_interface_descr.bInterfaceProtocol == 1) {
+	
+						// We have to check RX packet len (88 bits) to skip empty packets
+	
+						reg_usb_response_size = 8; // HID keyboard
+						reg_usb_device_type = 1;
+	
+					} else if(usb10_interface_descr.bInterfaceClass == 3 &&
+					   usb10_interface_descr.bInterfaceSubclass == 1 &&
+					   usb10_interface_descr.bInterfaceProtocol == 2) {
+	
+						reg_usb_response_size = 4; // HID mouse
+						reg_usb_device_type = 2;
+	
+					} else if(usb10_interface_descr.bInterfaceClass == 3 &&
+						  usb10_interface_descr.bInterfaceSubclass == 0 &&
+					  	  usb10_interface_descr.bInterfaceProtocol == 0) {
+	
+						reg_usb_response_size = 8; // HID gamepad
+						reg_usb_device_type = 3;
+	
+					} else {
+						reg_usb_response_size = 8; // Unknown
+						reg_usb_device_type = 0;
+					}
+
+				}
+				
 			} else {
 				uint8_t endpoint = 1; //should be usb10_config_resp.conf.endp.bEndpointAddress & 0x0f ?
 				uint8_t response_data[8] = {0};
-				int response_size;
 
-				// Try to guess response data packet size using class info
-
-				if(usb10_interface_descr.bInterfaceClass == 3 &&
-					  usb10_interface_descr.bInterfaceSubclass == 1 &&
-					  usb10_interface_descr.bInterfaceProtocol == 1) {
-
-					// We have to check RX packet len (88 bits) to skip empty packets
-
-					response_size = 8; // HID keyboard 
-					reg_usb_device_type = 1;
-
-				} else if(usb10_interface_descr.bInterfaceClass == 3 &&
-				   usb10_interface_descr.bInterfaceSubclass == 1 &&
-				   usb10_interface_descr.bInterfaceProtocol == 2) {
-
-					response_size = 4; // HID mouse
-					reg_usb_device_type = 2;
-
-				} else if(usb10_interface_descr.bInterfaceClass == 3 &&
-					  usb10_interface_descr.bInterfaceSubclass == 0 &&
-				  	  usb10_interface_descr.bInterfaceProtocol == 0) {
-
-					response_size = 8; // HID gamepad 
-					reg_usb_device_type = 3;
-
-				} else {
-					response_size = 8; // Unknown
-					reg_usb_device_type = 0;
-				}
-				
 				// Poll Endpoint for new data
 				int ret = usb10_in_request(USB1, usb10_device_address, endpoint,
-						response_data, response_size);
+						response_data, reg_usb_response_size);
 
 				if(ret >= 0) {
 
 					reg_usb_error_count = 0;
 
-				} else if(ret == USB10_IN_ENAK || ret == USB10_IN_ETIMEOUT) { // NAK or timeout (dupe) 
+				} else if(ret == USB10_IN_ENAK || ret == USB10_IN_ETIMEOUT) { // NAK or timeout (dupe)
 					// No new data, do nothing
 					goto usb_end;
 				} else {
-					// Three errors is enough to disable USB 
+					// Three errors is enough to disable USB
 					if(++reg_usb_error_count > 3) {
 						xprintf("\rUSB1 (%d:%d) failed, ret = %d\r\n", usb10_device_address, endpoint, ret);
 						usb10_device_address = 0; // flag USB as broken
@@ -533,25 +533,25 @@ int main(void) {
 						}
 						break;
 
-					case 2: // mouse 
+					case 2: // mouse
 						if(response_data[1] >= 0x90) // left
 							keys = last_keys = GPIO_IN_KEY3;
 						if(response_data[1] > 0x10 && response_data[1] < 0x80) // right
 							keys = last_keys = GPIO_IN_KEY0;
-						if(response_data[0] & 0x01) // Up 
+						if(response_data[0] & 0x01) // Up
 							keys = last_keys = GPIO_IN_KEY1;
-						if(response_data[0] & 0x02) // down 
+						if(response_data[0] & 0x02) // down
 							keys = last_keys = GPIO_IN_KEY2;
 						break;
 
-					case 3: // gamepag 
+					case 3: // gamepag
 						if(response_data[0] == 0x00 || response_data[5] == 0x8f) // left
 							keys = last_keys = GPIO_IN_KEY3;
 						if(response_data[0] == 0xff || response_data[5] == 0x2f) // right
 							keys = last_keys = GPIO_IN_KEY0;
-						if(response_data[1] == 0x00 || response_data[5] == 0x1f) // up 
+						if(response_data[1] == 0x00 || response_data[5] == 0x1f) // up
 							keys = last_keys = GPIO_IN_KEY1;
-						if(response_data[1] == 0xff || response_data[5] == 0x4f) // down 
+						if(response_data[1] == 0xff || response_data[5] == 0x4f) // down
 							keys = last_keys = GPIO_IN_KEY2;
 						break;
 				}
@@ -586,7 +586,7 @@ int main(void) {
 
 			if(keys) {
 
-				printf("Inputs: last_keys = %04x, new_keys = %04x\r\n", last_keys, new_keys); 
+				printf("Inputs: last_keys = %04x, new_keys = %04x\r\n", last_keys, new_keys);
 
 				if(keys & GPIO_IN_KEY0)
 					processInputs(TETRIS_EVENT_RIGHT);
@@ -621,7 +621,7 @@ int main(void) {
 		}
 
 
-		// Game Over screen 
+		// Game Over screen
 		
 		if(gameOver == 1) {
 
@@ -641,7 +641,7 @@ int main(void) {
 				cga_set_scroll(_scroll++);
 			else
 				cga_set_scroll(_scroll--);
-			memcpy(CGA->FB, videobuf_for_text, 20*1024); 
+			memcpy(CGA->FB, videobuf_for_text, 20*1024);
 			cga_wait_vblank_end();
 
 			for(int i = 0; i < 480/2; i++) {
@@ -663,7 +663,7 @@ int main(void) {
 				"\t ###     ##    #    #  ######     #####   #    #  ######  ##### \r\n"
 				"\t#       #  #   ##  ##  #         #     #  #    #  #       #    #\r\n"
 				"\t#  ##   ####   # ## #  ###       #     #  #    #  ###     ##### \r\n"
-				"\t#   #  #    #  #    #  #         #     #   #  #   #       #   # \r\n" 
+				"\t#   #  #    #  #    #  #         #     #   #  #   #       #   # \r\n"
 				"\t ####  #    #  #    #  ######     #####     ##    ######  #    #\r\n"
 				;
 			cga_text_print(videobuf_for_text, 0, 10, 5, 0, 0, (char*)game_over_text);
@@ -695,7 +695,7 @@ int main(void) {
 			cga_wait_vblank();
 			cga_set_video_mode(CGA_MODE_TEXT);
 			cga_set_scroll(_scroll++);
-			memcpy(CGA->FB, videobuf_for_text, 20*1024); 
+			memcpy(CGA->FB, videobuf_for_text, 20*1024);
 			cga_wait_vblank_end();
 
 			for(int i = 0; i < 480/2; i++) {
@@ -711,7 +711,7 @@ int main(void) {
 			cga_wait_vblank();
 			cga_set_video_mode(CGA_MODE_GRAPHICS1);
 			cga_set_scroll(0);
-			memcpy(CGA->FB, videobuf_for_graphics, VIDEO_BUFFER_SIZE); 
+			memcpy(CGA->FB, videobuf_for_graphics, VIDEO_BUFFER_SIZE);
 			cga_wait_vblank_end();
 
 			show_greetings();
@@ -754,7 +754,7 @@ int main(void) {
 					//t = (t + 1) % 360;
 
 					if(gameOver == 1 || gameOver == 2)
-						buf[i] = t*(t^t+(t>>15|1)^(t-1280^t)>>10) << 8; 
+						buf[i] = t*(t^t+(t>>15|1)^(t-1280^t)>>10) << 8;
 					else
 						buf[i] = ((t*9&t>>4|t*5&t>>7|t*3&t/1024)-1) << 8;
 					t++;
@@ -764,7 +764,7 @@ int main(void) {
 
 				if(processed != samples_to_send) {
 			      		printk("audiodac0_submit_buffer partial: %d of %d\r\n", processed, samples_to_send);
-					t -= (samples_to_send - processed); // rollback t for a number of unprocessed samples 
+					t -= (samples_to_send - processed); // rollback t for a number of unprocessed samples
 					break;
 				}
 
@@ -810,7 +810,7 @@ void externalInterrupt(void){
 	}
 
 
-	if(PLIC->PENDING & PLIC_IRQ_I2C) { // I2C xmit complete 
+	if(PLIC->PENDING & PLIC_IRQ_I2C) { // I2C xmit complete
 		//print("I2C IRQ\r\n");
 		PLIC->PENDING &= ~PLIC_IRQ_I2C;
 	}
@@ -826,13 +826,13 @@ void externalInterrupt(void){
 		PLIC->PENDING &= ~PLIC_IRQ_MAC;
 	}
 
-	if(PLIC->PENDING & PLIC_IRQ_TIMER0) { // Timer0 (for MAC) 
+	if(PLIC->PENDING & PLIC_IRQ_TIMER0) { // Timer0 (for MAC)
 		//printf("TIMER0 IRQ\r\n");
 		timer_run(TIMER0, 100000); // 100 ms timer
 		PLIC->PENDING &= ~PLIC_IRQ_TIMER0;
 	}
 
-	if(PLIC->PENDING & PLIC_IRQ_TIMER1) { // Timer1 (for Modbus RTU) 
+	if(PLIC->PENDING & PLIC_IRQ_TIMER1) { // Timer1 (for Modbus RTU)
 		//print("TIMER1 IRQ\r\n");
 		timer_run(TIMER1, 50000); // 50 ms timer
 		PLIC->PENDING &= ~PLIC_IRQ_TIMER1;
@@ -847,7 +847,7 @@ void externalInterrupt(void){
 	}
 	#endif
 
-	if(PLIC->PENDING & PLIC_IRQ_CGA_VBLANK) { // CGA vertical blanking 
+	if(PLIC->PENDING & PLIC_IRQ_CGA_VBLANK) { // CGA vertical blanking
 		//print("VBLANK IRQ\r\n");
 		cga_vblank_irqs++;
 		PLIC->PENDING &= ~PLIC_IRQ_CGA_VBLANK;
