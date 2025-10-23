@@ -542,7 +542,7 @@ object USBMain extends SpinalEnum{
 }
 
 object USBCommand extends SpinalEnum(defaultEncoding = binarySequential){
-  val CMDNone, CMDSendToken, CMDSendShortToken, CMDSendData, CMDBusReset
+  val CMDNone, CMDSendLongToken, CMDSendShortToken, CMDSendData, CMDBusReset
       = newElement()
 }
 
@@ -743,7 +743,7 @@ case class Apb3USB10Ctrl(usbFrequency : HertzNumber = 12.0 MHz) extends Componen
 
         when(cmd_start) {
           switch(cmd) {
-            is(CMDSendToken.asBits.resize(4)) {
+            is(CMDSendLongToken.asBits.resize(4)) {
               state := StateSendLongToken
               busy := True
               received := False
