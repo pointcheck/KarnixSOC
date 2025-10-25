@@ -203,7 +203,7 @@ case class USBSendLongToken() extends USBSendReceive(szBitcount = 6) {
         sendJ(io)
       } elsewhen((bit_count === 33) || (bit_count === 34)) { // EOP: 'SE0'
         sendSE0(io)
-      } elsewhen(bit_count === 32 && clock_strobe) { // EOP: 'SE0' - coner case
+      } elsewhen(bit_count === 32 && clock_strobe) { // EOP: 'SE0' - corner case
         sendSE0(io)
       } otherwise {
         sendKJ(io, bit_to_send)
