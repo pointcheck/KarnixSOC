@@ -434,6 +434,8 @@ int main(void) {
 		}
 		#endif
 
+		uint8_t response_data[8];
+
 		#if(USB10_ENABLE)
 		if(timestamp - reg_usb_timestamp >= 100000) { // Send USB command every 100ms
 
@@ -495,7 +497,6 @@ int main(void) {
 				
 			} else {
 				uint8_t endpoint = 1; //should be usb10_config_resp.conf.endp.bEndpointAddress & 0x0f ?
-				uint8_t response_data[8] = {0};
 
 				// Poll Endpoint for new data
 				int ret = usb10_in_request(USB1, usb10_device_address, endpoint,
@@ -583,6 +584,28 @@ int main(void) {
 			}
 
 			if(keys) {
+				switch(reg_usb_device_type) {
+					case 1: // keyboard
+						printf("USB keyboard: %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
+							response_data[0], response_data[1], response_data[2], response_data[3],
+							response_data[4], response_data[5], response_data[6], response_data[7]);
+						break;
+
+					case 2: // mouse
+						printf("USB mouse: %02X %02X %02X %02X\r\n",
+							response_data[0], response_data[1], response_data[2], response_data[3]);
+						break;
+
+					case 3: // gamepag
+						printf("USB gamepad: %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
+							response_data[0], response_data[1], response_data[2], response_data[3],
+							response_data[4], response_data[5], response_data[6], response_data[7]);
+
+					default: // unknown 
+						printf("USB unknown: %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
+							response_data[0], response_data[1], response_data[2], response_data[3],
+							response_data[4], response_data[5], response_data[6], response_data[7]);
+				}
 
 				printf("Inputs: last_keys = %04x, new_keys = %04x\r\n", last_keys, new_keys);
 
