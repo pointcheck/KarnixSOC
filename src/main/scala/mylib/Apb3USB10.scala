@@ -630,11 +630,11 @@ case class Apb3USB10Ctrl(usbFrequency : HertzNumber = 12.0 MHz) extends Componen
 
     println("Apb3USB10Ctrl::usbFrequency = %d Hz".format(usbFrequency.toInt));
     
-    val USBSlowSpeedClockDiv = UInt(8 bits)
+    val USBLowSpeedClockDiv = UInt(8 bits)
     val low_speed_baudrate : HertzNumber = 1.5 MHz;
     val usbslowspeedclockdiv = (ClockDomain.current.frequency.getValue / low_speed_baudrate + 0.5).toBigInt - 1
-    USBSlowSpeedClockDiv := usbslowspeedclockdiv 
-    println("Apb3USB10Ctrl::USBSlowSpeedClockDiv = %d".format(usbslowspeedclockdiv));
+    USBLowSpeedClockDiv := usbslowspeedclockdiv
+    println("Apb3USB10Ctrl::USBLowSpeedClockDiv = %d".format(usbslowspeedclockdiv));
     
     val USBLowSpeedKeepAliveClocks = UInt(16 bits)
     val low_speed_keepalive : TimeNumber = 1.0 ms; // Send KeepAlive interval
@@ -671,24 +671,24 @@ case class Apb3USB10Ctrl(usbFrequency : HertzNumber = 12.0 MHz) extends Componen
     send_long_token.io.addr := 0
     send_long_token.io.endp := 0
     send_long_token.io.valid := False
-    send_long_token.io.clock_div := USBSlowSpeedClockDiv
+    send_long_token.io.clock_div := USBLowSpeedClockDiv
 
     val send_short_token = new USBSendShortToken()
     send_short_token.io.pid := 0
     send_short_token.io.valid := False
-    send_short_token.io.clock_div := USBSlowSpeedClockDiv
+    send_short_token.io.clock_div := USBLowSpeedClockDiv
 
     val send_data = new USBSendData()
     send_data.io.pid := 0
     send_data.io.data := 0
     send_data.io.len := 0x7f // zero data bits
     send_data.io.valid := False
-    send_data.io.clock_div := USBSlowSpeedClockDiv
+    send_data.io.clock_div := USBLowSpeedClockDiv
 
     val send_se0 = new USBSendSE0()
     send_se0.io.valid := False
     send_se0.io.len := 0 
-    send_se0.io.clock_div := USBSlowSpeedClockDiv
+    send_se0.io.clock_div := USBLowSpeedClockDiv
 
     val receiver = new USBReceiver()
     receiver.io.valid := False
