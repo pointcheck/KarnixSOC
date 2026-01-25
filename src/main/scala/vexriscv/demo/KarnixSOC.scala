@@ -47,7 +47,8 @@ case class KarnixSOCConfig(
                        uart0CtrlConfig : UartCtrlMemoryMappedConfig,
                        uart1CtrlConfig : UartCtrlMemoryMappedConfig,
                        spiAudioDACCtrlConfig : SpiMasterCtrlMemoryMappedConfig,
-                       spi0Config : SpiMasterCtrlMemoryMappedConfig
+                       spi0Config : SpiMasterCtrlMemoryMappedConfig,
+                       spi1Config : SpiMasterCtrlMemoryMappedConfig
 )
 
 object KarnixSOCConfig{
@@ -127,6 +128,16 @@ object KarnixSOCConfig{
           dataWidth      = 8, // transmit 8 bit words
           timerWidth     = 16,
           ssWidth        = 2 // two CS lines
+        ),
+        cmdFifoDepth = 16, // CMD is same as TX FIFO
+        rspFifoDepth = 16  // RSP is same as RX FIFO
+      ),
+
+      spi1Config = SpiMasterCtrlMemoryMappedConfig(
+        ctrlGenerics = SpiMasterCtrlGenerics(
+          dataWidth      = 8, // transmit 8 bit words
+          timerWidth     = 16,
+          ssWidth        = 1 // one CS line
         ),
         cmdFifoDepth = 16, // CMD is same as TX FIFO
         rspFifoDepth = 16  // RSP is same as RX FIFO
@@ -283,6 +294,7 @@ class KarnixSOC(val config: KarnixSOCConfig) extends Component{
     val uart1 = master(Uart(config.uart1CtrlConfig.uartCtrlConfig))
     val spiAudioDAC = master(SpiMaster(ssWidth = config.spiAudioDACCtrlConfig.ctrlGenerics.ssWidth))
     val spi0 = master(SpiMaster(ssWidth = config.spi0Config.ctrlGenerics.ssWidth))
+    val spi1 = master(SpiMaster(ssWidth = config.spi1Config.ctrlGenerics.ssWidth))
     val pwm = out Bool()
     //val hub = out Bits(16 bits)
     val mii = master(Mii(MiiParameter(MiiTxParameter(dataWidth = config.macConfig.phy.txDataWidth, withEr = false), MiiRxParameter( dataWidth = config.macConfig.phy.rxDataWidth))))
@@ -420,6 +432,10 @@ class KarnixSOC(val config: KarnixSOCConfig) extends Component{
     spi0Ctrl.io.spi <> io.spi0
     plic.setIRQ(spi0Ctrl.io.interrupt, 8)
 
+    val spi1Ctrl = new Apb3SpiMasterCtrl(spi1Config)
+    spi1Ctrl.io.spi <> io.spi1
+    plic.setIRQ(spi1Ctrl.io.interrupt, 9)
+
     val pwmCtrl = new Apb3PwmCtrl(size = 32)
     io.pwm := pwmCtrl.io.output
 
@@ -543,6 +559,7 @@ class KarnixSOC(val config: KarnixSOCConfig) extends Component{
         spiAudioDACCtrl.io.apb -> (0xC0000, 4 kB),
         spi0Ctrl.io.apb -> (0xC1000, 4 kB),
         qspi0.io.apb -> (0xC2000, 4 kB),
+        spi1Ctrl.io.apb -> (0xC3000, 4 kB),
         //usb0Ctrl.io.apb -> (0xD0000, 4 kB) // USB 1.0 HID implemented in Verilog implementation
         usb1Ctrl.io.apb -> (0xD1000, 4 kB) // USB 1.0 implemented in SpinalHDL
       )
@@ -593,6 +610,7 @@ case class KarnixSOCTopLevel() extends Component{
         val qspi0 = master(QSPIInterface(QSPILayout(addressWidth = 24, dataWidth = 8)))
         val spiAudioDAC = master(SpiMaster(ssWidth = 1))
         val spi0 = master(SpiMaster(ssWidth = 2))
+        val spi1 = master(SpiMaster(ssWidth = 1))
         
 	val config = in Bool() // Config reset pin
 
@@ -754,6 +772,7 @@ case class KarnixSOCTopLevel() extends Component{
     karnix_soc.io.sram <> io.sram
     karnix_soc.io.spiAudioDAC <> io.spiAudioDAC
     karnix_soc.io.spi0 <> io.spi0
+    karnix_soc.io.spi1 <> io.spi1
     karnix_soc.io.qspi0 <> io.qspi0
 
     io.i2c_scl <> karnix_soc.io.i2c.scl
