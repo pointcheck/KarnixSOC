@@ -25,7 +25,7 @@
 #include "cli.h"
 #include "keyboard.h"
 
-const char *WELCOME_TEXT = "Welcome to Karnix SoC Monitor. Copyright (C) 2024-2025, Fabmicro, LLC.\r\nBuild #%04u at %s %s. Main addr: %p\r\n\r\n";
+const char *WELCOME_TEXT = "Welcome to Karnix SoC Monitor. Copyright (C) 2024-2026, Fabmicro, LLC.\r\nBuild #%04u at %s %s. Main addr: %p\r\n\r\n";
 	
 extern void __sinit(void *);
 extern unsigned int _IMPURE_DATA;

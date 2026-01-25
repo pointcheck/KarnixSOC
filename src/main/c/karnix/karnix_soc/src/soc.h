@@ -30,6 +30,8 @@
 #define WD		((WD_Reg*)(0xF00A0000))
 #define MTIME		(*(volatile uint64_t*)(0xF00B0000))
 #define AUDIODAC0	((AUDIODAC_Reg*)(0xF00C0000))
+#define SPI0		((SPI_Reg*)(0xF00C1000))
+#define SPI1		((SPI_Reg*)(0xF00C3000))
 #define USB0		((USB_Reg*)(0xF00D0000))
 #define USB1		((USB10_Reg*)(0xF00D1000))
 

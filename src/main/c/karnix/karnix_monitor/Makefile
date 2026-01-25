@@ -17,6 +17,15 @@ DEFS += -DCGA_VTY_ENABLE
 #DEFS += -DUSB10_DEBUG
 #DEFS += -DDEBUG_SBRK 
 
+ifeq ($(MODEL),xip)
+#	DEFS += -DDEBUG_CLI
+endif
+
+ifeq ($(MODEL),ram)
+	DEFS += -DSDMMC_NO_DEBUG
+endif
+
+
 # LwIP support
 LWIPDIR=../karnix_lwip/src
 SOCDIR=../karnix_soc/src
@@ -34,7 +43,6 @@ SRCS += $(wildcard $(SOCDIR)/*.c) $(wildcard $(SOCDIR)/*.cpp)
 SRCS += $(SOCDIR)/memops.S
 SRCS += $(COREFILES) $(CORE4FILES) $(LWIPDIR)/netif/ethernet.c
 SRCS += $(CRT)
-
 
 OBJDIR = build
 
@@ -137,7 +145,7 @@ OBJS := $(addprefix $(OBJDIR)/,$(OBJS))
 
 
 all:
-	$(MAKE) ram
+#	$(MAKE) ram
 	$(MAKE) xip
 
 ram: check_build_num_file

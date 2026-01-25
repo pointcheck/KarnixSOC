@@ -30,6 +30,7 @@ typedef struct {
 } SPI_Config;
 
 #define SPI0	((SPI_Reg*)(0xF00C1000))
+#define SPI1	((SPI_Reg*)(0xF00C3000))
 
 #define SPI_STATUS_NONE			0x00000000
 #define SPI_STATUS_CMD_INT_ENABLE	0x00000001	// Command fifo empty interrupt enable (R/W)

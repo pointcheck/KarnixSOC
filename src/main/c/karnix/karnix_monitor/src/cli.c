@@ -6,14 +6,15 @@
 #include "riscv.h"
 #include "soc.h"
 #include "qspi.h"
-#include "utils.h"
+#include "sdmmc.h"
 #include "crc32.h"
 #include "context.h"
 #include "zmodem.h"
 #include "cli.h"
 #include "cga.h"
+#include "utils.h"
 
-#define	DEBUG_CLI		1		// 0 - off, 1 - few, 2 - more
+//#define	DEBUG_CLI		1		// 0 - off, 1 - few, 2 - more
 #define	ARGN_MAX		8		// Max number of arguments in cmd line
 #define	CRC32_POLYNOMIAL	0xEDB88320	// same as in "cksum -o 3"
 #define	OHEX_BYTES_PER_LINE	16		// num of bytes in IHEX line, should be power of 2
@@ -37,6 +38,7 @@ void cli_cmd_crc32();
 void cli_cmd_rz();
 void cli_cmd_reg();
 void cli_cmd_nor();
+void cli_cmd_sdmmc();
 void cli_cmd_help();
 
 struct _command_list {
@@ -138,6 +140,15 @@ struct _command_list {
 			"				  size of 'len' bytes"
 	},
 	{
+		.cmd = "sd",
+		.func = cli_cmd_sdmmc,
+		.help = "sd	[init|info|list|read]	- SD/MMC card operations:\r\n"
+			"	list			- Show available SD/MMC interafces\r\n"
+			"	init iface		- Initialize SD/MMC card interface number 'iface'\r\n"
+			"	info iface		- Show available cards\r\n"
+			"	read iface blk addr cnt - Read 'cnt' blocks from 'iface' at 'blk' to 'addr'"
+	},
+	{
 		.cmd = "rz",
 		.func = cli_cmd_rz,
 		.help = "rz	[*|addr]		- Receive file over ZModem to mem 'addr'"
@@ -150,7 +161,10 @@ struct _command_list {
 	{
 		.cmd = "nor",
 		.func = cli_cmd_nor,
-		.help = "nor	[?|erase|cp]		- NOR flash operations"
+		.help = "nor	[?|erase|cp]		- NOR flash operations:\r\n"
+			"	erase <addr> <len>	- Erase sectors beginning 'addr', ending 'addr+len'.\r\n"
+			"	cp <addr1> <addr2> <len>- Copy 'len' bytes of data from memory 'addr2'\r\n"
+			"				  to NOR flash at 'addr1'"
 	}
 };
 
@@ -165,7 +179,7 @@ volatile uint32_t console_rx_timestamp = 0;
 uint8_t cli_history[CLI_HISTORY_SIZE][CLI_BUF_SIZE+1] = {0};
 uint32_t cli_history_idx = 0;
 
-uint8_t *cli_buf = &cli_history[0][0];
+uint8_t *cli_buf = cli_history[0];
 uint32_t cli_buf_len = 0;
 
 uint32_t current_address = 0x80000000;
@@ -179,18 +193,23 @@ void cli_process_command(uint8_t *cmd, uint32_t len);
 
 void cli_history_push(void) {
 	cli_history_idx = (cli_history_idx + 1) % CLI_HISTORY_SIZE;
-	cli_buf = &cli_history[cli_history_idx][0];
+	cli_buf = cli_history[cli_history_idx];
+	cli_buf[0] = 0;
+	cli_buf_len = 0;
 }
 
 void cli_history_popup(void) {
-	cli_history_idx = (cli_history_idx - 1) % CLI_HISTORY_SIZE;
-	cli_buf = &cli_history[cli_history_idx][0];
+	if(cli_history_idx == 0)
+		cli_history_idx = CLI_HISTORY_SIZE-1;
+	else
+		cli_history_idx--;
+	cli_buf = cli_history[cli_history_idx];
 	cli_buf_len = strlen(cli_buf);
 }
 
 void cli_history_popdown(void) {
 	cli_history_idx = (cli_history_idx + 1) % CLI_HISTORY_SIZE;
-	cli_buf = &cli_history[cli_history_idx][0];
+	cli_buf = cli_history[cli_history_idx];
 	cli_buf_len = strlen(cli_buf);
 }
 
@@ -199,18 +218,17 @@ void cli_prompt(void) {
 	//fflush(stdout);
 }
 
-void cli_cmd_help(char *argv[], int argn) {
-	welcome();
+void show_help(char *argv[], int argn) {
 
-	if(argv[1] == NULL)
-		argv[1] = "";
+	if(argv[0] == NULL)
+		argv[0] = "";
 
 	for(int i = 0; i < sizeof(command_list)/sizeof(command_list[0]); i++)
 		if(command_list[i].cmd)
-			if(strnstr(command_list[i].cmd, argv[1], 4)) {
+			if(strnstr(command_list[i].cmd, argv[0], 4)) {
 				// -1 is special case: refers to prev item
 				if((int)command_list[i].help == -1)
-					if(argv[1][0])
+					if(argv[0][0])
 						xprintf("%s\r\n", command_list[i-1].help);
 					else {}
 				else if(command_list[i].help)
@@ -221,12 +239,10 @@ void cli_cmd_help(char *argv[], int argn) {
 }
 
 
-void cli_cmd_nor_help(char *argv[], int argn) {
-	xprintf(
-"List of NOR flash commands:\r\n"
-"nor erase <addr> <len>		- Erase sectors beginnign at 'addr', ending at 'addr+len'.\r\n"
-"nor cp <addr1> <addr2> <len>	- Copy data 'len' bytes of data from memory 'addr2' to NOR flash at 'addr1'\r\n"
-	);
+void cli_cmd_help(char *argv[], int argn) {
+	welcome();
+
+	show_help(++argv, --argn);
 }
 
 
@@ -235,7 +251,7 @@ void cli_cmd_nor_erase(char *argv[], int argn) {
 	int len = 1;
 
 	if(argn < 4) {
-		cli_cmd_nor_help(argv, argn);
+		show_help(argv, argn);
 		return;
 	}
 
@@ -278,7 +294,7 @@ void cli_cmd_nor_copy(char *argv[], int argn) {
 	uint32_t len = 4;
 
 	if(argn < 5) {
-		cli_cmd_nor_help(argv, argn);
+		show_help(argv, argn);
 		return;
 	}
 
@@ -484,6 +500,113 @@ void cli_cmd_crc32(char *argv[], int argn) {
 	uint32_t crc = crc32(addr, len, 0, poly);
 
 	xprintf("crc32: %p\r\n", crc);
+}
+
+
+void cli_cmd_sdmmc(char *argv[], int argn) {
+	int card = 0;
+	int count = 0;
+	int iface = 0;
+	uint32_t *addr = (uint32_t*) current_address;
+
+	if(argv[1] && strnstr(argv[1], "li", 2)) { // list
+		#if(DEBUG_CLI)
+		xprintf("%s: available SD/MMC card interfaces:\r\n", "sdmmc");
+		#endif
+
+		for(int iface = 0; iface < SDMMC_IFACES; iface++)
+			xprintf("%s: iface = %d, reg = %p, ss = %d\r\n", "sdmmc",
+				iface,
+				sdmmc_ifaces[iface].reg,
+				sdmmc_ifaces[iface].ss
+			);
+
+		return;
+	}
+
+	if(argv[2])
+		iface = strtoul(argv[2], NULL, 0);
+
+	if(iface >= SDMMC_IFACES || iface < 0) {
+		xprintf("%s: no such SD/MMC iface: %d\r\n", "sdmmc", iface);
+		return;
+	}
+
+	if(argv[1] && strnstr(argv[1], "ini", 3)) { // init
+
+		int ret = sdmmc_init(iface);
+	
+		xprintf("%s: init SD/MMC card iface: %d, ret = %d\r\n", "sdmmc", iface, ret);
+
+		return;
+	}
+
+	if(argv[1] && strnstr(argv[1], "inf", 3)) { // info 
+
+		uint8_t* cid = sdmmc_cards[iface].cid_data;
+
+		xprintf("%s: iface = %d, type = %d (%s), OCR = 0x%08X\r\n", "sdmmc",
+			iface, sdmmc_cards[iface].type,
+			sdmmc_types[sdmmc_cards[iface].type],
+			sdmmc_cards[iface].ocr
+		);
+
+		xprintf("%s: Card ID:	", "sdmmc");
+		xprintf("MID: 0x%02X, ", cid[0]);
+		xprintf("OID: %c%c, ", cid[1], cid[2]);
+		xprintf("PNM: %c%c%c%c%c, ", cid[3], cid[4], cid[5], cid[6], cid[7]);
+		xprintf("PRV: 0x%02X, ", cid[8]);
+		xprintf("PSN: 0x%08X, ", (cid[9] << 0) | (cid[10] << 8)| (cid[11] << 16) | (cid[12] << 24));
+		xprintf("MDT: %03X, ", ((cid[13] & 0x0f) << 8) | cid[14]);
+		xprintf("CRC: 0x%02X\r\n", cid[15] >> 1);
+
+		uint8_t* csd = sdmmc_cards[iface].csd_data;
+
+		xprintf("%s: Card SD:	", "sdmmc");
+		for(int i = 0; i < 16; i++)
+			xprintf("%02X ", csd[i]);
+		
+		xprintf("\r\n");
+			
+		return;
+	}
+
+	if(argv[1] && strnstr(argv[1], "rea", 3)) { // read 
+
+		int block = 0;
+		int addr = current_address;
+		int count = 1;
+
+		if(argv[3])
+			block = strtoul(argv[3], NULL, 0);
+
+		if(argv[4] && argv[4][0] != '*')
+			addr = strtoul(argv[4], NULL, 0);
+
+		if(argv[5])
+			count = strtoul(argv[5], NULL, 0);
+
+		#if(DEBUG_CLI)
+		xprintf("%s: read iface = %d, block = %d, addr = 0x%08x, count = %d\r\n", "sdmmc",
+			iface, block, addr, count
+		);
+		#endif
+
+        	uint32_t t0 = get_mtime();
+
+		int ret = sdmmc_read_block(iface, block, count, (uint8_t*) addr); 
+
+        	uint32_t dt = (get_mtime() - t0);
+		uint32_t cps = 512 * count / (dt / 1024);
+
+		xprintf("%s: read ret = %d, time = %d us, cps = %d KB/s\r\n", "sdmmc", ret, dt, cps);
+
+		current_address = (uint32_t) addr; // remember last address used
+
+		return;
+	}
+
+	show_help(argv, argn);
 }
 
 
@@ -901,7 +1024,7 @@ void cli_cmd_usb(char *argv[], int argn) {
 
 void cli_cmd_nor(char *argv[], int argn) {
 	if(argn < 4) {
-		cli_cmd_nor_help(argv, argn);
+		show_help(argv, argn);
 		return;
 	}
 
@@ -910,7 +1033,7 @@ void cli_cmd_nor(char *argv[], int argn) {
 	else if(argv[1][0] == 'c' && argv[1][1] == 'p')
 		cli_cmd_nor_copy(argv, argn);
 	else
-		cli_cmd_nor_help(argv, argn);
+		show_help(argv, argn);
 }
 
 // Process CLI command once Enter is pressed
@@ -1023,18 +1146,17 @@ void cli_process_input(uint8_t *buf, uint32_t len) {
 
 			case 0x0a:
 			case 0x0d: {
-				char cli_tmp[CLI_BUF_SIZE+1];
 				if(cli_buf_len == 0) {
 					cli_history_popup();
 					xprintf("\033[2K"); // erase current line
 					goto cli_process_input_end;
 				}
 
+				char cli_tmp[64+1];
 				cli_buf[cli_buf_len] = 0;
 				memcpy(cli_tmp, cli_buf, cli_buf_len+1);
 				cli_process_command(cli_tmp, cli_buf_len);
 				cli_history_push();
-				cli_buf_len = 0;
 				break;
 			}
 
