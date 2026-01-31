@@ -1,9 +1,9 @@
 #ifndef __CLI_H__
 #define	__CLI_H__
 
-#define	CLI_BUF_SIZE		96	
-#define	CLI_HISTORY_SIZE	4
-#define	CONSOLE_RX_BUF_SIZE	96	
+#define	CLI_BUF_SIZE		64	
+#define	CLI_HISTORY_SIZE	5
+#define	CONSOLE_RX_BUF_SIZE	64	
 #define	CONSOLE_RX_DELAY_US	10000
 
 extern volatile uint32_t console_rx_buf_len;

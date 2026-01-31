@@ -104,6 +104,20 @@ void sdmmc_crc16_init_table(void) {
 #endif
 
 
+uint32_t sdmmc_get_num_blocks(uint8_t csd[]) {
+	uint8_t n;
+	uint16_t csize;  					    
+	if((csd[0] & 0xc0) == 0x40)	{ //V2.00 card	
+		csize = ((uint16_t)csd[8] << 8) + csd[9] + 1;
+		return csize << 10; // get the number of blocks	 		   
+	} else {//V1.XX card
+		n = (csd[5] & 0x0f) + ((csd[10] & 0x80) >> 7) + ((csd[9] & 0x03) << 1) + 2;
+		csize = (csd[8] >> 6) + ((uint16_t)csd[7] << 2) + ((uint16_t)(csd[6] & 0x03) << 10) + 1;
+		return (uint32_t)csize << (n - 9); // get the number of blocks   
+	}
+}
+
+
 int sdmmc_wait_ready(SPI_Reg* reg) {
 	for(int i = 0; i < SDMMC_TIMEOUT; i++) {
 		reg->data = SPI_CMD_SEND_RECEIVE | 0xff;
@@ -242,6 +256,67 @@ int sdmmc_rx_buf(SPI_Reg* reg, uint8_t *buf, uint16_t len) {
 	#endif
 
 	return SDMMC_ERROR_OK;
+}
+
+
+// Write len bytes to card from buf using cmd
+int sdmmc_tx_buf(SPI_Reg* reg, uint8_t *buf, uint16_t len, uint8_t cmd) {
+
+	int ret = sdmmc_wait_ready(reg);
+
+	if(ret < 0) {
+		sdmmc_printf("%s: wait ready fail, ret = %d\r\n", "sdmmc_tx_buf", ret);  
+		return ret;
+	}
+
+	int count = len; // usually 512 bytes
+	uint8_t *b = buf;
+
+	volatile uint16_t crc16_my = 0; // accumulated CRC16
+
+ 	sdmmc_readwrite_byte(reg, cmd); // Write command provided by user 
+
+	while(count--) { 
+
+		if(spi_wait_tx_avail(reg, 1, 1000) == 0) {
+			sdmmc_printf("%s: tx avail fail, ret = %d\r\n", "sdmmc_tx_buf", ret);  
+			return SDMMC_ERROR_WRITE;
+		}
+
+		uint8_t tx = *b++;
+
+		reg->data = SPI_CMD_SEND | tx;
+
+		#ifdef SDMMC_SUPPORT_CRC16
+		// calculate intermediate CRC16 value
+		crc16_my = sdmmc_crc16_table[((crc16_my >> 8) ^ tx) & 0xff] ^ (crc16_my << 8);
+		#endif
+	}
+
+	// Send CRC16
+
+	if(spi_wait_tx_avail(reg, 2, 1000) == 0) {
+		sdmmc_printf("%s: tx avail fail, ret = %d\r\n", "sdmmc_tx_buf", ret);  
+		return SDMMC_ERROR_WRITE;
+	}
+
+	reg->data = SPI_CMD_SEND | (crc16_my >> 8);
+	reg->data = SPI_CMD_SEND | (crc16_my & 0xff);
+
+	// Wait for response 
+	for(int i = 0; i < SDMMC_TIMEOUT; i++) {
+
+		ret = sdmmc_readwrite_byte(reg, 0xff);
+		if(ret < 0) {
+			sdmmc_printf("%s: wait resp fail, ret = %d\r\n", "sdmmc_tx_buf", ret);  
+			return ret;
+		}
+
+		if((ret & 0x1f) == 0x05)
+			return SDMMC_ERROR_OK;
+	}
+
+	return SDMMC_ERROR_TIMEOUT;
 }
 
 
@@ -567,6 +642,8 @@ int sdmmc_init(int iface) {
 		goto end;
 	}
 
+	sdmmc_cards[iface].blocks = sdmmc_get_num_blocks(sdmmc_cards[iface].csd_data);
+
 	// Initialization completed OK, switch to higher bitrate
 
 	spi_cfg.config = SPI_CONFIG_CPHA | SPI_CONFIG_CPOL;
@@ -584,8 +661,10 @@ int sdmmc_init(int iface) {
 
 	sdmmc_deselect(reg, ss);
 
-	sdmmc_printf("%s: card type = %d (%s)\r\n", "sdmmc_init",
-		sdmmc_cards[iface].type, sdmmc_types[sdmmc_cards[iface].type]);
+	sdmmc_printf("%s: card type = %d (%s), blocks = %d (%d MiB)\r\n", "sdmmc_init",
+		sdmmc_cards[iface].type, sdmmc_types[sdmmc_cards[iface].type],
+		sdmmc_cards[iface].blocks, (sdmmc_cards[iface].blocks / 1024) * 512 / 1024
+	);
 
 	return ret;
 }    
@@ -600,6 +679,18 @@ int sdmmc_read_block(int iface, int block_num, int count, uint8_t* buf) {
 		return SDMMC_ERROR_PARAMS;
 	}
 
+	if(count < 1) {
+		sdmmc_printf("%s: count %d should be > 0\r\n", "sdmmc_read_block",
+			count, SDMMC_IFACES);
+		return SDMMC_ERROR_PARAMS;
+	}
+
+	if(buf == NULL) {
+		sdmmc_printf("%s: buf is NULL!\r\n", "sdmmc_read_block",
+			SDMMC_IFACES);
+		return SDMMC_ERROR_PARAMS;
+	}
+
 	if(sdmmc_cards[iface].type == SDMMC_TYPE_NONE) {
 		sdmmc_printf("%s: iface %d is not ready!\r\n", "sdmmc_read_block", iface);
 		return SDMMC_ERROR_NOT_READY;
@@ -611,7 +702,7 @@ int sdmmc_read_block(int iface, int block_num, int count, uint8_t* buf) {
 	if(sdmmc_cards[iface].type != SDMMC_TYPE_SDC_V2HC)
 		block_num *= SDMMC_BLOCK_SIZE; // convert to address = block * SDMMC_BLOCK_SIZE 
 
-	// Clear input FIFO
+	// Clear RX FIFO
 	volatile int tmp;
 	while(reg->rxoccupancy)
 		tmp = reg->data;
@@ -690,8 +781,99 @@ int sdmmc_read_block(int iface, int block_num, int count, uint8_t* buf) {
 		sdmmc_printf("%s: retry = %d of %d failed\r\n", "sdmmc_read_block", retry, SDMMC_RETRIES);
 
 		sdmmc_deselect(reg, ss);
-	}
+
+	} // retry
 
 	return ret;
 }
 
+
+int sdmmc_write_block(int iface, int block_num, int count, uint8_t* buf) {
+	int ret = SDMMC_ERROR_OK;
+
+	if(iface >= SDMMC_IFACES) {
+		sdmmc_printf("%s: iface %d should be < %d\r\n", "sdmmc_write_block",
+			iface, SDMMC_IFACES);
+		return SDMMC_ERROR_PARAMS;
+	}
+
+	if(count < 1) {
+		sdmmc_printf("%s: count %d should be > 0\r\n", "sdmmc_write_block",
+			iface, SDMMC_IFACES);
+		return SDMMC_ERROR_PARAMS;
+	}
+
+	if(buf == NULL) {
+		sdmmc_printf("%s: buf is NULL!\r\n", "sdmmc_write_block",
+			SDMMC_IFACES);
+		return SDMMC_ERROR_PARAMS;
+	}
+
+	if(sdmmc_cards[iface].type == SDMMC_TYPE_NONE) {
+		sdmmc_printf("%s: iface %d is not ready!\r\n", "sdmmc_write_block", iface);
+		return SDMMC_ERROR_NOT_READY;
+	}
+
+	SPI_Reg* reg = sdmmc_ifaces[iface].reg;
+	int ss = sdmmc_ifaces[iface].ss;
+
+	if(sdmmc_cards[iface].type != SDMMC_TYPE_SDC_V2HC)
+		block_num *= SDMMC_BLOCK_SIZE; // convert to address = block * SDMMC_BLOCK_SIZE 
+
+	int c;
+	uint8_t* b;
+
+	for(int retry = 0; retry < SDMMC_RETRIES; retry++) {
+
+		c = count;
+		b = buf;
+
+		sdmmc_select(reg, ss);
+
+		if(c < 2) {
+
+			// Send CMD24 - Write One Sector
+
+			if((ret = sdmmc_send_cmd(reg, SDMMC_CMD_CMD24, block_num, 0x01, 0)) < 0) {
+				sdmmc_printf("%s: cmd %d failed, ret = %d\r\n", "sdmmc_write_block", SDMMC_CMD_CMD24, ret);
+				goto again;
+			}
+
+			if(ret != 0x00) {
+				sdmmc_printf("%s: cmd %d resp = %d\r\n", "sdmmc_write_block", SDMMC_CMD_CMD24, ret);
+				goto again;
+			}
+
+			if((ret = sdmmc_tx_buf(reg, b, SDMMC_BLOCK_SIZE, 0xfe)) != 0) {
+				sdmmc_printf("%s: tx_buf failed, ret = %d\r\n", "sdmmc_write_block", ret);
+				goto again;
+			}
+
+
+		} else {
+
+		}
+ 
+		// Wait till data are written
+		ret = sdmmc_wait_ready(reg);
+
+		sdmmc_deselect(reg, ss);
+
+		break;
+
+		again:
+
+		// Send CMD12 - Stop Writing 
+		
+		if((ret = sdmmc_send_cmd(reg, SDMMC_CMD_CMD12, block_num, 0x01, 0)) < 0) {
+			sdmmc_printf("%s: cmd %d failed, ret = %d\r\n", "sdmmc_write_block", SDMMC_CMD_CMD12, ret);
+			break;
+		}
+
+		sdmmc_printf("%s: retry = %d of %d failed\r\n", "sdmmc_write_block", retry, SDMMC_RETRIES);
+
+		sdmmc_deselect(reg, ss);
+	} // retry
+
+	return ret;
+}

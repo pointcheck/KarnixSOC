@@ -146,7 +146,8 @@ struct _command_list {
 			"	list			- Show available SD/MMC interafces\r\n"
 			"	init iface		- Initialize SD/MMC card interface number 'iface'\r\n"
 			"	info iface		- Show available cards\r\n"
-			"	read iface blk addr cnt - Read 'cnt' blocks from 'iface' at 'blk' to 'addr'"
+			"	read iface blk addr cnt - Read 'cnt' blocks from 'iface' at 'blk' to 'addr'\r\n"
+			"	write iface blk addr cnt- Write 'cnt' blocks to 'iface' at 'blk' from 'addr'"
 	},
 	{
 		.cmd = "rz",
@@ -545,10 +546,12 @@ void cli_cmd_sdmmc(char *argv[], int argn) {
 
 		uint8_t* cid = sdmmc_cards[iface].cid_data;
 
-		xprintf("%s: iface = %d, type = %d (%s), OCR = 0x%08X\r\n", "sdmmc",
+		xprintf("%s: iface = %d, type = %d (%s), OCR = 0x%08X, blocks = %d (%d MiB)\r\n", "sdmmc",
 			iface, sdmmc_cards[iface].type,
 			sdmmc_types[sdmmc_cards[iface].type],
-			sdmmc_cards[iface].ocr
+			sdmmc_cards[iface].ocr,
+			sdmmc_cards[iface].blocks,
+			(sdmmc_cards[iface].blocks / 1024) * 512 / 1024
 		);
 
 		xprintf("%s: Card ID:	", "sdmmc");
@@ -600,6 +603,41 @@ void cli_cmd_sdmmc(char *argv[], int argn) {
 		uint32_t cps = 512 * count / (dt / 1024);
 
 		xprintf("%s: read ret = %d, time = %d us, cps = %d KB/s\r\n", "sdmmc", ret, dt, cps);
+
+		current_address = (uint32_t) addr; // remember last address used
+
+		return;
+	}
+
+	if(argv[1] && strnstr(argv[1], "wri", 3)) { // write 
+
+		int block = 0;
+		int addr = current_address;
+		int count = 1;
+
+		if(argv[3])
+			block = strtoul(argv[3], NULL, 0);
+
+		if(argv[4] && argv[4][0] != '*')
+			addr = strtoul(argv[4], NULL, 0);
+
+		if(argv[5])
+			count = strtoul(argv[5], NULL, 0);
+
+		#if(DEBUG_CLI)
+		xprintf("%s: write iface = %d, block = %d, addr = 0x%08x, count = %d\r\n", "sdmmc",
+			iface, block, addr, count
+		);
+		#endif
+
+        	uint32_t t0 = get_mtime();
+
+		int ret = sdmmc_write_block(iface, block, count, (uint8_t*) addr); 
+
+        	uint32_t dt = (get_mtime() - t0);
+		uint32_t cps = 512 * count / (dt / 1024);
+
+		xprintf("%s: write ret = %d, time = %d us, cps = %d KB/s\r\n", "sdmmc", ret, dt, cps);
 
 		current_address = (uint32_t) addr; // remember last address used
 

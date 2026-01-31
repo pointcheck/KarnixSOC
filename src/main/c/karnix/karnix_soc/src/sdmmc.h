@@ -31,6 +31,7 @@
 #define	SDMMC_ERROR_INIT_FAIL		-5		// Initialization sequence failed	
 #define	SDMMC_ERROR_NOT_READY		-6		// SD/MMC interface is not ready
 #define	SDMMC_ERROR_CRC			-7		// CRC16 mismatch on block read 
+#define	SDMMC_ERROR_WRITE		-8		// Block write error 
 
 #define	SDMMC_TOKEN_DATA1		0xfe		// Data initiation token for CMD17/18/24
 #define	SDMMC_TOKEN_DATA2		0xfc		// Data initiation token for CMD25
@@ -73,6 +74,7 @@ struct sdmmc_iface_info {
 struct sdmmc_card_info {
 	uint32_t type;
 	uint32_t ocr;
+	uint32_t blocks;	// Number of blocks (sectors)
 	uint8_t cid_data[16];	// CID data: manufacturer info
 	uint8_t csd_data[16];	// CSD data: capacity, etc 
 };
@@ -82,7 +84,9 @@ extern struct sdmmc_card_info sdmmc_cards[];
 extern const char* sdmmc_types[];
 
 int sdmmc_init(int);
+uint32_t sdmmc_get_num_blocks(uint8_t csd[]);
 int sdmmc_read_block(int iface, int block_num, int count, uint8_t* buf);
+int sdmmc_write_block(int iface, int block_num, int count, uint8_t* buf);
 
 #endif // __SDMMC_H__
 
