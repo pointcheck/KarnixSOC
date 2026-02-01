@@ -18,6 +18,7 @@
 
 #define SDMMC_SPI_BITRATE_INIT          400000		// Bitrate while Init
 #define SDMMC_SPI_BITRATE_NORMAL        20000000	// Bitrate for normal operations (20MHz - MMC, 25MHZ - SDC)
+//#define SDMMC_SPI_BITRATE_NORMAL        31000000	// Speed higher 25MHz does not work on some cards
 #define	SDMMC_IFACES			2		// Number of available SD/MMC interfaces
 #define	SDMMC_TIMEOUT			0x07ffff	// Wait cycles
 #define	SDMMC_RETRIES			3		// Number of attempts to perform init

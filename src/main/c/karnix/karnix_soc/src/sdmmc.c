@@ -16,6 +16,7 @@
 //#define	SDMMC_NO_DEBUG		1	// Disabled debug output (reduces code size)
 #define	SDMMC_SUPPORT_CRC16	1	// Calculate CRC16 for in and out data
 //#define	SDMMC_ENABLE_TX_AVAIL	1	// Check TX FIFO each time byte is written
+//#define	SDMMC_ENABLE_PREERASE		1	// Enable Pre-erase blocks on write
 
 #ifndef sdmmc_printf
 #ifdef SDMMC_NO_DEBUG
@@ -891,6 +892,7 @@ int sdmmc_write_block(int iface, int block_num, int count, uint8_t* buf) {
 
 		} else {
 
+			#ifdef SDMMC_ENABLE_PREERASE
 			if(sdmmc_cards[iface].type != SDMMC_TYPE_MMC_V3) { // SDC can do pre-formatting
 
 				// Send CMD55 - Leading ACMD (application command follows) 
@@ -907,6 +909,7 @@ int sdmmc_write_block(int iface, int block_num, int count, uint8_t* buf) {
 					goto again;
 				}
 			}
+			#endif
 
 			// Send CMD25 - Write multiple blocks at block_num 
 
