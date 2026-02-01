@@ -93,6 +93,7 @@ static inline int spi_get_rx_occupancy(SPI_Reg* reg) {
 
 int spi_wait_tx_avail(SPI_Reg* reg, int min_avail, int timeout);
 int spi_xmit(SPI_Reg* reg, int ss, unsigned short* txbuf, unsigned short* rxbuf, int len);
+int spi_clear_rx_fifo(SPI_Reg* reg); 
 
 
 #endif // _SPI_H_

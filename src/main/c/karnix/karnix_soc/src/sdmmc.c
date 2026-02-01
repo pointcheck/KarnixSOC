@@ -13,8 +13,9 @@
 #include "sdmmc.h"
 #include "utils.h"
 
-//#define	SDMMC_NO_DEBUG		1
-#define	SDMMC_SUPPORT_CRC16	1
+//#define	SDMMC_NO_DEBUG		1	// Disabled debug output (reduces code size)
+#define	SDMMC_SUPPORT_CRC16	1	// Calculate CRC16 for in and out data
+//#define	SDMMC_ENABLE_TX_AVAIL	1	// Check TX FIFO each time byte is written
 
 #ifndef sdmmc_printf
 #ifdef SDMMC_NO_DEBUG
@@ -119,11 +120,22 @@ uint32_t sdmmc_get_num_blocks(uint8_t csd[]) {
 
 
 int sdmmc_wait_ready(SPI_Reg* reg) {
+	int rx;
+
+	// Make first transmission
+	reg->data = SPI_CMD_SEND_RECEIVE | 0xff;
+
 	for(int i = 0; i < SDMMC_TIMEOUT; i++) {
-		reg->data = SPI_CMD_SEND_RECEIVE | 0xff;
-		int rx = reg->data;
-		if(rx & (SPI_DATA_RX_VALID | 0xff) == (SPI_DATA_RX_VALID | 0xff))
-			return SDMMC_ERROR_OK;
+		rx = reg->data;
+
+		// Wait for data valid
+		if(rx & SPI_DATA_RX_VALID) {
+			// Some data received 
+			if((rx & 0xff) == 0xff)
+				return SDMMC_ERROR_OK;
+			// Make another transmission
+			reg->data = SPI_CMD_SEND_RECEIVE | 0xff;
+		}
 	}
 
 	return SDMMC_ERROR_TIMEOUT;
@@ -152,17 +164,25 @@ static inline void sdmmc_select(SPI_Reg* reg, int ss) {
 
 static inline void sdmmc_deselect(SPI_Reg* reg, int ss) {
 	reg->data = SPI_CMD_DISABLE_SS | ss; // make CS=1
-	sdmmc_readwrite_byte(reg, 0xff); // provide 8 cycles after CS=1
+	sdmmc_readwrite_byte(reg, 0xff);
 }
 
 
 // Get response from the card
 int sdmmc_get_r1_response(SPI_Reg* reg) {
 
+	int rx;
+
 	for(int i = 0; i < SDMMC_TIMEOUT; i++) {
-		int rx = sdmmc_readwrite_byte(reg, 0xff);
-		if(rx >= 0 && rx < 128) // 7 bit should be zero
-			return rx;
+
+		reg->data = SPI_CMD_SEND_RECEIVE | 0xff; // transmit one byte
+
+		// Wait for RX byte. This may hang if SPI controller is broken !!!
+		while(((rx = reg->data) & SPI_DATA_RX_VALID) == 0);
+
+		if((rx & 0x80) == 0) // 7 bit should be zero for response byte
+			return rx & 0xff;
+
 	}
 
 	return SDMMC_ERROR_NO_RESP;
@@ -172,20 +192,20 @@ int sdmmc_get_r1_response(SPI_Reg* reg) {
 // Get response from the card
 int sdmmc_wait_r1_response(SPI_Reg* reg, uint8_t r1, int retry) {
 
-	int ret;
+	int rx;
 
 	while(retry--) {
 
-		reg->data = SPI_CMD_SEND_RECEIVE | 0xff;
-
 		for(int i = 0; i < SDMMC_TIMEOUT; i++) {
-			int rx = reg->data;
-			if(rx & SPI_DATA_RX_VALID) {
-				if((rx & 0xff) == r1)
-					return SDMMC_ERROR_OK;
-				else
-					break; // read next byte
-			}
+
+			reg->data = SPI_CMD_SEND_RECEIVE | 0xff; // transmit one byte
+
+			// Wait for RX byte. This may hang if SPI controller is broken !!!
+			while(((rx = reg->data) & SPI_DATA_RX_VALID) == 0);
+
+			if((rx & 0xff) == r1)
+				return SDMMC_ERROR_OK;
+
 		}
 	}
 
@@ -206,15 +226,15 @@ int sdmmc_rx_buf(SPI_Reg* reg, uint8_t *buf, uint16_t len) {
 	int count = len + 2; // include two CRC16 bytes
 	uint8_t *b = buf;
 
-	volatile uint16_t crc16_my = 0; // accumulated CRC16
-
-	int i = SDMMC_TIMEOUT*2;
+	uint16_t crc16_my = 0; // accumulated CRC16
 
 	// transmit first byte
 	reg->data = SPI_CMD_SEND_RECEIVE | 0xff;
 
 	while(count--) { 
 		
+		// This loop can possible hang if SPI controller is broken 
+
 		while(1) {
 
 			int rx = reg->data; // read from RX FIFO
@@ -234,8 +254,6 @@ int sdmmc_rx_buf(SPI_Reg* reg, uint8_t *buf, uint16_t len) {
 				break;
 			}
 
-			if(--i == 0)
-				return SDMMC_ERROR_TIMEOUT;
 		}
 	}
 
@@ -278,10 +296,18 @@ int sdmmc_tx_buf(SPI_Reg* reg, uint8_t *buf, uint16_t len, uint8_t cmd) {
 
 	while(count--) { 
 
+		// We assume that transmitting a single byte over SPI takes less time than
+		// calculating CRC16 word, so we do not need to wait for TX FIFO readiness.
+		// Otherwise, we need to call spi_wait_tx_avail() to check if there's space
+		// for another byte to put in. If that is the case, enable SDMMC_ENABLE_TX_AVAIL.
+		// Note, checking FIFO takes time, hence effects writing throughput significantly!
+ 
+		#ifdef SDMMC_ENABLE_TX_AVAIL
 		if(spi_wait_tx_avail(reg, 1, 1000) == 0) {
 			sdmmc_printf("%s: tx avail fail, ret = %d\r\n", "sdmmc_tx_buf", ret);  
 			return SDMMC_ERROR_WRITE;
 		}
+		#endif
 
 		uint8_t tx = *b++;
 
@@ -302,9 +328,9 @@ int sdmmc_tx_buf(SPI_Reg* reg, uint8_t *buf, uint16_t len, uint8_t cmd) {
 
 	reg->data = SPI_CMD_SEND | (crc16_my >> 8);
 	reg->data = SPI_CMD_SEND | (crc16_my & 0xff);
-
-	// Wait for response 
-	for(int i = 0; i < SDMMC_TIMEOUT; i++) {
+ 
+	// Wait for response (may take very long time !!!) 
+	for(int i = 0; i < SDMMC_TIMEOUT << 6; i++) {
 
 		ret = sdmmc_readwrite_byte(reg, 0xff);
 		if(ret < 0) {
@@ -312,9 +338,12 @@ int sdmmc_tx_buf(SPI_Reg* reg, uint8_t *buf, uint16_t len, uint8_t cmd) {
 			return ret;
 		}
 
-		if((ret & 0x1f) == 0x05)
+		if((ret & 0x1f) == 0x05) {
 			return SDMMC_ERROR_OK;
+		}
 	}
+
+	sdmmc_printf("%s: wait 0x05 timeout, ret = %d\r\n", "sdmmc_tx_buf", ret);  
 
 	return SDMMC_ERROR_TIMEOUT;
 }
@@ -331,17 +360,18 @@ int sdmmc_send_cmd(SPI_Reg* reg, uint8_t cmd, uint32_t arg, uint8_t crc, uint32_
 	sdmmc_readwrite_byte(reg, (arg >>  0) & 0xff);
 	sdmmc_readwrite_byte(reg, crc);  
 	
+	// Some implementations use below hack for CMD12 without explanations.
+	/*
 	if(cmd == SDMMC_CMD_CMD12) // Special case for CMD12
 		sdmmc_readwrite_byte(reg, 0xff); // one more dummy byte 
+	*/
 
 	// Perform delay before reading response
 	if(resp_delay_us)
 		delay_us(resp_delay_us);
 
 	// Wait for responses
-	if((ret = sdmmc_get_r1_response(reg)) < 0) {
-		return SDMMC_ERROR_NO_RESP;
-	}
+	ret = sdmmc_get_r1_response(reg);
 
 	return ret;
 }
@@ -416,6 +446,8 @@ int sdmmc_init(int iface) {
 	sdmmc_printf("%s: set divider for %dHz = %d\r\n", "sdmmc_init",
 		SDMMC_SPI_BITRATE_INIT, spi_cfg.divider);
 
+	spi_clear_rx_fifo(reg);
+
 	// Send at least 74 clocks with CS=1 for SD/MMC card to Power ON 
 
 	sdmmc_deselect(reg, ss);
@@ -431,7 +463,7 @@ int sdmmc_init(int iface) {
 			sdmmc_printf("%s: cmd %d failed, ret = %d\r\n", "sdmmc_init", SDMMC_CMD_CMD0, ret);
 			goto end;
 		}
-
+	
 		if(ret == 0x01) // r1 == 0x01 - card is in idle state
 			break;
 	}
@@ -702,10 +734,7 @@ int sdmmc_read_block(int iface, int block_num, int count, uint8_t* buf) {
 	if(sdmmc_cards[iface].type != SDMMC_TYPE_SDC_V2HC)
 		block_num *= SDMMC_BLOCK_SIZE; // convert to address = block * SDMMC_BLOCK_SIZE 
 
-	// Clear RX FIFO
-	volatile int tmp;
-	while(reg->rxoccupancy)
-		tmp = reg->data;
+	spi_clear_rx_fifo(reg);
 
 	int c;
 	uint8_t* b;
@@ -732,12 +761,12 @@ int sdmmc_read_block(int iface, int block_num, int count, uint8_t* buf) {
 			}
 
 			if((ret = sdmmc_rx_buf(reg, b, SDMMC_BLOCK_SIZE)) != 0) {
-				sdmmc_printf("%s: rx_buf failed, ret = %d\r\n", "sdmmc_read_block", ret);
+				sdmmc_printf("%s: rx_buf failed at %d, retry = %d, ret = %d\r\n", "sdmmc_read_block", count - c - 1, retry, ret);
 				goto again;
 			}
 
 		} else {
-			// Send CMD18 - Read Many Sectors (Continuous Read)
+			// Send MD18 - Read Many Sectors (Continuous Read)
 		
 			if((ret = sdmmc_send_cmd(reg, SDMMC_CMD_CMD18, block_num, 0x01, 0)) < 0) {
 				sdmmc_printf("%s: cmd %d failed, ret = %d\r\n", "sdmmc_read_block", SDMMC_CMD_CMD18, ret);
@@ -751,18 +780,21 @@ int sdmmc_read_block(int iface, int block_num, int count, uint8_t* buf) {
 
 			while(c--) {
 				if((ret = sdmmc_rx_buf(reg, b, SDMMC_BLOCK_SIZE)) != 0) {
-					sdmmc_printf("%s: rx_buf failed at %d, retry = %d, ret = %d\r\n", "sdmmc_read_block", count - c, retry, ret);
+					sdmmc_printf("%s: rx_buf failed at %d, retry = %d, ret = %d\r\n", "sdmmc_read_block", count - c - 1, retry, ret);
 					goto again;
 				}
 				b += SDMMC_BLOCK_SIZE;
 			}
 
-			// Send CMD12 - Stop Reading
+			// Send CMD12 - Stop Data Transaction 
 		
 			if((ret = sdmmc_send_cmd(reg, SDMMC_CMD_CMD12, block_num, 0x01, 0)) < 0) {
 				sdmmc_printf("%s: cmd %d failed, ret = %d\r\n", "sdmmc_read_block", SDMMC_CMD_CMD12, ret);
 				goto again;
 			}
+
+			// Wait card ready (busy: MISO = 0, ready: MISO = 1)
+			ret = sdmmc_wait_ready(reg);
 		}
 
 		sdmmc_deselect(reg, ss);
@@ -771,7 +803,7 @@ int sdmmc_read_block(int iface, int block_num, int count, uint8_t* buf) {
 
 		again:
 
-		// Send CMD12 - Stop Reading
+		// Send CMD12 - Stop Data Transaction 
 		
 		if((ret = sdmmc_send_cmd(reg, SDMMC_CMD_CMD12, block_num, 0x01, 0)) < 0) {
 			sdmmc_printf("%s: cmd %d failed, ret = %d\r\n", "sdmmc_read_block", SDMMC_CMD_CMD12, ret);
@@ -817,8 +849,11 @@ int sdmmc_write_block(int iface, int block_num, int count, uint8_t* buf) {
 	SPI_Reg* reg = sdmmc_ifaces[iface].reg;
 	int ss = sdmmc_ifaces[iface].ss;
 
+
 	if(sdmmc_cards[iface].type != SDMMC_TYPE_SDC_V2HC)
 		block_num *= SDMMC_BLOCK_SIZE; // convert to address = block * SDMMC_BLOCK_SIZE 
+
+	spi_clear_rx_fifo(reg);
 
 	int c;
 	uint8_t* b;
@@ -844,18 +879,65 @@ int sdmmc_write_block(int iface, int block_num, int count, uint8_t* buf) {
 				goto again;
 			}
 
-			if((ret = sdmmc_tx_buf(reg, b, SDMMC_BLOCK_SIZE, 0xfe)) != 0) {
-				sdmmc_printf("%s: tx_buf failed, ret = %d\r\n", "sdmmc_write_block", ret);
+			sdmmc_readwrite_byte(reg, 0xFF); // write 1 dummy byte after Write command
+
+			if((ret = sdmmc_tx_buf(reg, b, SDMMC_BLOCK_SIZE, SDMMC_TOKEN_DATA1)) != 0) {
+				sdmmc_printf("%s: tx_buf failed at %d, retry = %d, ret = %d\r\n", "sdmmc_write_block", count - c - 1, retry, ret);
 				goto again;
 			}
 
+			// Wait till data are written
+			sdmmc_wait_ready(reg);
 
 		} else {
+
+			if(sdmmc_cards[iface].type != SDMMC_TYPE_MMC_V3) { // SDC can do pre-formatting
+
+				// Send CMD55 - Leading ACMD (application command follows) 
+
+				if((ret = sdmmc_send_cmd(reg, SDMMC_CMD_CMD55, 0x0, 0x01, 0)) != 0) {
+					sdmmc_printf("%s: cmd %d failed, ret = %d\r\n", "sdmmc_write_block", SDMMC_CMD_CMD55, ret);
+					goto again;
+				}
+
+				// Send ACMD23 - Pre-erase blocks 
+
+				if((ret = sdmmc_send_cmd(reg, SDMMC_CMD_CMD23, count, 0x01, 0)) != 0) {
+					sdmmc_printf("%s: cmd %d failed, ret = %d\r\n", "sdmmc_write_block", SDMMC_CMD_CMD23, ret);
+					goto again;
+				}
+			}
+
+			// Send CMD25 - Write multiple blocks at block_num 
+
+			if((ret = sdmmc_send_cmd(reg, SDMMC_CMD_CMD25, block_num, 0x01, 0)) != 0) {
+				sdmmc_printf("%s: cmd %d failed, ret = %d\r\n", "sdmmc_write_block", SDMMC_CMD_CMD25, ret);
+				goto again;
+			}
+
+			sdmmc_readwrite_byte(reg, 0xFF); // write 1 dummy byte after Write command
+
+			while(c--) {
+
+				if((ret = sdmmc_tx_buf(reg, b, SDMMC_BLOCK_SIZE, 0xfc)) != 0) {
+					sdmmc_printf("%s: tx_buf failed at %d, retry = %d, ret = %d\r\n", "sdmmc_write_block", count - c - 1, retry, ret);
+					goto again;
+				}
+				b += SDMMC_BLOCK_SIZE;
+
+				// Wait till data are written
+				sdmmc_wait_ready(reg);
+			}
+
+
+			// Send Stop Tran Token
+			sdmmc_readwrite_byte(reg, SDMMC_TOKEN_STOP);
+			sdmmc_readwrite_byte(reg, 0xFF); // write 1 dummy byte after Write command
 
 		}
  
 		// Wait till data are written
-		ret = sdmmc_wait_ready(reg);
+		sdmmc_wait_ready(reg);
 
 		sdmmc_deselect(reg, ss);
 
@@ -863,14 +945,9 @@ int sdmmc_write_block(int iface, int block_num, int count, uint8_t* buf) {
 
 		again:
 
-		// Send CMD12 - Stop Writing 
-		
-		if((ret = sdmmc_send_cmd(reg, SDMMC_CMD_CMD12, block_num, 0x01, 0)) < 0) {
-			sdmmc_printf("%s: cmd %d failed, ret = %d\r\n", "sdmmc_write_block", SDMMC_CMD_CMD12, ret);
-			break;
-		}
-
-		sdmmc_printf("%s: retry = %d of %d failed\r\n", "sdmmc_write_block", retry, SDMMC_RETRIES);
+		// Send Stop Tran Token
+		sdmmc_readwrite_byte(reg, SDMMC_TOKEN_STOP);
+		sdmmc_readwrite_byte(reg, 0xFF); // write 1 dummy byte after Write command
 
 		sdmmc_deselect(reg, ss);
 	} // retry

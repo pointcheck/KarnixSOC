@@ -57,6 +57,7 @@ static inline int wait_bit_clear_timeout(volatile void* reg, uint32_t mask, uint
 	return 0;
 }
 
+
 #define print print_uart0
 
 void xprintf(const char *format, ...);

@@ -40,3 +40,10 @@ int spi_xmit(SPI_Reg* reg, int ss, unsigned short* txbuf, unsigned short* rxbuf,
 	return sent;
 }
 
+
+int spi_clear_rx_fifo(SPI_Reg* reg) {
+	volatile int tmp;
+	while(reg->rxoccupancy)
+		tmp = reg->data;
+}
+

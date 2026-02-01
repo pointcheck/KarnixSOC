@@ -19,8 +19,8 @@
 #define SDMMC_SPI_BITRATE_INIT          400000		// Bitrate while Init
 #define SDMMC_SPI_BITRATE_NORMAL        20000000	// Bitrate for normal operations (20MHz - MMC, 25MHZ - SDC)
 #define	SDMMC_IFACES			2		// Number of available SD/MMC interfaces
-#define	SDMMC_TIMEOUT			1000000		// Wait cycles
-#define	SDMMC_RETRIES			10		// Number of attempts to perform init
+#define	SDMMC_TIMEOUT			0x07ffff	// Wait cycles
+#define	SDMMC_RETRIES			3		// Number of attempts to perform init
 #define	SDMMC_BLOCK_SIZE		512		// Should always be 512 bytes
 
 #define	SDMMC_ERROR_OK			0		// OK

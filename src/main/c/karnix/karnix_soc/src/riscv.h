@@ -227,6 +227,15 @@ static inline unsigned long __attribute__((const)) impid() {
         return res;
 }
 
+static inline void machine_disable_interrupts(void) {
+	csr_clear(mstatus, MSTATUS_MIE);
+}
+
+static inline void machine_enable_interrupts(void) {
+	csr_set(mstatus, MSTATUS_MIE);
+}
+
+
 
 #endif // _RISCV_H_
 
