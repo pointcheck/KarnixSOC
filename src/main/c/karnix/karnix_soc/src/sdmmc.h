@@ -19,7 +19,7 @@
 #define SDMMC_SPI_BITRATE_INIT          400000		// Bitrate while Init
 #define SDMMC_SPI_BITRATE_NORMAL        20000000	// Bitrate for normal operations (20MHz - MMC, 25MHZ - SDC)
 //#define SDMMC_SPI_BITRATE_NORMAL        31000000	// Speed higher 25MHz does not work on some cards
-#define	SDMMC_IFACES			2		// Number of available SD/MMC interfaces
+#define	SDMMC_DEVICES			2		// Number of available SD/MMC interfaces
 #define	SDMMC_TIMEOUT			0x07ffff	// Wait cycles
 #define	SDMMC_RETRIES			3		// Number of attempts to perform init
 #define	SDMMC_BLOCK_SIZE		512		// Should always be 512 bytes
@@ -32,7 +32,9 @@
 #define	SDMMC_ERROR_INIT_FAIL		-5		// Initialization sequence failed	
 #define	SDMMC_ERROR_NOT_READY		-6		// SD/MMC interface is not ready
 #define	SDMMC_ERROR_CRC			-7		// CRC16 mismatch on block read 
-#define	SDMMC_ERROR_WRITE		-8		// Block write error 
+#define	SDMMC_ERROR_READ		-8		// Block read error 
+#define	SDMMC_ERROR_WRITE		-9		// Block write error 
+#define	SDMMC_ERROR_BOUNDS		-10		// Block read/write is out of bounds
 
 #define	SDMMC_TOKEN_DATA1		0xfe		// Data initiation token for CMD17/18/24
 #define	SDMMC_TOKEN_DATA2		0xfc		// Data initiation token for CMD25
@@ -67,7 +69,7 @@
 #define	SDMMC_TYPE_MMC_V3		4
 
 
-struct sdmmc_iface_info {
+struct sdmmc_device_info {
 	SPI_Reg* reg;
 	int ss;		
 };
@@ -80,14 +82,14 @@ struct sdmmc_card_info {
 	uint8_t csd_data[16];	// CSD data: capacity, etc 
 };
 
-extern const struct sdmmc_iface_info sdmmc_ifaces[];
+extern const struct sdmmc_device_info sdmmc_devices[];
 extern struct sdmmc_card_info sdmmc_cards[];
 extern const char* sdmmc_types[];
 
 int sdmmc_init(int);
 uint32_t sdmmc_get_num_blocks(uint8_t csd[]);
-int sdmmc_read_block(int iface, int block_num, int count, uint8_t* buf);
-int sdmmc_write_block(int iface, int block_num, int count, uint8_t* buf);
+int sdmmc_read_block(int iface, uint32_t block_num, uint32_t count, uint8_t* buf);
+int sdmmc_write_block(int iface, uint32_t block_num, uint32_t count, const uint8_t* buf);
 
 #endif // __SDMMC_H__
 

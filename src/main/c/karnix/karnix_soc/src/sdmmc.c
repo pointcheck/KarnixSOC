@@ -26,7 +26,7 @@
 #endif
 #endif
 
-const struct sdmmc_iface_info sdmmc_ifaces[SDMMC_IFACES] = {
+const struct sdmmc_device_info sdmmc_devices[SDMMC_DEVICES] = {
 	{
 		.ss = 0,
 		.reg = SPI0,
@@ -37,7 +37,7 @@ const struct sdmmc_iface_info sdmmc_ifaces[SDMMC_IFACES] = {
 	},
 };
 
-struct sdmmc_card_info sdmmc_cards[SDMMC_IFACES] = { 0 };
+struct sdmmc_card_info sdmmc_cards[SDMMC_DEVICES] = { 0 };
 
 const char* sdmmc_types[5] = { "NONE", "SDC_V1", "SDC_V2", "SDC_V2HC", "MMC_V3" };
 
@@ -279,7 +279,7 @@ int sdmmc_rx_buf(SPI_Reg* reg, uint8_t *buf, uint16_t len) {
 
 
 // Write len bytes to card from buf using cmd
-int sdmmc_tx_buf(SPI_Reg* reg, uint8_t *buf, uint16_t len, uint8_t cmd) {
+int sdmmc_tx_buf(SPI_Reg* reg, const uint8_t *buf, uint16_t len, uint8_t cmd) {
 
 	int ret = sdmmc_wait_ready(reg);
 
@@ -289,7 +289,7 @@ int sdmmc_tx_buf(SPI_Reg* reg, uint8_t *buf, uint16_t len, uint8_t cmd) {
 	}
 
 	int count = len; // usually 512 bytes
-	uint8_t *b = buf;
+	const uint8_t *b = buf;
 
 	volatile uint16_t crc16_my = 0; // accumulated CRC16
 
@@ -419,21 +419,21 @@ int sdmmc_get_info(SPI_Reg* reg, int ss, uint8_t cmd, uint8_t *info_buf16) {
 }
 
 
-int sdmmc_init(int iface) {
+int sdmmc_init(int device) {
 	int ret;
 
-	if(iface >= SDMMC_IFACES) {
-		sdmmc_printf("%s: iface %d should be < %d\r\n", "sdmmc_init",
-			iface, SDMMC_IFACES);
+	if(device >= SDMMC_DEVICES) {
+		sdmmc_printf("%s: device %d should be < %d\r\n", "sdmmc_init",
+			device, SDMMC_DEVICES);
 		return SDMMC_ERROR_PARAMS;
 	}
 
-	SPI_Reg* reg = sdmmc_ifaces[iface].reg;
-	int ss = sdmmc_ifaces[iface].ss;
+	SPI_Reg* reg = sdmmc_devices[device].reg;
+	int ss = sdmmc_devices[device].ss;
 
 	// Clear old card data
 
-	memset(&sdmmc_cards[iface], 0, sizeof(sdmmc_cards[0]));
+	memset(&sdmmc_cards[device], 0, sizeof(sdmmc_cards[0]));
 
 	SPI_Config spi_cfg;
 	
@@ -565,11 +565,11 @@ int sdmmc_init(int iface) {
 		ret |= sdmmc_readwrite_byte(reg, 0xff);
 
 		if(ret & 0x40000000)
-			sdmmc_cards[iface].type = SDMMC_TYPE_SDC_V2HC;
+			sdmmc_cards[device].type = SDMMC_TYPE_SDC_V2HC;
 		else
-			sdmmc_cards[iface].type = SDMMC_TYPE_SDC_V2;
+			sdmmc_cards[device].type = SDMMC_TYPE_SDC_V2;
 
-		sdmmc_cards[iface].ocr = ret;
+		sdmmc_cards[device].ocr = ret;
 
 		sdmmc_deselect(reg, ss);
 	
@@ -627,7 +627,7 @@ int sdmmc_init(int iface) {
 			}
 
 			if(ret == 0) {
-				sdmmc_cards[iface].type = SDMMC_TYPE_SDC_V1;
+				sdmmc_cards[device].type = SDMMC_TYPE_SDC_V1;
 			} else {
 				sdmmc_printf("%s: %s init failed\r\n", "sdmmc_init", sdmmc_types[SDMMC_TYPE_SDC_V1]);
 			}
@@ -651,7 +651,7 @@ int sdmmc_init(int iface) {
 			}
 
 			if(ret == 0) {
-				sdmmc_cards[iface].type = SDMMC_TYPE_MMC_V3;
+				sdmmc_cards[device].type = SDMMC_TYPE_MMC_V3;
 			} else {
 				sdmmc_printf("%s: %s init failed\r\n", "sdmmc_init", sdmmc_types[SDMMC_TYPE_MMC_V3]);
 			}
@@ -664,18 +664,18 @@ int sdmmc_init(int iface) {
 	sdmmc_send_cmd_sel(reg, ss, SDMMC_CMD_CMD16, SDMMC_BLOCK_SIZE, 0x01, 0);
 
 	// Get CID (manufacturer)
-	if((ret = sdmmc_get_info(reg, ss, SDMMC_CMD_CMD10, sdmmc_cards[iface].cid_data)) < 0) {
+	if((ret = sdmmc_get_info(reg, ss, SDMMC_CMD_CMD10, sdmmc_cards[device].cid_data)) < 0) {
 		sdmmc_printf("%s: cid failed, ret = %d\r\n", "sdmmc_init", ret);
 		goto end;
 	}
 
 	// Get CSD (geometry)
-	if((ret = sdmmc_get_info(reg, ss, SDMMC_CMD_CMD9, sdmmc_cards[iface].csd_data)) < 0) {
+	if((ret = sdmmc_get_info(reg, ss, SDMMC_CMD_CMD9, sdmmc_cards[device].csd_data)) < 0) {
 		sdmmc_printf("%s: csd failed, ret = %d\r\n", "sdmmc_init", ret);
 		goto end;
 	}
 
-	sdmmc_cards[iface].blocks = sdmmc_get_num_blocks(sdmmc_cards[iface].csd_data);
+	sdmmc_cards[device].blocks = sdmmc_get_num_blocks(sdmmc_cards[device].csd_data);
 
 	// Initialization completed OK, switch to higher bitrate
 
@@ -695,52 +695,63 @@ int sdmmc_init(int iface) {
 	sdmmc_deselect(reg, ss);
 
 	sdmmc_printf("%s: card type = %d (%s), blocks = %d (%d MiB)\r\n", "sdmmc_init",
-		sdmmc_cards[iface].type, sdmmc_types[sdmmc_cards[iface].type],
-		sdmmc_cards[iface].blocks, (sdmmc_cards[iface].blocks / 1024) * 512 / 1024
+		sdmmc_cards[device].type, sdmmc_types[sdmmc_cards[device].type],
+		sdmmc_cards[device].blocks, (sdmmc_cards[device].blocks / 1024) * 512 / 1024
 	);
 
 	return ret;
 }    
 
 
-int sdmmc_read_block(int iface, int block_num, int count, uint8_t* buf) {
+int sdmmc_read_block(int device, uint32_t block_num, uint32_t count, uint8_t* buf) {
 	int ret = SDMMC_ERROR_OK;
 
-	if(iface >= SDMMC_IFACES) {
-		sdmmc_printf("%s: iface %d should be < %d\r\n", "sdmmc_read_block",
-			iface, SDMMC_IFACES);
+	sdmmc_printf("%s: device: %d, block: %d, buf: %p\r\n", "sdmmc_read_block",
+		device, block_num, buf);
+
+	if(device >= SDMMC_DEVICES) {
+		sdmmc_printf("%s: device %d should be < %d\r\n", "sdmmc_read_block",
+			device, SDMMC_DEVICES);
 		return SDMMC_ERROR_PARAMS;
 	}
 
 	if(count < 1) {
 		sdmmc_printf("%s: count %d should be > 0\r\n", "sdmmc_read_block",
-			count, SDMMC_IFACES);
+			count, SDMMC_DEVICES);
 		return SDMMC_ERROR_PARAMS;
 	}
+
 
 	if(buf == NULL) {
 		sdmmc_printf("%s: buf is NULL!\r\n", "sdmmc_read_block",
-			SDMMC_IFACES);
+			SDMMC_DEVICES);
 		return SDMMC_ERROR_PARAMS;
 	}
 
-	if(sdmmc_cards[iface].type == SDMMC_TYPE_NONE) {
-		sdmmc_printf("%s: iface %d is not ready!\r\n", "sdmmc_read_block", iface);
+	if(sdmmc_cards[device].type == SDMMC_TYPE_NONE) {
+		sdmmc_printf("%s: device %d is not ready!\r\n", "sdmmc_read_block", device);
 		return SDMMC_ERROR_NOT_READY;
 	}
 
-	SPI_Reg* reg = sdmmc_ifaces[iface].reg;
-	int ss = sdmmc_ifaces[iface].ss;
+	if(block_num + count > sdmmc_cards[device].blocks) {
+		sdmmc_printf("%s: from device %d out of bounds: %d > %d\r\n", "sdmmc_read_block",
+			device, block_num + count, sdmmc_cards[device].blocks);
+		return SDMMC_ERROR_BOUNDS;
+	}
 
-	if(sdmmc_cards[iface].type != SDMMC_TYPE_SDC_V2HC)
+	SPI_Reg* reg = sdmmc_devices[device].reg;
+	int ss = sdmmc_devices[device].ss;
+
+	if(sdmmc_cards[device].type != SDMMC_TYPE_SDC_V2HC)
 		block_num *= SDMMC_BLOCK_SIZE; // convert to address = block * SDMMC_BLOCK_SIZE 
 
 	spi_clear_rx_fifo(reg);
 
 	int c;
 	uint8_t* b;
+	int retry;
 
-	for(int retry = 0; retry < SDMMC_RETRIES; retry++) {
+	for(retry = 0; retry < SDMMC_RETRIES; retry++) {
 
 		c = count;
 		b = buf;
@@ -753,17 +764,17 @@ int sdmmc_read_block(int iface, int block_num, int count, uint8_t* buf) {
 		
 			if((ret = sdmmc_send_cmd(reg, SDMMC_CMD_CMD17, block_num, 0x01, 0)) < 0) {
 				sdmmc_printf("%s: cmd %d failed, ret = %d\r\n", "sdmmc_read_block", SDMMC_CMD_CMD17, ret);
-				goto again;
+				goto again2;
 			}
 
 			if(ret != 0x00) {
 				sdmmc_printf("%s: cmd %d resp = %d\r\n", "sdmmc_read_block", SDMMC_CMD_CMD17, ret);
-				goto again;
+				goto again2;
 			}
 
 			if((ret = sdmmc_rx_buf(reg, b, SDMMC_BLOCK_SIZE)) != 0) {
 				sdmmc_printf("%s: rx_buf failed at %d, retry = %d, ret = %d\r\n", "sdmmc_read_block", count - c - 1, retry, ret);
-				goto again;
+				goto again2;
 			}
 
 		} else {
@@ -789,7 +800,7 @@ int sdmmc_read_block(int iface, int block_num, int count, uint8_t* buf) {
 
 			// Send CMD12 - Stop Data Transaction 
 		
-			if((ret = sdmmc_send_cmd(reg, SDMMC_CMD_CMD12, block_num, 0x01, 0)) < 0) {
+			if((ret = sdmmc_send_cmd(reg, SDMMC_CMD_CMD12, 0, 0x01, 0)) < 0) {
 				sdmmc_printf("%s: cmd %d failed, ret = %d\r\n", "sdmmc_read_block", SDMMC_CMD_CMD12, ret);
 				goto again;
 			}
@@ -806,10 +817,14 @@ int sdmmc_read_block(int iface, int block_num, int count, uint8_t* buf) {
 
 		// Send CMD12 - Stop Data Transaction 
 		
-		if((ret = sdmmc_send_cmd(reg, SDMMC_CMD_CMD12, block_num, 0x01, 0)) < 0) {
+		if((ret = sdmmc_send_cmd(reg, SDMMC_CMD_CMD12, 0, 0x01, 0)) < 0) {
 			sdmmc_printf("%s: cmd %d failed, ret = %d\r\n", "sdmmc_read_block", SDMMC_CMD_CMD12, ret);
 			break;
 		}
+
+		again2:
+
+		sdmmc_wait_ready(reg);
 
 		sdmmc_printf("%s: retry = %d of %d failed\r\n", "sdmmc_read_block", retry, SDMMC_RETRIES);
 
@@ -817,47 +832,61 @@ int sdmmc_read_block(int iface, int block_num, int count, uint8_t* buf) {
 
 	} // retry
 
+	if(retry == SDMMC_RETRIES) {
+		return SDMMC_ERROR_READ;
+	}
+
 	return ret;
 }
 
 
-int sdmmc_write_block(int iface, int block_num, int count, uint8_t* buf) {
+int sdmmc_write_block(int device, uint32_t block_num, uint32_t count, const uint8_t* buf) {
 	int ret = SDMMC_ERROR_OK;
 
-	if(iface >= SDMMC_IFACES) {
-		sdmmc_printf("%s: iface %d should be < %d\r\n", "sdmmc_write_block",
-			iface, SDMMC_IFACES);
+	sdmmc_printf("%s: device: %d, block: %d, buf: %p\r\n", "sdmmc_write_block",
+		device, block_num, buf);
+
+	if(device >= SDMMC_DEVICES) {
+		sdmmc_printf("%s: device %d should be < %d\r\n", "sdmmc_write_block",
+			device, SDMMC_DEVICES);
 		return SDMMC_ERROR_PARAMS;
 	}
 
 	if(count < 1) {
 		sdmmc_printf("%s: count %d should be > 0\r\n", "sdmmc_write_block",
-			iface, SDMMC_IFACES);
+			device, SDMMC_DEVICES);
 		return SDMMC_ERROR_PARAMS;
 	}
 
 	if(buf == NULL) {
 		sdmmc_printf("%s: buf is NULL!\r\n", "sdmmc_write_block",
-			SDMMC_IFACES);
+			SDMMC_DEVICES);
 		return SDMMC_ERROR_PARAMS;
 	}
 
-	if(sdmmc_cards[iface].type == SDMMC_TYPE_NONE) {
-		sdmmc_printf("%s: iface %d is not ready!\r\n", "sdmmc_write_block", iface);
+	if(block_num + count > sdmmc_cards[device].blocks) {
+		sdmmc_printf("%s: to device %d out of bounds: %d > %d\r\n", "sdmmc_write_block",
+			device, block_num + count, sdmmc_cards[device].blocks);
+		return SDMMC_ERROR_BOUNDS;
+	}
+
+	if(sdmmc_cards[device].type == SDMMC_TYPE_NONE) {
+		sdmmc_printf("%s: device %d is not ready!\r\n", "sdmmc_write_block", device);
 		return SDMMC_ERROR_NOT_READY;
 	}
 
-	SPI_Reg* reg = sdmmc_ifaces[iface].reg;
-	int ss = sdmmc_ifaces[iface].ss;
+	SPI_Reg* reg = sdmmc_devices[device].reg;
+	int ss = sdmmc_devices[device].ss;
 
 
-	if(sdmmc_cards[iface].type != SDMMC_TYPE_SDC_V2HC)
+	if(sdmmc_cards[device].type != SDMMC_TYPE_SDC_V2HC)
 		block_num *= SDMMC_BLOCK_SIZE; // convert to address = block * SDMMC_BLOCK_SIZE 
 
 	spi_clear_rx_fifo(reg);
 
 	int c;
-	uint8_t* b;
+	const uint8_t* b;
+	int retry;
 
 	for(int retry = 0; retry < SDMMC_RETRIES; retry++) {
 
@@ -893,7 +922,7 @@ int sdmmc_write_block(int iface, int block_num, int count, uint8_t* buf) {
 		} else {
 
 			#ifdef SDMMC_ENABLE_PREERASE
-			if(sdmmc_cards[iface].type != SDMMC_TYPE_MMC_V3) { // SDC can do pre-formatting
+			if(sdmmc_cards[device].type != SDMMC_TYPE_MMC_V3) { // SDC can do pre-formatting
 
 				// Send CMD55 - Leading ACMD (application command follows) 
 
@@ -954,6 +983,9 @@ int sdmmc_write_block(int iface, int block_num, int count, uint8_t* buf) {
 
 		sdmmc_deselect(reg, ss);
 	} // retry
+
+	if(retry == SDMMC_RETRIES)
+		return SDMMC_ERROR_WRITE;
 
 	return ret;
 }
