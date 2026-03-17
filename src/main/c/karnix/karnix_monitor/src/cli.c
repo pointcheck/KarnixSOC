@@ -40,6 +40,7 @@ void cli_cmd_reg();
 void cli_cmd_nor();
 void cli_cmd_sdmmc();
 void cli_cmd_help();
+void cli_cmd_fat32();
 
 struct _command_list {
 	char cmd[4];
@@ -142,12 +143,21 @@ struct _command_list {
 	{
 		.cmd = "sd",
 		.func = cli_cmd_sdmmc,
-		.help = "sd	[init|info|list|read]	- SD/MMC card operations:\r\n"
+		.help = "sd	[cmd]			- SD/MMC card operations:\r\n"
 			"	list			- Show available SD/MMC interafces\r\n"
-			"	init iface		- Initialize SD/MMC card interface number 'iface'\r\n"
-			"	info iface		- Show available cards\r\n"
-			"	read iface blk addr cnt - Read 'cnt' blocks from 'iface' at 'blk' to 'addr'\r\n"
-			"	write iface blk addr cnt- Write 'cnt' blocks to 'iface' at 'blk' from 'addr'"
+			"	init dev		- Initialize SD/MMC card interface number 'dev'\r\n"
+			"	info dev		- Show available cards\r\n"
+			"	read dev blk addr cnt	- Read 'cnt' blocks from 'dev' at 'blk' to 'addr'\r\n"
+			"	write dev blk addr cnt	- Write 'cnt' blocks to 'dev' at 'blk' from 'addr'\r\n"
+			"	test dev blk addr cnt	- Test 'cnt' blocks on 'dev' at 'blk' using buf 'addr'"
+	},
+	{
+		.cmd = "fat",
+		.func = cli_cmd_fat32,
+		.help = "fat32	[cmd]			- FAT operations:\r\n"
+			"	mount dev [mnt]		- Mount FAT on SD/MMC 'dev' to 'mnt'\r\n"
+			"	umount [mnt]		- Unmount FAT from 'mnt'\r\n"
+			"	type /mnt/path		- Type file at '/mnt/path'"
 	},
 	{
 		.cmd = "rz",
@@ -505,53 +515,52 @@ void cli_cmd_crc32(char *argv[], int argn) {
 
 
 void cli_cmd_sdmmc(char *argv[], int argn) {
-	int card = 0;
 	int count = 0;
-	int iface = 0;
+	int dev = 0;
 	uint32_t *addr = (uint32_t*) current_address;
 
 	if(argv[1] && strnstr(argv[1], "li", 2)) { // list
 		#if(DEBUG_CLI)
-		xprintf("%s: available SD/MMC card interfaces:\r\n", "sdmmc");
+		xprintf("%s: available SD/MMC card devices:\r\n", "sdmmc");
 		#endif
 
-		for(int iface = 0; iface < SDMMC_IFACES; iface++)
-			xprintf("%s: iface = %d, reg = %p, ss = %d\r\n", "sdmmc",
-				iface,
-				sdmmc_ifaces[iface].reg,
-				sdmmc_ifaces[iface].ss
+		for(int dev = 0; dev < SDMMC_DEVICES; dev++)
+			xprintf("%s: dev = %d, reg = %p, ss = %d\r\n", "sdmmc",
+				dev,
+				sdmmc_devices[dev].reg,
+				sdmmc_devices[dev].ss
 			);
 
 		return;
 	}
 
 	if(argv[2])
-		iface = strtoul(argv[2], NULL, 0);
+		dev = strtoul(argv[2], NULL, 0);
 
-	if(iface >= SDMMC_IFACES || iface < 0) {
-		xprintf("%s: no such SD/MMC iface: %d\r\n", "sdmmc", iface);
+	if(dev >= SDMMC_DEVICES || dev < 0) {
+		xprintf("%s: no such SD/MMC dev: %d\r\n", "sdmmc", dev);
 		return;
 	}
 
 	if(argv[1] && strnstr(argv[1], "ini", 3)) { // init
 
-		int ret = sdmmc_init(iface);
+		int ret = sdmmc_init(dev);
 	
-		xprintf("%s: init SD/MMC card iface: %d, ret = %d\r\n", "sdmmc", iface, ret);
+		xprintf("%s: init SD/MMC card dev: %d, ret = %d\r\n", "sdmmc", dev, ret);
 
 		return;
 	}
 
 	if(argv[1] && strnstr(argv[1], "inf", 3)) { // info 
 
-		uint8_t* cid = sdmmc_cards[iface].cid_data;
+		uint8_t* cid = sdmmc_cards[dev].cid_data;
 
-		xprintf("%s: iface = %d, type = %d (%s), OCR = 0x%08X, blocks = %d (%d MiB)\r\n", "sdmmc",
-			iface, sdmmc_cards[iface].type,
-			sdmmc_types[sdmmc_cards[iface].type],
-			sdmmc_cards[iface].ocr,
-			sdmmc_cards[iface].blocks,
-			(sdmmc_cards[iface].blocks / 1024) * 512 / 1024
+		xprintf("%s: dev = %d, type = %d (%s), OCR = 0x%08X, blocks = %d (%d MiB)\r\n", "sdmmc",
+			dev, sdmmc_cards[dev].type,
+			sdmmc_types[sdmmc_cards[dev].type],
+			sdmmc_cards[dev].ocr,
+			sdmmc_cards[dev].blocks,
+			(sdmmc_cards[dev].blocks / 1024) * 512 / 1024
 		);
 
 		xprintf("%s: Card ID:	", "sdmmc");
@@ -563,7 +572,7 @@ void cli_cmd_sdmmc(char *argv[], int argn) {
 		xprintf("MDT: %03X, ", ((cid[13] & 0x0f) << 8) | cid[14]);
 		xprintf("CRC: 0x%02X\r\n", cid[15] >> 1);
 
-		uint8_t* csd = sdmmc_cards[iface].csd_data;
+		uint8_t* csd = sdmmc_cards[dev].csd_data;
 
 		xprintf("%s: Card SD:	", "sdmmc");
 		for(int i = 0; i < 16; i++)
@@ -590,14 +599,14 @@ void cli_cmd_sdmmc(char *argv[], int argn) {
 			count = strtoul(argv[5], NULL, 0);
 
 		#if(DEBUG_CLI)
-		xprintf("%s: read iface = %d, block = %d, addr = 0x%08x, count = %d\r\n", "sdmmc",
-			iface, block, addr, count
+		xprintf("%s: read dev = %d, block = %d, addr = 0x%08x, count = %d\r\n", "sdmmc",
+			dev, block, addr, count
 		);
 		#endif
 
         	uint32_t t0 = get_mtime();
 
-		int ret = sdmmc_read_block(iface, block, count, (uint8_t*) addr); 
+		int ret = sdmmc_read_block(dev, block, count, (uint8_t*) addr); 
 
         	uint32_t dt = (get_mtime() - t0);
 		uint32_t cps = 512 * count / (dt / 1024);
@@ -625,14 +634,14 @@ void cli_cmd_sdmmc(char *argv[], int argn) {
 			count = strtoul(argv[5], NULL, 0);
 
 		#if(DEBUG_CLI)
-		xprintf("%s: write iface = %d, block = %d, addr = 0x%08x, count = %d\r\n", "sdmmc",
-			iface, block, addr, count
+		xprintf("%s: write dev = %d, block = %d, addr = 0x%08x, count = %d\r\n", "sdmmc",
+			dev, block, addr, count
 		);
 		#endif
 
         	uint32_t t0 = get_mtime();
 
-		int ret = sdmmc_write_block(iface, block, count, (uint8_t*) addr); 
+		int ret = sdmmc_write_block(dev, block, count, (uint8_t*) addr); 
 
         	uint32_t dt = (get_mtime() - t0);
 		uint32_t cps = 512 * count / (dt / 1024);
@@ -643,6 +652,72 @@ void cli_cmd_sdmmc(char *argv[], int argn) {
 
 		return;
 	}
+
+	if(argv[1] && strnstr(argv[1], "tes", 3)) { // test read/write 
+
+		int block = 0;
+		int addr = current_address;
+		int count = 1;
+
+		if(argv[3])
+			block = strtoul(argv[3], NULL, 0);
+
+		if(argv[4] && argv[4][0] != '*')
+			addr = strtoul(argv[4], NULL, 0);
+
+		if(argv[5])
+			count = strtoul(argv[5], NULL, 0);
+
+		#if(DEBUG_CLI)
+		xprintf("%s: test dev = %d, block = %d, addr = 0x%08x, count = %d\r\n", "sdmmc",
+			dev, block, addr, count
+		);
+		#endif
+
+        	uint32_t t0 = get_mtime();
+		uint32_t errs = 0;
+		int i;
+
+		for(i = 0; i < count; i++) {
+
+			char *p = (char*)addr;
+
+			for(int j = 0; j < 512; j++)
+				*p++ = ((i+j) ^ 0xaa);
+
+			char *a = (char*)addr;
+			char *b = (char*)addr+512;
+
+			if(sdmmc_read_block(dev, block+i, 1, (uint8_t*) b) < 0)
+				break;
+
+			if(sdmmc_write_block(dev, block+i, 1, (uint8_t*) a) < 0)
+				break;
+
+			if(sdmmc_read_block(dev, block+i, 1, (uint8_t*) b) < 0)
+				break;
+
+
+			for(int j = 0; j < 512; j++)
+				if(*a++ != *b++) {
+					xprintf("%s: test %d failed at %d, block = %d\r\n", "sdmmc", i, j, block+i);
+					errs++;
+					break;
+				}
+
+			if(console_rx_buf_len)
+				break;
+		}
+
+        	uint32_t dt = (get_mtime() - t0);
+
+		xprintf("%s: tests %d made, errors = %d, time = %d us\r\n", "sdmmc", i, errs, dt);
+
+		current_address = (uint32_t) addr; // remember last address used
+
+		return;
+	}
+
 
 	show_help(argv, argn);
 }
