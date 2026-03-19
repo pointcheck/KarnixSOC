@@ -39,8 +39,10 @@ void cli_cmd_rz();
 void cli_cmd_reg();
 void cli_cmd_nor();
 void cli_cmd_sdmmc();
-void cli_cmd_help();
 void cli_cmd_fat32();
+void cli_cmd_help();
+
+const char* months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 
 struct _command_list {
 	char cmd[4];
@@ -154,10 +156,15 @@ struct _command_list {
 	{
 		.cmd = "fat",
 		.func = cli_cmd_fat32,
-		.help = "fat32	[cmd]			- FAT operations:\r\n"
-			"	mount dev [mnt]		- Mount FAT on SD/MMC 'dev' to 'mnt'\r\n"
+		.help = "fat	[cmd]			- FAT32 operations:\r\n"
+			"	mount dev [mnt]		- Mount FAT32 on SD/MMC 'dev' to 'mnt'\r\n"
 			"	umount [mnt]		- Unmount FAT from 'mnt'\r\n"
-			"	type /mnt/path		- Type file at '/mnt/path'"
+			"	ls /mnt/dir		- List dir entry at '/mnt/dir'\r\n"
+			"	cp /mnt/src /mnt/dst	- Copy '/mnt/src' file to '/mnt/dst'\r\n"
+			"	mkdir /mnt/dir		- Create directory '/mnt/dir'\r\n"
+			"	rm /mnt/path		- Remove file of directory '/mnt/path'\r\n"
+			"	cat /mnt/file		- Type ASCII file '/mnt/file'\r\n"
+			"	dump /mnt/file		- HEX dump file '/mnt/file'"
 	},
 	{
 		.cmd = "rz",
@@ -449,7 +456,7 @@ void cli_cmd_dump(char *argv[], int argn) {
 	current_address = (uint32_t) addr; // remember last address used
 
 	while(count < len) {
-		xprintf("%p: ", addr);
+		xprintf("0x%02X: ", addr);
 
 		str[0] = 0;
 
