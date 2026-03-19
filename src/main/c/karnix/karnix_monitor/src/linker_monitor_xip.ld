@@ -16,7 +16,7 @@ MEMORY {
   FLASH    (rwx): ORIGIN = 0xA00E0000, LENGTH = 15488k
 
   /* Synthesized RAM */
-  RAM      (rwx): ORIGIN = 0x80000000, LENGTH = 12k
+  RAM      (rwx): ORIGIN = 0x80000000, LENGTH = 16k
 
 }
 
