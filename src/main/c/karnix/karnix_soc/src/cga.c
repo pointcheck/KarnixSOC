@@ -541,7 +541,7 @@ void cga_text_print(uint8_t *framebuffer, int x, int y, int fg_color, int bg_col
 		x = x % CGA_TEXT_WIDTH;
 	}
 
-	if(scroll_delay && y >= CGA_TEXT_HEIGHT) {
+	if(y >= CGA_TEXT_HEIGHT) {
 		uint32_t *fb = ((uint32_t*) framebuffer) + (y+1) * CGA_TEXT_WIDTH;
 
 		for(int j = 0; j < CGA_TEXT_WIDTH; j++)
