@@ -63,7 +63,7 @@ void cli_cmd_fat32(char *argv[], int argn) {
 		Fat *fat = (Fat*) malloc(sizeof(Fat));
 
 		if(fat == NULL) {
-			xprintf("%s: not enough mem for FAT table\r\n", "fat32");
+			xprintf("%s: failed to allocate mem for FAT table\r\n", "fat32");
 			return;
 		}
 
@@ -216,7 +216,6 @@ void cli_cmd_fat32(char *argv[], int argn) {
 		}
 
 		char buf[512+2]; // 2 extra bytes for CRC16
-
 		int total_read = 0;
 
 		while(1) {
@@ -316,6 +315,7 @@ void cli_cmd_fat32(char *argv[], int argn) {
 		int cnt, total = 0;
 		char buf[512+2]; // 2 extra bytes for CRC16
 
+
  		if((ret = fat_file_open(&file_src, path_src, FAT_READ)) != 0) {
 			xprintf("%s: failed to open %s for read, ret = %d (%s)\r\n",
 				"fat32", path_src, ret, fat_get_error(ret));
@@ -353,12 +353,14 @@ void cli_cmd_fat32(char *argv[], int argn) {
 				cnt -= cnt_wr;
 				total += cnt_wr;
 				b += cnt_wr;
+
+				xprintf(".");
 			}
 
-
-
-			if(eof)
+			if(eof) {
+				xprintf("\r\n");
 				break;
+			}
 
 			if(console_rx_buf_len)
 				break;
