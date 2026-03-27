@@ -84,8 +84,7 @@ typedef struct Fat
   uint32_t last_used;
   uint32_t free_cnt;
   uint32_t sect;
-  uint8_t buf[512];
-  uint16_t crc16; // RZ: SDMMC I/O implies reading CRC16 right after data block 
+  uint8_t buf[512+2]; // RZ: SDMMC I/O implies reading CRC16 right after data block 
   uint8_t flags;
   uint8_t clust_shift;
   uint8_t name_len;
@@ -124,7 +123,7 @@ typedef struct
   uint16_t dir_idx;
   uint8_t attr;
   uint8_t flags;
-  uint8_t buf[512];
+  uint8_t buf[512+2]; // RZ: SDMMC I/O implies reading CRC16 right after data block 
 } File;
 
 //------------------------------------------------------------------------------
