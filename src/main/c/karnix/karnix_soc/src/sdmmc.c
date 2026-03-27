@@ -13,16 +13,16 @@
 #include "sdmmc.h"
 #include "utils.h"
 
-//#define	SDMMC_NO_DEBUG		1	// Disabled debug output (reduces code size)
+//#define	SDMMC_DEBUG		1	// Enable debug output (reduces code size)
 #define	SDMMC_SUPPORT_CRC16	1	// Calculate CRC16 for in and out data
-//#define	SDMMC_ENABLE_TX_AVAIL	1	// Check TX FIFO each time byte is written
+#define	SDMMC_ENABLE_TX_AVAIL	1	// Check TX FIFO each time byte is written
 //#define	SDMMC_ENABLE_PREERASE		1	// Enable Pre-erase blocks on write
 
 #ifndef sdmmc_printf
-#ifdef SDMMC_NO_DEBUG
-#define	sdmmc_printf(...) { } 
-#else
+#ifdef SDMMC_DEBUG
 #define	sdmmc_printf(...) printf(__VA_ARGS__)
+#else
+#define	sdmmc_printf(...) { } 
 #endif
 #endif
 
@@ -314,10 +314,14 @@ int sdmmc_tx_buf(SPI_Reg* reg, const uint8_t *buf, uint16_t len, uint8_t cmd) {
 
 		reg->data = SPI_CMD_SEND | tx;
 
+		/* Calculating CRC16 is useless work for SPI writes
+
 		#ifdef SDMMC_SUPPORT_CRC16
 		// calculate intermediate CRC16 value
 		crc16_my = sdmmc_crc16_table[((crc16_my >> 8) ^ tx) & 0xff] ^ (crc16_my << 8);
 		#endif
+
+		*/
 	}
 
 	// Send CRC16
