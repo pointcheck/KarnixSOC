@@ -285,6 +285,8 @@ void main() {
 
 	xprintf("=== Hardware init done ===\r\n\r\n");
 
+	cli_prompt();
+
 	while(1) {
 
 	       	// Clear: LED2 - MAC/MODBUS Error, LED3 - UART I/O
