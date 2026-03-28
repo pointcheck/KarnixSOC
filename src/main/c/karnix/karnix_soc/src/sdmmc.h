@@ -85,6 +85,7 @@ struct sdmmc_card_info {
 extern const struct sdmmc_device_info sdmmc_devices[];
 extern struct sdmmc_card_info sdmmc_cards[];
 extern const char* sdmmc_types[];
+extern int sdmmc_write_protected_sectors;
 
 int sdmmc_init(int);
 uint32_t sdmmc_get_num_blocks(uint8_t csd[]);

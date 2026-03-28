@@ -26,6 +26,8 @@
 #endif
 #endif
 
+int sdmmc_write_protected_sectors = 11;	// Sectors below this will be write-protected
+
 const struct sdmmc_device_info sdmmc_devices[SDMMC_DEVICES] = {
 	{
 		.ss = 0,
@@ -846,6 +848,13 @@ int sdmmc_read_block(int device, uint32_t block_num, uint32_t count, uint8_t* bu
 
 int sdmmc_write_block(int device, uint32_t block_num, uint32_t count, const uint8_t* buf) {
 	int ret = SDMMC_ERROR_OK;
+
+	if(block_num < sdmmc_write_protected_sectors) {
+	
+		printf("%s: Write-protection violation! device: %d, block: %d, buf: %p\r\n", "sdmmc_write_block",
+			device, block_num, buf);
+		return -999;
+	}
 
 	sdmmc_printf("%s: device: %d, block: %d, buf: %p\r\n", "sdmmc_write_block",
 		device, block_num, buf);

@@ -151,7 +151,8 @@ struct _command_list {
 			"	info dev		- Show available cards\r\n"
 			"	read dev blk addr cnt	- Read 'cnt' blocks from 'dev' at 'blk' to 'addr'\r\n"
 			"	write dev blk addr cnt	- Write 'cnt' blocks to 'dev' at 'blk' from 'addr'\r\n"
-			"	test dev blk addr cnt	- Test 'cnt' blocks on 'dev' at 'blk' using buf 'addr'"
+			"	test dev blk addr cnt	- Test 'cnt' blocks on 'dev' at 'blk' using buf 'addr'\r\n"
+			"	wp [blk]		- Set/Set Write-protected sectors below 'blk'"
 	},
 	{
 		.cmd = "fat",
@@ -723,6 +724,16 @@ void cli_cmd_sdmmc(char *argv[], int argn) {
 		xprintf("%s: tests %d made, errors = %d, time = %d us\r\n", "sdmmc", i, errs, dt);
 
 		current_address = (uint32_t) addr; // remember last address used
+
+		return;
+	}
+
+	if(argv[1] && strnstr(argv[1], "wp", 2)) { // Set/Get write-protected sector number 
+
+		if(argv[2])
+			sdmmc_write_protected_sectors = strtoul(argv[2], NULL, 0);
+
+		xprintf("%s: blocks below %d are write-protected!\r\n", "sdmmc", sdmmc_write_protected_sectors);
 
 		return;
 	}
