@@ -12,7 +12,7 @@
 
 volatile extern uint32_t console_rx_buf_len;
 extern const char* months[];
-
+extern uint32_t current_address;
 
 static bool disk_read(uint32_t dev, uint8_t* buf, uint32_t sect) {
 	return sdmmc_read_block(dev, sect, 1, buf) == 0;
@@ -254,6 +254,146 @@ void cli_cmd_fat32(char *argv[], int argn) {
 
 		#if(DEBUG_CLI)
 		xprintf("\r\n%s: %d bytes read from %s\r\n", "fat32", total_read, path);
+		#endif
+			
+		if((ret = fat_file_close(&file)) != 0) {
+			xprintf("%s: failed to close %s, ret = %d (%s)\r\n",
+				"fat32", path, ret, fat_get_error(ret));
+			return;
+		}
+
+		return;
+	}
+
+	if(argv[1] && strnstr(argv[1], "load", 4)) { // load binary file to mem 
+		char *addr = (char*) current_address;
+		char *path = "";
+
+		if(argv[2]) {
+			if(argv[2][0] != '*')
+				addr = (char*) strtoul(argv[2], NULL, 0);
+		}
+
+		if(argv[3])
+			path = argv[3];
+
+		#if(DEBUG_CLI)
+		xprintf("%s: loading file %s at 0x%08X\r\n", "fat32", path, addr);
+		#endif
+
+		File file;
+		int cnt;
+
+ 		if((ret = fat_file_open(&file, path, FAT_READ)) != 0) {
+			xprintf("%s: failed to open %s for read, ret = %d (%s)\r\n",
+				"fat32", path, ret, fat_get_error(ret));
+			return;
+		}
+
+		char buf[512+2]; // 2 extra bytes for CRC16
+		char *b = addr;
+		int total_read = 0;
+
+		while(1) {
+
+			if((ret = fat_file_read(&file, buf, 512, &cnt)) != 0) {
+				xprintf("%s: failed to read from %s, ret = %d (%s)\r\n",
+					"fat32", path, ret, fat_get_error(ret));
+				return;
+			}
+
+			total_read += cnt;
+		
+			memcpy(b, buf, cnt);
+
+			b += cnt;
+
+			xprintf(".");
+
+			if(cnt != 512)
+				break;
+
+			if(console_rx_buf_len)
+				break;
+		}
+
+		xprintf("\r\n");
+
+		#if(DEBUG_CLI)
+		xprintf("\r\n%s: %d bytes read from %s to 0x%08X\r\n", "fat32", total_read, path, addr);
+		#endif
+			
+		if((ret = fat_file_close(&file)) != 0) {
+			xprintf("%s: failed to close %s, ret = %d (%s)\r\n",
+				"fat32", path, ret, fat_get_error(ret));
+			return;
+		}
+
+		return;
+	}
+
+	if(argv[1] && strnstr(argv[1], "save", 4)) { // save mem block to binary file 
+		char *addr = (char*) current_address;
+		int size = 512; 
+		char *path = "/mnt/dump.bin";
+
+		if(argv[2]) {
+			if(argv[2][0] != '*')
+				addr = (char*) strtoul(argv[2], NULL, 0);
+		}
+
+		if(argv[3])
+			size = strtoul(argv[3], NULL, 0);
+
+		if(argv[4])
+			path = argv[4];
+
+		#if(DEBUG_CLI)
+		xprintf("%s: saving %d bytes at 0x%08X to file %s\r\n", "fat32", size, addr, path);
+		#endif
+
+		File file;
+		int cnt;
+
+ 		if((ret = fat_file_open(&file, path, FAT_WRITE | FAT_CREATE | FAT_TRUNC)) != 0) {
+			xprintf("%s: failed to open %s for write, ret = %d (%s)\r\n",
+				"fat32", path, ret, fat_get_error(ret));
+			return;
+		}
+
+		char buf[512];
+		char *b = addr;
+		int total_written = 0;
+
+		while(total_written < size) {
+
+			int cnt_wr;
+
+			int cnt = size - total_written;
+
+			if(cnt > 512)
+				cnt = 512;
+
+			if((ret = fat_file_write(&file, b, cnt, &cnt_wr))) {
+				xprintf("%s: failed to write to %s, ret = %d (%s)\r\n",
+					"fat32", path, ret, fat_get_error(ret));
+				return;
+			}
+
+			total_written += cnt_wr;
+		
+			b += cnt_wr;
+
+			xprintf(".");
+
+			if(console_rx_buf_len)
+				break;
+		}
+
+		xprintf("\r\n");
+
+		#if(DEBUG_CLI)
+		xprintf("\r\n%s: %d bytes written from 0x%08X to %s\r\n", "fat32", total_written, addr, path);
 		#endif
 			
 		if((ret = fat_file_close(&file)) != 0) {

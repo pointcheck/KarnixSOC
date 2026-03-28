@@ -164,7 +164,9 @@ struct _command_list {
 			"	mkdir /mnt/dir		- Create directory '/mnt/dir'\r\n"
 			"	rm /mnt/path		- Remove file of directory '/mnt/path'\r\n"
 			"	cat /mnt/file		- Type ASCII file '/mnt/file'\r\n"
-			"	dump /mnt/file		- HEX dump file '/mnt/file'"
+			"	dump /mnt/file		- HEX dump file '/mnt/file'\r\n"
+			"	load addr /mnt/file	- Load binary '/mnt/file' to addr\r\n"
+			"	save addr size /mnt/file- Save mem block at addr to file '/mnt/file'"
 	},
 	{
 		.cmd = "rz",
