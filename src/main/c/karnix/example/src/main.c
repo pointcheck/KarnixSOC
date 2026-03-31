@@ -1,7 +1,7 @@
 /*
  * Simple program that can be stored in RAM/SRAM at any location.
  *
- * Copyright (C) 2024-2025 Fabmicro, LLC. Tyumen, Russia.
+ * Copyright (C) 2024-2026 Fabmicro, LLC. Tyumen, Russia.
  *
  * Written by Ruslan Zalata <rz@fabmicro.ru>
  *
