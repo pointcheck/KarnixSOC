@@ -14,7 +14,7 @@
 #include "cga.h"
 #include "utils.h"
 
-//#define	DEBUG_CLI		1		// 0 - off, 1 - few, 2 - more
+//#define	DEBUG_CLI		2		// 0 - off, 1 - few, 2 - more
 #define	ARGN_MAX		8		// Max number of arguments in cmd line
 #define	CRC32_POLYNOMIAL	0xEDB88320	// same as in "cksum -o 3"
 #define	OHEX_BYTES_PER_LINE	16		// num of bytes in IHEX line, should be power of 2
@@ -900,24 +900,42 @@ void cli_cmd_call(char *argv[], int argn) {
 		addr = (uint32_t*) strtoul(argv[1], NULL, 0);
 
 	#if(DEBUG_CLI)
-		xprintf("call: addr = %p, argn = %d\r\n", addr, argn-1);
+		xprintf("*** Monitor context: SP = %p, GP = %p, RA = %p\r\n",
+			(unsigned int)context.sp, (unsigned int)context.gp, (unsigned int)context.ra);
+		xprintf("*** Monitor context: _stack_start = %p, _bss_start = %p, "
+			"_bss_end = %p, _ram_heap_start = %p, _ram_heap_end = %p\r\n",
+			(unsigned int)& _stack_start, (unsigned int)& _bss_start,
+			(unsigned int)& _bss_end, (unsigned int)& _ram_heap_start, (unsigned int)& _ram_heap_end);
 	#endif
 
 	current_address = (uint32_t) addr; // remember last address used
 
 	uint32_t (*long_jump)(char *argv[], int arg) = (uint32_t (*)(char *argv[], int arg)) addr;
+	uint32_t rc;
+
+	context_save();
 
 	t0 = get_mtime();
 
-	uint32_t rc = long_jump(&(argv[1]), argn-1);
-
-	t1 = get_mtime();
+	rc = long_jump(&(argv[1]), argn-1);
 
 	// Anonymous function possibly messed up with our context,
 	// so restore context completely.
 	context_restore();
 
-	xprintf("call: ret = %p (%d), exec time = %lu millisecs\r\n", rc, rc, t1 - t0);
+	#if(DEBUG_CLI)
+		xprintf("*** Monitor context: SP = %p, GP = %p, RA = %p\r\n",
+			(unsigned int)context.sp, (unsigned int)context.gp, (unsigned int)context.ra);
+		xprintf("*** Monitor context: _stack_start = %p, _bss_start = %p, "
+			"_bss_end = %p, _ram_heap_start = %p, _ram_heap_end = %p\r\n",
+			(unsigned int)& _stack_start, (unsigned int)& _bss_start,
+			(unsigned int)& _bss_end, (unsigned int)& _ram_heap_start, (unsigned int)& _ram_heap_end);
+	#endif
+
+	t1 = get_mtime();
+
+	xprintf("call: ret = %p (%d), exec time = %lu usecs\r\n", rc, rc, (uint32_t)(t1 - t0));
+
 }
 
 void cli_cmd_ihex(char *argv[], int argn) {

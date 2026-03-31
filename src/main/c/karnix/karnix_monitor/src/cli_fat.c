@@ -329,6 +329,8 @@ void cli_cmd_fat32(char *argv[], int argn) {
 			return;
 		}
 
+		current_address = (uint32_t) addr; // remember last address used
+
 		return;
 	}
 
@@ -401,6 +403,8 @@ void cli_cmd_fat32(char *argv[], int argn) {
 				"fat32", path, ret, fat_get_error(ret));
 			return;
 		}
+
+		current_address = (uint32_t) addr; // remember last address used
 
 		return;
 	}

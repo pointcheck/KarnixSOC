@@ -38,9 +38,10 @@ void context_save(void);
 	asm volatile ("lw ra, (%0)" :  : "r"(&context.ra)); \
 	asm volatile ("lw gp, (%0)" :  : "r"(&context.gp)); \
 	asm volatile ("lw sp, (%0)" :  : "r"(&context.sp)); \
-	PLIC->ENABLE = context.plic_enable; \
 	PLIC->EDGE = context.plic_edge; \
 	PLIC->POLARITY = context.plic_polarity; \
+	PLIC->ENABLE = context.plic_enable; \
+	PLIC->PENDING = 0; \
 	csr_write(mtvec, &trap_entry); \
 	csr_set(mstatus, MSTATUS_MIE);
 
