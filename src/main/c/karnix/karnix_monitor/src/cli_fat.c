@@ -4,6 +4,7 @@
 #include "utils.h"
 #include "sdmmc.h"
 #include "fat.h"
+#include "elf.h"
 
 #define	DEBUG_CLI		1		// 0 - off, 1 - few, 2 - more
 #ifndef FAT32_DEFAULT_SDMMC_DEVICE
@@ -590,6 +591,147 @@ void cli_cmd_fat32(char *argv[], int argn) {
 		xprintf("\r\n%s: %d bytes dumped from %s\r\n", "fat32", dump_count, path);
 		#endif
 			
+		if((ret = fat_file_close(&file)) != 0) {
+			xprintf("%s: failed to close %s, ret = %d (%s)\r\n",
+				"fat32", path, ret, fat_get_error(ret));
+			return;
+		}
+
+		return;
+	}
+
+	if(argv[1] && strnstr(argv[1], "exec", 4)) { // execute binary ELF file
+		char *path = "";
+
+		if(argv[2]) {
+			path = argv[2];
+		} else {
+			xprintf("%s: provide ELF file name to execute\r\n", "fat32", path);
+			return;
+		}
+
+		#if(DEBUG_CLI)
+		xprintf("%s: executing file %s\r\n", "fat32", path);
+		#endif
+
+		File file;
+		int cnt;
+
+ 		if((ret = fat_file_open(&file, path, FAT_READ)) != 0) {
+			xprintf("%s: failed to open %s for read, ret = %d (%s)\r\n",
+				"fat32", path, ret, fat_get_error(ret));
+			return;
+		}
+
+
+		Elf32_Ehdr elf;
+
+		if((ret = fat_file_read(&file, (char*)&elf, sizeof(elf), &cnt)) != 0) {
+			xprintf("%s: failed to read from %s, ret = %d (%s)\r\n",
+				"fat32", path, ret, fat_get_error(ret));
+			return;
+		}
+
+		if(cnt != sizeof(elf)) {
+			xprintf("%s: partial to read from %s, %d != %d\r\n",
+				"fat32", path, cnt, sizeof(elf));
+			goto exec_end;
+		}
+
+		#if(DEBUG_CLI)
+		xprintf("%s: Magic: 0x%02X 0x%02X 0x%02X 0x%02X\r\n", "elf32",
+			elf.e_ident[EI_MAG0], elf.e_ident[EI_MAG1], elf.e_ident[EI_MAG2], elf.e_ident[EI_MAG3]);
+		xprintf("%s: Class: %s\r\n", "elf32", elf.e_ident[EI_CLASS] == 1 ? "32-bit" : "64-bit");
+		xprintf("%s: Data: %s endian\r\n", "elf32", elf.e_ident[EI_DATA] == 1 ? "little" : "big");
+		xprintf("%s: Version: %d\r\n", "elf32", elf.e_ident[EI_VERSION]);
+		xprintf("%s: OS/ABI: %d\r\n", "elf32", elf.e_ident[EI_OSABI]);
+		xprintf("%s: Obj type: %d\r\n", "elf32", elf.e_type);
+		xprintf("%s: ISA: %d\r\n", "elf32", elf.e_machine);
+		xprintf("%s: Entry point: 0x%08X\r\n", "elf32", elf.e_entry);
+		xprintf("%s: e_phoff: %d, e_shoff: %d, e_ehsize: %d, e_phentsize: %d\r\n", "elf32",
+			elf.e_phoff, elf.e_shoff, elf.e_ehsize, elf.e_phentsize);
+		#endif
+
+		if(*(uint32_t*)elf.e_ident != 0x464c457f) {
+			xprintf("%s: File is not en ELF!\r\n", "elf32");
+			goto exec_end;
+		}
+
+		if(elf.e_ident[EI_CLASS] != 1) {
+			xprintf("%s: ELF is not a 32-bit class!\r\n", "elf32");
+			goto exec_end;
+		}
+
+		if(elf.e_ident[EI_OSABI] != ELFOSABI_SYSV) {
+			xprintf("%s: OS/ABI is not SystemV!\r\n", "elf32");
+			goto exec_end;
+		}
+
+		if(elf.e_machine != EM_RISCV) {
+			xprintf("%s: Machine is not RISC-V!\r\n", "elf32");
+			goto exec_end;
+		}
+
+		// Seek to Program Header and load it into phbuf
+
+		char phbuf[512];
+
+		if((ret = fat_file_seek(&file, elf.e_phoff, SEEK_SET)) != 0) {
+			xprintf("%s: failed to seek to %d, ret = %d (%s)\r\n",
+				"elf32", elf.e_phoff, ret, fat_get_error(ret));
+			goto exec_end;
+		}
+		
+		if((ret = fat_file_read(&file, (char*)phbuf, elf.e_phnum * elf.e_phentsize, &cnt)) != 0) {
+			xprintf("%s: failed to read from %s, ret = %d (%s)\r\n",
+				"elf32", path, ret, fat_get_error(ret));
+			goto exec_end;
+		}
+
+		if(cnt != elf.e_phnum * elf.e_phentsize) { // less than one entry in program header ?
+			xprintf("%s: failed to read program header, %d != %d\r\n",
+				"elf32", cnt, elf.e_phnum * elf.e_phentsize);
+			goto exec_end;
+		}
+
+
+		
+		for(int sect = 0; sect < elf.e_phnum; sect++) {
+
+			Elf32_Phdr *progh = ((Elf32_Phdr *)phbuf)+sect;
+
+			xprintf("%s: PROG[%d]: p_type = %d, p_offset = %d, p_vaddr = 0x%08X,"
+				" p_paddr = 0x%08X, p_filesz = %d, p_memsz = %d, p_flags = 0x%08X\r\n",
+				"elf32", sect, progh->p_type, progh->p_offset, progh->p_vaddr,
+				progh->p_paddr, progh->p_filesz, progh->p_memsz, progh->p_flags);
+
+			if((ret = fat_file_seek(&file, progh->p_offset, SEEK_SET)) != 0) {
+				xprintf("%s: failed to seek to PROG[%d], offset = %d, ret = %d (%s)\r\n",
+					"elf32", sect, progh->p_offset, ret, fat_get_error(ret));
+				goto exec_end;
+			}
+		
+			if((ret = fat_file_read(&file, (char*)progh->p_vaddr, progh->p_filesz, &cnt)) != 0) {
+				xprintf("%s: failed to read PROG[%d] from %s, ret = %d (%s)\r\n",
+					"elf32", sect, path, ret, fat_get_error(ret));
+				goto exec_end;
+			}
+
+			if(cnt != progh->p_filesz) {
+				xprintf("%s: partial read of PROG[%d], %d != %d\r\n",
+					"elf32", sect, cnt, progh->p_filesz);
+				goto exec_end;
+			}
+		}
+
+		#if(DEBUG_CLI)
+		xprintf("%s: binary loaded OK\r\n", "elf32");
+		#endif
+
+		current_address = (uint32_t) elf.e_entry; // remember last address used
+
+		exec_end:
+
 		if((ret = fat_file_close(&file)) != 0) {
 			xprintf("%s: failed to close %s, ret = %d (%s)\r\n",
 				"fat32", path, ret, fat_get_error(ret));

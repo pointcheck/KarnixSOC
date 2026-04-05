@@ -167,7 +167,8 @@ struct _command_list {
 			"	cat /mnt/file		- Type ASCII file '/mnt/file'\r\n"
 			"	dump /mnt/file		- HEX dump file '/mnt/file'\r\n"
 			"	load addr /mnt/file	- Load binary '/mnt/file' to addr\r\n"
-			"	save addr size /mnt/file- Save mem block at addr to file '/mnt/file'"
+			"	save addr size /mnt/file- Save mem block at addr to file '/mnt/file'\r\n"
+			"	exec /mnt/file		- Load and execute ELF file '/mnt/file'"
 	},
 	{
 		.cmd = "rz",
