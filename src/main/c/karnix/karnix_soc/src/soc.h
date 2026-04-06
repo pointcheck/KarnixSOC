@@ -43,6 +43,23 @@
 #define	SYSTEM_CLOCK_HZ	60000000
 #define	MONITOR_ADDRESS	0xa00e0000	// Address of the Monitor entry point
 
+static struct {
+	unsigned int addr;
+	unsigned int size;
+} ram_regions[] = {
+	{ .addr = 0x80000000, .size = 72 * 1024 },
+	{ .addr = 0x90000000, .size = 512 * 1024 }
+};
+
+static int check_ram_regions(unsigned int addr, unsigned int size) {
+	for(int i = 0; i < sizeof(ram_regions) / sizeof(ram_regions[0]); i++) {
+		if(addr >= ram_regions[i].addr &&
+		  (addr + size) <= (ram_regions[i].addr + ram_regions[i].size))
+			return 0;
+	}
+	return -1;
+}
+
 static inline uint64_t get_mtime(void) {
 	return MTIME;
 }
