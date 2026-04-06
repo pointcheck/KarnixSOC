@@ -611,7 +611,7 @@ void cli_cmd_fat32(char *argv[], int argn) {
 		}
 
 		#if(DEBUG_CLI)
-		xprintf("%s: executing file %s\r\n", "fat32", path);
+		xprintf("%s: preparing for execution file %s\r\n", "fat32", path);
 		#endif
 
 		File file;
@@ -641,15 +641,17 @@ void cli_cmd_fat32(char *argv[], int argn) {
 		#if(DEBUG_CLI)
 		xprintf("%s: Magic: 0x%02X 0x%02X 0x%02X 0x%02X\r\n", "elf32",
 			elf.e_ident[EI_MAG0], elf.e_ident[EI_MAG1], elf.e_ident[EI_MAG2], elf.e_ident[EI_MAG3]);
-		xprintf("%s: Class: %s\r\n", "elf32", elf.e_ident[EI_CLASS] == 1 ? "32-bit" : "64-bit");
-		xprintf("%s: Data: %s endian\r\n", "elf32", elf.e_ident[EI_DATA] == 1 ? "little" : "big");
-		xprintf("%s: Version: %d\r\n", "elf32", elf.e_ident[EI_VERSION]);
-		xprintf("%s: OS/ABI: %d\r\n", "elf32", elf.e_ident[EI_OSABI]);
-		xprintf("%s: Obj type: %d\r\n", "elf32", elf.e_type);
-		xprintf("%s: ISA: %d\r\n", "elf32", elf.e_machine);
+		xprintf("%s: Class: %s, Endian: %s, Version: %d, OS/ABI: %d, ISA: 0x%02X, Obj: %d\r\n",
+			"elf32",
+			elf.e_ident[EI_CLASS] == 1 ? "32-bit" : "64-bit",
+			elf.e_ident[EI_DATA] == 1 ? "little" : "big",
+			elf.e_ident[EI_VERSION],
+			elf.e_ident[EI_OSABI],
+			elf.e_machine, elf.e_type
+			);
 		xprintf("%s: Entry point: 0x%08X\r\n", "elf32", elf.e_entry);
-		xprintf("%s: e_phoff: %d, e_shoff: %d, e_ehsize: %d, e_phentsize: %d\r\n", "elf32",
-			elf.e_phoff, elf.e_shoff, elf.e_ehsize, elf.e_phentsize);
+		xprintf("%s: Section header: e_shoff = %d, e_shentsize = %d, e_shnum = %d\r\n", "elf32",
+			elf.e_shoff, elf.e_shentsize, elf.e_shnum);
 		#endif
 
 		if(*(uint32_t*)elf.e_ident != 0x464c457f) {
@@ -672,55 +674,82 @@ void cli_cmd_fat32(char *argv[], int argn) {
 			goto exec_end;
 		}
 
-		// Seek to Program Header and load it into phbuf
+		// Seek to Section Header and load it into shbuf
 
-		char phbuf[512];
+		char *shbuf = malloc(elf.e_shnum * elf.e_shentsize);
 
-		if((ret = fat_file_seek(&file, elf.e_phoff, SEEK_SET)) != 0) {
-			xprintf("%s: failed to seek to %d, ret = %d (%s)\r\n",
-				"elf32", elf.e_phoff, ret, fat_get_error(ret));
+		if(shbuf == NULL) {
+			xprintf("%s: failed to malloc %d bytes\r\n",
+				"elf32", elf.e_shnum * elf.e_shentsize);
 			goto exec_end;
 		}
+
+		if((ret = fat_file_seek(&file, elf.e_shoff, SEEK_SET)) != 0) {
+			xprintf("%s: failed to seek to %d, ret = %d (%s)\r\n",
+				"elf32", elf.e_shoff, ret, fat_get_error(ret));
+			goto free_exec_end;
+		}
 		
-		if((ret = fat_file_read(&file, (char*)phbuf, elf.e_phnum * elf.e_phentsize, &cnt)) != 0) {
+		if((ret = fat_file_read(&file, (char*)shbuf, elf.e_shnum * elf.e_shentsize, &cnt)) != 0) {
 			xprintf("%s: failed to read from %s, ret = %d (%s)\r\n",
 				"elf32", path, ret, fat_get_error(ret));
-			goto exec_end;
+			goto free_exec_end;
 		}
 
-		if(cnt != elf.e_phnum * elf.e_phentsize) { // less than one entry in program header ?
-			xprintf("%s: failed to read program header, %d != %d\r\n",
-				"elf32", cnt, elf.e_phnum * elf.e_phentsize);
-			goto exec_end;
+		if(cnt != elf.e_shnum * elf.e_shentsize) { // less than one entry in section header ?
+			xprintf("%s: failed to read section header, %d != %d\r\n",
+				"elf32", cnt, elf.e_shnum * elf.e_shentsize);
+			goto free_exec_end;
 		}
 
-
 		
-		for(int sect = 0; sect < elf.e_phnum; sect++) {
+		// Iterate through sections, load prog and data, zero BSS and stack. 
 
-			Elf32_Phdr *progh = ((Elf32_Phdr *)phbuf)+sect;
+		xprintf("%s: SECT:      Type:    Offset:      Addr:      Size:     Flags:  Action:\r\n", "elf32");
 
-			xprintf("%s: PROG[%d]: p_type = %d, p_offset = %d, p_vaddr = 0x%08X,"
-				" p_paddr = 0x%08X, p_filesz = %d, p_memsz = %d, p_flags = 0x%08X\r\n",
-				"elf32", sect, progh->p_type, progh->p_offset, progh->p_vaddr,
-				progh->p_paddr, progh->p_filesz, progh->p_memsz, progh->p_flags);
+		for(int sect = 0; sect < elf.e_shnum; sect++) {
 
-			if((ret = fat_file_seek(&file, progh->p_offset, SEEK_SET)) != 0) {
-				xprintf("%s: failed to seek to PROG[%d], offset = %d, ret = %d (%s)\r\n",
-					"elf32", sect, progh->p_offset, ret, fat_get_error(ret));
-				goto exec_end;
-			}
+			Elf32_Shdr *secth = ((Elf32_Shdr *)shbuf)+sect;
+
+			xprintf("%s:  %02d   0x%08X 0x%08X 0x%08X 0x%08X 0x%08X ",
+				"elf32", sect, secth->sh_type, secth->sh_offset, secth->sh_addr,
+				secth->sh_size, secth->sh_flags);
+
+			if(secth->sh_type == SHT_PROGBITS && secth->sh_addr != 0 && secth->sh_size != 0) {
+
+				if(check_ram_regions(secth->sh_addr, secth->sh_size) != 0) {
+					xprintf("Failed!\r\n");
+					xprintf("%s: Section %d cannot be loaded into available RAM!\r\n",
+						"elf32", sect);
+					goto free_exec_end;
+				}
+
+				xprintf("Loading\r\n");
+
+				if((ret = fat_file_seek(&file, secth->sh_offset, SEEK_SET)) != 0) {
+					xprintf("%s: failed to seek to SECT[%d], offset = %d, ret = %d (%s)\r\n",
+						"elf32", sect, secth->sh_offset, ret, fat_get_error(ret));
+					goto free_exec_end;
+				}
 		
-			if((ret = fat_file_read(&file, (char*)progh->p_vaddr, progh->p_filesz, &cnt)) != 0) {
-				xprintf("%s: failed to read PROG[%d] from %s, ret = %d (%s)\r\n",
-					"elf32", sect, path, ret, fat_get_error(ret));
-				goto exec_end;
-			}
+				if((ret = fat_file_read(&file, (char*)secth->sh_addr, secth->sh_size, &cnt)) != 0) {
+					xprintf("%s: failed to read SECT[%d] from %s, ret = %d (%s)\r\n",
+						"elf32", sect, path, ret, fat_get_error(ret));
+					goto free_exec_end;
+				}
 
-			if(cnt != progh->p_filesz) {
-				xprintf("%s: partial read of PROG[%d], %d != %d\r\n",
-					"elf32", sect, cnt, progh->p_filesz);
-				goto exec_end;
+				if(cnt != secth->sh_size) {
+					xprintf("%s: partial read of SECT[%d], %d != %d\r\n",
+						"elf32", sect, cnt, secth->sh_size);
+					goto free_exec_end;
+				}
+
+
+			} else if(secth->sh_type == SHT_NOBITS && secth->sh_addr != 0 && secth->sh_size != 0) {
+				xprintf("Zeroing\r\n");
+				memset((void*)secth->sh_addr, secth->sh_size, 0);
+			} else {
+				xprintf("Skipping\r\n");
 			}
 		}
 
@@ -730,13 +759,17 @@ void cli_cmd_fat32(char *argv[], int argn) {
 
 		current_address = (uint32_t) elf.e_entry; // remember last address used
 
+		free_exec_end:
+
+			free(shbuf);
+
 		exec_end:
 
-		if((ret = fat_file_close(&file)) != 0) {
-			xprintf("%s: failed to close %s, ret = %d (%s)\r\n",
-				"fat32", path, ret, fat_get_error(ret));
-			return;
-		}
+			if((ret = fat_file_close(&file)) != 0) {
+				xprintf("%s: failed to close %s, ret = %d (%s)\r\n",
+					"fat32", path, ret, fat_get_error(ret));
+				return;
+			}
 
 		return;
 	}
