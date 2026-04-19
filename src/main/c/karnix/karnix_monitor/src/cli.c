@@ -40,6 +40,7 @@ void cli_cmd_reg();
 void cli_cmd_nor();
 void cli_cmd_sdmmc();
 void cli_cmd_fat32();
+void cli_cmd_env();
 void cli_cmd_help();
 
 const char* months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
@@ -187,6 +188,15 @@ struct _command_list {
 			"	erase <addr> <len>	- Erase sectors beginning 'addr', ending 'addr+len'.\r\n"
 			"	cp <addr1> <addr2> <len>- Copy 'len' bytes of data from memory 'addr2'\r\n"
 			"				  to NOR flash at 'addr1'"
+	},
+	{
+		.cmd = "env",
+		.func = cli_cmd_env,
+		.help = "env	[print|set|unset|erase]	- Environment variables operations:\r\n"
+			"	print [var]		- Print 'var' current value\r\n"
+			"	set [var] [val]		- Set 'var' value to 'val'\r\n"
+			"	unset var		- Unset (remove) 'var'\r\n"
+			"	erase			- Erase all variables"
 	}
 };
 
@@ -285,28 +295,28 @@ void cli_cmd_nor_erase(char *argv[], int argn) {
 
 	#if(DEBUG_CLI)
 		xprintf("nor erase: addr = %p, len = %u\r\n", addr, len);
+		xprintf("nor erase: ");
 	#endif
 
 	current_address = (uint32_t) addr; // remember last address used
 
-        uint32_t t0 = get_mtime();
+	uint32_t t0 = get_mtime();
 	uint32_t i;
 
 	for(i = 0; i < len; i += 4096) {
-		xprintf("%p\r", (addr + i));
+		xprintf("%p ", (addr + i));
 		fflush(stdout);
 
-                qspi_erase_sector((uint32_t)(addr+i));
-
-                while(qspi_get_status() & QSPI_DEVICE_STATUS_BUSY);
+		qspi_erase_sector((uint32_t)(addr+i));
+		while(qspi_get_status() & QSPI_DEVICE_STATUS_BUSY);
 
 		if(console_rx_buf_len)
 			break;
 	}
 
-        uint32_t t1= get_mtime();
+	uint32_t t1= get_mtime();
 
-        xprintf("\r\nnor erase: complete %u bytes in %u uS, status = %p\r\n", i, t1-t0, qspi_get_status());
+	xprintf("\r\nnor erase: complete %u bytes in %u uS, status = %p\r\n", i, t1-t0, qspi_get_status());
 }
 
 
@@ -335,7 +345,7 @@ void cli_cmd_nor_copy(char *argv[], int argn) {
 
 	current_address = (uint32_t) addr1; // remember last address used
 
-        uint32_t t0 = get_mtime();
+	uint32_t t0 = get_mtime();
 	uint32_t i;
 
 	for(i = 0; i < len/4; i ++) {
@@ -343,15 +353,15 @@ void cli_cmd_nor_copy(char *argv[], int argn) {
 
 		*(addr1++) = *(addr2++);
 
-                while(qspi_get_status() & QSPI_DEVICE_STATUS_BUSY);
+		while(qspi_get_status() & QSPI_DEVICE_STATUS_BUSY);
 
 		if(console_rx_buf_len)
 			break;
 	}
 
-        uint32_t t1 = get_mtime();
+	uint32_t t1 = get_mtime();
 
-        xprintf("\r\nnor copy: complete %d bytes in %u uS, status = 0x%02x\r\n", i*4, t1-t0, qspi_get_status());
+	xprintf("\r\nnor copy: complete %d bytes in %u uS, status = 0x%02x\r\n", i*4, t1-t0, qspi_get_status());
 }
 
 
@@ -377,7 +387,7 @@ void cli_cmd_read_byte(char *argv[], int argn) {
 	while(count < len) {
 		xprintf("rb[%p]:	", addr);
 		for(int i = 0; i < 16 && count++ < len; i++)
-		       xprintf("0x%02x ", *addr++);	
+			xprintf("0x%02x ", *addr++);	
 		xprintf("\r\n");
 
 		if(console_rx_buf_len)
@@ -407,7 +417,7 @@ void cli_cmd_read_dword(char *argv[], int argn) {
 	while(count < len) {
 		xprintf("rd[%p]:	", addr);
 		for(int i = 0; i < 4 && count++ < len; i++)
-		       xprintf("0x%08x ", *addr++);	
+			xprintf("0x%08x ", *addr++);	
 		xprintf("\r\n");
 
 		if(console_rx_buf_len)
@@ -465,8 +475,8 @@ void cli_cmd_dump(char *argv[], int argn) {
 		str[0] = 0;
 
 		for(int i = 0; i < 16 && count++ < len; i++) {
-		       sprintf(str+i, "%c", ((*addr > 0x20) && (*addr < 0x7f)) ? *addr : '.');
-		       xprintf("%02X ", *addr++);
+			sprintf(str+i, "%c", ((*addr > 0x20) && (*addr < 0x7f)) ? *addr : '.');
+			xprintf("%02X ", *addr++);
 		}
 
 		xprintf("| %s\r\n", str);
@@ -562,7 +572,7 @@ void cli_cmd_sdmmc(char *argv[], int argn) {
 		return;
 	}
 
-	if(argv[1] && strnstr(argv[1], "inf", 3)) { // info 
+	if(argv[1] && strnstr(argv[1], "inf", 3)) { // info
 
 		uint8_t* cid = sdmmc_cards[dev].cid_data;
 
@@ -594,7 +604,7 @@ void cli_cmd_sdmmc(char *argv[], int argn) {
 		return;
 	}
 
-	if(argv[1] && strnstr(argv[1], "rea", 3)) { // read 
+	if(argv[1] && strnstr(argv[1], "rea", 3)) { // read
 
 		int block = 0;
 		int addr = current_address;
@@ -615,11 +625,11 @@ void cli_cmd_sdmmc(char *argv[], int argn) {
 		);
 		#endif
 
-        	uint32_t t0 = get_mtime();
+		uint32_t t0 = get_mtime();
 
-		int ret = sdmmc_read_block(dev, block, count, (uint8_t*) addr); 
+		int ret = sdmmc_read_block(dev, block, count, (uint8_t*) addr);
 
-        	uint32_t dt = (get_mtime() - t0);
+		uint32_t dt = (get_mtime() - t0);
 		uint32_t cps = 512 * count / (dt / 1024);
 
 		xprintf("%s: read ret = %d, time = %d us, cps = %d KB/s\r\n", "sdmmc", ret, dt, cps);
@@ -629,7 +639,7 @@ void cli_cmd_sdmmc(char *argv[], int argn) {
 		return;
 	}
 
-	if(argv[1] && strnstr(argv[1], "wri", 3)) { // write 
+	if(argv[1] && strnstr(argv[1], "wri", 3)) { // write
 
 		int block = 0;
 		int addr = current_address;
@@ -650,11 +660,11 @@ void cli_cmd_sdmmc(char *argv[], int argn) {
 		);
 		#endif
 
-        	uint32_t t0 = get_mtime();
+		uint32_t t0 = get_mtime();
 
-		int ret = sdmmc_write_block(dev, block, count, (uint8_t*) addr); 
+		int ret = sdmmc_write_block(dev, block, count, (uint8_t*) addr);
 
-        	uint32_t dt = (get_mtime() - t0);
+		uint32_t dt = (get_mtime() - t0);
 		uint32_t cps = 512 * count / (dt / 1024);
 
 		xprintf("%s: write ret = %d, time = %d us, cps = %d KB/s\r\n", "sdmmc", ret, dt, cps);
@@ -664,7 +674,7 @@ void cli_cmd_sdmmc(char *argv[], int argn) {
 		return;
 	}
 
-	if(argv[1] && strnstr(argv[1], "tes", 3)) { // test read/write 
+	if(argv[1] && strnstr(argv[1], "tes", 3)) { // test read/write
 
 		int block = 0;
 		int addr = current_address;
@@ -685,7 +695,7 @@ void cli_cmd_sdmmc(char *argv[], int argn) {
 		);
 		#endif
 
-        	uint32_t t0 = get_mtime();
+		uint32_t t0 = get_mtime();
 		uint32_t errs = 0;
 		int i;
 
@@ -720,7 +730,7 @@ void cli_cmd_sdmmc(char *argv[], int argn) {
 				break;
 		}
 
-        	uint32_t dt = (get_mtime() - t0);
+		uint32_t dt = (get_mtime() - t0);
 
 		xprintf("%s: tests %d made, errors = %d, time = %d us\r\n", "sdmmc", i, errs, dt);
 
@@ -729,7 +739,7 @@ void cli_cmd_sdmmc(char *argv[], int argn) {
 		return;
 	}
 
-	if(argv[1] && strnstr(argv[1], "wp", 2)) { // Set/Get write-protected sector number 
+	if(argv[1] && strnstr(argv[1], "wp", 2)) { // Set/Get write-protected sector number
 
 		if(argv[2])
 			sdmmc_write_protected_sectors = strtoul(argv[2], NULL, 0);
@@ -1013,10 +1023,10 @@ void cli_cmd_ihex(char *argv[], int argn) {
 
 			uint8_t sum = 0;
 
-			for(int i = 0; i < len - 2; i += 2) 
+			for(int i = 0; i < len - 2; i += 2)
 				sum += strntoul(str+i, 2, 16);
 
-			sum = ~sum + 1; 
+			sum = ~sum + 1;
 
 			uint8_t his_sum = (uint8_t) strntoul(str+8+data_size*2, 2, 16);
 
@@ -1036,7 +1046,7 @@ void cli_cmd_ihex(char *argv[], int argn) {
 			// (in the example at addresses beginning at 0010) and the data
 			// ex: 0B0010006164647265737320676170A7
 			if(type == 0) {
-				for(int i = 0; i < data_size; i ++) 
+				for(int i = 0; i < data_size; i ++)
 					*(addr + base + offset + i) = strntoul(str+(i*2)+8, 2, 16);
 
 				crc = crc32((const void*)(addr + base), data_size, crc, CRC32_POLYNOMIAL);
@@ -1056,7 +1066,7 @@ void cli_cmd_ihex(char *argv[], int argn) {
 			// In the case of CPUs that support it, this 32-bit address is the address
 			// at which execution should start.
 			if(type == 5)
-				start32 = strntoul(str+8, 8, 16); 
+				start32 = strntoul(str+8, 8, 16);
 
 			// Extended Linear Address
 			// Allows for 32 bit addressing (up to 4 GiB). The byte count is always 02 and the address field
@@ -1065,10 +1075,10 @@ void cli_cmd_ihex(char *argv[], int argn) {
 			// apply until the next 04 record. The absolute address for a type 00 record is formed
 			// by combining the upper 16 address bits of the most recent 04 record with the low 16 address
 			// bits of the 00 record. If a type 00 record is not preceded by any type 04 records then its upper
-			// 16 address bits default to 0000. 
+			// 16 address bits default to 0000.
 			if(type == 4) {
 				uint32_t tmp = strntoul(str+8, 4, 16) << 16;
-			       	if(origin == 0)
+				if(origin == 0)
 					origin = tmp;
 				base = tmp - origin;
 			}
@@ -1127,7 +1137,7 @@ void cli_cmd_ohex(char *argv[], int argn) {
 	current_address = (uint32_t) addr; // remember last address used
 
 	while(offset < len) {
-		uint8_t hex_len = (offset + OHEX_BYTES_PER_LINE <= len) ? 
+		uint8_t hex_len = (offset + OHEX_BYTES_PER_LINE <= len) ?
 			OHEX_BYTES_PER_LINE  : (len - offset) % OHEX_BYTES_PER_LINE;
 		xprintf(":%02X%04X%02X", hex_len, offset & 0xffff, 0x0);
 		uint8_t sum = hex_len + ((offset>>8)&0xff)+(offset&0xff)+0;
@@ -1151,7 +1161,7 @@ void cli_cmd_ohex(char *argv[], int argn) {
 
 	if(offset == len) // Successful end ?
 		xprintf(":04000005%08X%02X\r\n"
-		       ":00000001FF\r\n", start32,
+			":00000001FF\r\n", start32,
 		       (~(4+0+0+5+((start32>>24)&0xff)+((start32>>16)&0xff)+((start32>>8)&0xff)+(start32&0xff)) + 1) & 0xff);
 
 	xprintf("ohex: end\r\n%c", 0x4); // send End-of-Transmission (Ctrl-D) in the end
@@ -1249,7 +1259,7 @@ void cli_process_command(uint8_t *cmdline, uint32_t len) {
 void cli_process_input(uint8_t *buf, uint32_t len) {
 
 	if(len == 0 || buf == NULL)
-	       return;
+		return;
 
 	static int esc_flag = 0;
 
@@ -1324,8 +1334,8 @@ void cli_process_input(uint8_t *buf, uint32_t len) {
 			}
 
 			case 0x0C: { // Ctrl-L
-				xprintf("\033[2J"); // erase entire screen 
-				xprintf("\033[H"); // cursor to home position 
+				xprintf("\033[2J"); // erase entire screen
+				xprintf("\033[H"); // cursor to home position
 				cli_buf_len = 0;
 				break;
 			}
@@ -1359,7 +1369,7 @@ void console_poll(void) {
 
 	uint8_t rx_buf[CONSOLE_RX_BUF_SIZE];
 
-	// Critical section: accessed data used by ISR 
+	// Critical section: accessed data used by ISR
 
 	csr_clear(mstatus, MSTATUS_MIE); // Disable Machine interrupts
 
