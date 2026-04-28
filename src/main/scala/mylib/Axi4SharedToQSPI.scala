@@ -161,7 +161,7 @@ case class QSPISendCMD_SPI(qspiLayout : QSPILayout) extends Component {
     val ready = out Bool()
     val data = in UInt(32 bits) 
     val len_cycles = in UInt(5 bits) // in 1-bit cycles (clocks)
-    val m_bits = in UInt(3 bits) // number of dummy bycles 
+    val m_bits = in UInt(3 bits) // number of dummy cycles 
     val m_bits_present = in Bool() // whether we have to send dummy bits
   }
 
@@ -195,8 +195,8 @@ case class QSPISendCMD_SPI(qspiLayout : QSPILayout) extends Component {
           when(io.m_bits_present) {
             phase := SEND_M 
           } otherwise {
-            ready := True 
-            phase := IDLE 
+            ready := True
+            phase := IDLE
           }
         }
       }
@@ -206,8 +206,8 @@ case class QSPISendCMD_SPI(qspiLayout : QSPILayout) extends Component {
         cur_cycle := cur_cycle - 1
         // io.qspi.io0-3 are now inputs
         when(cur_cycle === 0) {
-          ready := True 
-          phase := IDLE 
+          ready := True
+          phase := IDLE
         }
       }
     }
@@ -256,8 +256,8 @@ object Axi4ToQSPIPhase extends SpinalEnum{
   val INIT1, INIT2, INIT3, INIT4, SETUP,
       SPI_CMD_PROGRAM_WEL, SPI_CMD_PROGRAM, SPI_PROGRAM, SPI_PROGRAM_RESPONSE,
       SPI_CMD_READ, QPI_CMD_READ, QPI_CMD_READ_SETUP, QPI_READ, QPI_READ_REPEAT, QPI_READ_RESPONSE,
-      SPI_CMD_ERASE4K, SPI_CMD_ERASE4K_WEL,
-      SPI_CMD_STATUS, SPI_CMD_READ_STATUS, SPI_CMD_READ_STATUS_RESPONSE
+      SPI_CMD_ERASE4K, SPI_CMD_ERASE4K_WEL, SPI_CMD_ERASE4K_WAIT, SPI_CMD_ERASE4K_WAIT2, SPI_CMD_ERASE4K_WAIT_READ_STATUS,
+      SPI_CMD_ERASE4K_WAIT_RESPONSE, SPI_CMD_STATUS, SPI_CMD_READ_STATUS, SPI_CMD_READ_STATUS_RESPONSE
       = newElement()
 }
 
@@ -394,7 +394,7 @@ case class Axi4SharedToQSPI(addressAxiWidth: Int, dataWidth: Int, idWidth: Int, 
         when(!spi_send.io.ready) {
           spi_send.io.qspi <> io.qspi
           spi_send.io.data := 0x38 // Switch to QPI mode 
-          spi_send.io.len_bits := 8 - 1 
+          spi_send.io.len_bits := 8 - 1
           spi_send.io.valid := True
         } otherwise {
           phase := SETUP
@@ -435,9 +435,9 @@ case class Axi4SharedToQSPI(addressAxiWidth: Int, dataWidth: Int, idWidth: Int, 
       }
       is(SPI_CMD_READ_STATUS){
         when(!spi_send.io.ready) {
-          spi_send.io.valid := True 
+          spi_send.io.valid := True
           spi_send.io.qspi <> io.qspi
-          spi_send.io.len_bits := 8 - 1 
+          spi_send.io.len_bits := 8 - 1
         } otherwise {
           phase := SPI_CMD_READ_STATUS_RESPONSE
         }
@@ -445,7 +445,7 @@ case class Axi4SharedToQSPI(addressAxiWidth: Int, dataWidth: Int, idWidth: Int, 
       is(SPI_CMD_READ_STATUS_RESPONSE){
         phase := SETUP
         qspiCtrlProgress := False
-        qspiCtrlCMDStatus := False 
+        qspiCtrlCMDStatus := False
         qspiCtrlStatus := spi_send.io.data_in(7 downto 0)
       }
       is(SPI_CMD_PROGRAM_WEL){
@@ -475,14 +475,14 @@ case class Axi4SharedToQSPI(addressAxiWidth: Int, dataWidth: Int, idWidth: Int, 
         spi_send.io.data(15 downto 8) := io.axi.w.data(23 downto 16).asUInt
         spi_send.io.data(7 downto 0) := io.axi.w.data(31 downto 24).asUInt
         when(!spi_send.io.ready) {
-          spi_send.io.valid := True 
+          spi_send.io.valid := True
         } otherwise {
           io.axi.w.ready := True 
           arw.addr := Axi4.incr(arw.addr, arw.burst, arw.len, arw.size, 4)
           when(io.axi.w.last || arw.len === 0){
             phase := SPI_PROGRAM_RESPONSE
           } otherwise {
-            spi_send.io.valid := True 
+            spi_send.io.valid := True
           }
         }
       }
@@ -496,25 +496,57 @@ case class Axi4SharedToQSPI(addressAxiWidth: Int, dataWidth: Int, idWidth: Int, 
       }
       is(SPI_CMD_ERASE4K_WEL){
         when(!spi_cmd.io.ready) {
-          spi_cmd.io.qspi <> io.qspi
-          spi_cmd.io.data := U(0x06)
-          spi_cmd.io.len_cycles := 8 - 1 // 8 bits holding cmd
           spi_cmd.io.valid := True 
+          spi_cmd.io.qspi <> io.qspi
+          spi_cmd.io.data := U(0x06) // Send "Write Enable" command
+          spi_cmd.io.len_cycles := 8 - 1 // 8 bits holding cmd
         } otherwise {
           phase := SPI_CMD_ERASE4K // Go to Erase 4K block cycle
         }
       }
       is(SPI_CMD_ERASE4K){
-        when(!spi_cmd.io.ready) {
-          spi_cmd.io.qspi <> io.qspi
-          spi_cmd.io.data := (U(0x20).resize(8) ## qspiEraseSector(23 downto 0)).asUInt // Send "Sector Erase" 
-          spi_cmd.io.len_cycles := 32 - 1 // 32 bits holding cmd and sector address
-          spi_cmd.io.valid := True 
+        spi_cmd.io.valid := True
+        spi_cmd.io.qspi <> io.qspi
+        spi_cmd.io.data := (U(0x20).resize(8) ## qspiEraseSector(23 downto 0)).asUInt // Send "Sector Erase" 
+        //spi_cmd.io.data := (U(0x52).resize(8) ## qspiEraseSector(23 downto 0)).asUInt // Send "32K Block Erase" 
+        //spi_cmd.io.data := (U(0xd8).resize(8) ## qspiEraseSector(23 downto 0)).asUInt // Send "64K Block Erase" 
+        spi_cmd.io.len_cycles := 32 - 1 // 32 bits holding cmd and sector address
+        when(spi_cmd.io.ready) {
+          spi_cmd.io.valid := False 
+          phase := SPI_CMD_ERASE4K_WAIT // Wait for Erase 4K to complete
+        }
+      }
+      is(SPI_CMD_ERASE4K_WAIT){
+          phase := SPI_CMD_ERASE4K_WAIT2 // Wait for Erase 4K to complete (one more cycle)
+      }
+      is(SPI_CMD_ERASE4K_WAIT2){
+        spi_cmd.io.valid := True
+        spi_cmd.io.qspi <> io.qspi
+        spi_cmd.io.data := U(0x05) // Send CMD to read 1-st status byte
+        spi_cmd.io.len_cycles := 8 - 1 // 8 bits holding cmd
+        when(spi_cmd.io.ready) {
+          phase := SPI_CMD_ERASE4K_WAIT_READ_STATUS
+        } 
+      }
+      is(SPI_CMD_ERASE4K_WAIT_READ_STATUS){
+        when(!spi_send.io.ready) {
+          spi_send.io.valid := True
+          spi_send.io.qspi <> io.qspi
+          spi_send.io.len_bits := 8 - 1
         } otherwise {
+          phase := SPI_CMD_ERASE4K_WAIT_RESPONSE
+        }
+      }
+      is(SPI_CMD_ERASE4K_WAIT_RESPONSE){
+	when(spi_send.io.data_in(0)) { // Exit when Busy flag is cleared!
+          phase := SPI_CMD_ERASE4K_WAIT
+	} otherwise {
           phase := SETUP
           qspiCtrlProgress := False
-          qspiCtrlCMDErase := False 
+          qspiCtrlCMDStatus := False
+          qspiCtrlCMDErase := False
           qspiCtrlWriteEnabled := False
+          qspiCtrlStatus := spi_send.io.data_in(7 downto 0)
         }
       }
       is (QPI_CMD_READ_SETUP){
