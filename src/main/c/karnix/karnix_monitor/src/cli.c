@@ -185,9 +185,10 @@ struct _command_list {
 		.cmd = "nor",
 		.func = cli_cmd_nor,
 		.help = "nor	[?|erase|cp]		- NOR flash operations:\r\n"
-			"	erase <addr> <len>	- Erase sectors beginning 'addr', ending 'addr+len'.\r\n"
+			"	erase <addr> <len>	- Erase sectors beginning 'addr', ending 'addr+len'\r\n"
 			"	cp <addr1> <addr2> <len>- Copy 'len' bytes of data from memory 'addr2'\r\n"
-			"				  to NOR flash at 'addr1'"
+			"				  to NOR flash at 'addr1'\r\n"
+			"	stat			- Print CtrlAndStatus register"
 	},
 	{
 		.cmd = "env",
@@ -278,6 +279,11 @@ void cli_cmd_help(char *argv[], int argn) {
 }
 
 
+void cli_cmd_nor_status(char *argv[], int argn) {
+	xprintf("nor status: CTRL = 0x%08x\r\n", QSPI->CTRL);
+}
+
+
 void cli_cmd_nor_erase(char *argv[], int argn) {
 	uint8_t *addr = (uint8_t*) current_address;
 	int len = 1;
@@ -308,7 +314,10 @@ void cli_cmd_nor_erase(char *argv[], int argn) {
 		fflush(stdout);
 
 		qspi_erase_sector((uint32_t)(addr+i));
-		while(qspi_get_status() & QSPI_DEVICE_STATUS_BUSY);
+		if(!qspi_wait_progress(100000)) {
+			xprintf("nor erase: timeout!");
+			break;
+		}
 
 		if(console_rx_buf_len)
 			break;
@@ -316,7 +325,7 @@ void cli_cmd_nor_erase(char *argv[], int argn) {
 
 	uint32_t t1= get_mtime();
 
-	xprintf("\r\nnor erase: complete %u bytes in %u uS, status = %p\r\n", i, t1-t0, qspi_get_status());
+	xprintf("\r\nnor erase: complete %u bytes in %u uS, status = 0x%08x\r\n", i, t1-t0, QSPI->CTRL);
 }
 
 
@@ -1185,15 +1194,13 @@ void cli_cmd_usb(char *argv[], int argn) {
 
 
 void cli_cmd_nor(char *argv[], int argn) {
-	if(argn < 4) {
-		show_help(argv, argn);
-		return;
-	}
 
 	if(argv[1][0] == 'e' && argv[1][1] == 'r')
 		cli_cmd_nor_erase(argv, argn);
 	else if(argv[1][0] == 'c' && argv[1][1] == 'p')
 		cli_cmd_nor_copy(argv, argn);
+	else if(argv[1][0] == 's' && argv[1][1] == 't')
+		cli_cmd_nor_status(argv, argn);
 	else
 		show_help(argv, argn);
 }

@@ -28,21 +28,7 @@ typedef struct
 /* Erase one 4K sector. sector is linear byte address within the sector to be erased */
 inline static void qspi_erase_sector(uint32_t sector) {
 	QSPI->ERASE_SECTOR = sector;
-	QSPI->CTRL |= QSPI_CTRL_WE | QSPI_CTRL_CMD_ERASE;
-}
-
-
-/* Wait while QSPI CMD is being sent to device */
-inline static void qspi_wait_progress(void) {
-	while(QSPI->CTRL & QSPI_CTRL_PROGRESS);
-}
-
-/* Request device Status Req 1 by sending Status CMD */ 
-static uint8_t qspi_get_status(void) {
-	qspi_wait_progress();
-	QSPI->CTRL |= QSPI_CTRL_CMD_STATUS;
-	qspi_wait_progress();
-	return QSPI->CTRL & QSPI_CTRL_STATUS_M;
+	QSPI->CTRL = QSPI_CTRL_WE | QSPI_CTRL_CMD_ERASE;
 }
 
 inline static void qspi_write_enable(void) {
@@ -51,6 +37,20 @@ inline static void qspi_write_enable(void) {
 
 inline static void qspi_write_disable(void) {
 	QSPI->CTRL &= ~QSPI_CTRL_WE;
+}
+
+/* Wait while QSPI CMD is being sent to device */
+static int qspi_wait_progress(int timeout) {
+	while((QSPI->CTRL & QSPI_CTRL_PROGRESS) && timeout--);
+	return timeout;
+}
+
+/* Request device Status Req 1 by sending Status CMD */ 
+static uint8_t qspi_get_status(void) {
+	qspi_wait_progress(100000);
+	QSPI->CTRL |= QSPI_CTRL_CMD_STATUS;
+	qspi_wait_progress(100000);
+	return QSPI->CTRL & QSPI_CTRL_STATUS_M;
 }
 
 #endif // __QSPI_H__
